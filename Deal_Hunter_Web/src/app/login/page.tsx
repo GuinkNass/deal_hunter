@@ -125,9 +125,16 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
+        const emailRedirectTo = typeof window !== 'undefined'
+          ? `${window.location.origin}/login`
+          : undefined;
+
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
+          options: {
+            emailRedirectTo,
+          },
         });
         if (error) throw error;
         if (data.session) {
