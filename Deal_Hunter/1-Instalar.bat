@@ -23,12 +23,17 @@ if errorlevel 1 (
 )
 node -v
 
-if not exist "server\data" mkdir "server\data"
-if not exist "server\.env" copy "server\.env.example" "server\.env" >nul
+set "SERVER_DIR="
+if exist "Servidor\package.json" set "SERVER_DIR=Servidor"
+if exist "server\package.json" set "SERVER_DIR=server"
+if "%SERVER_DIR%"=="" set "SERVER_DIR=Servidor"
+
+if not exist "%SERVER_DIR%\data" mkdir "%SERVER_DIR%\data"
+if not exist "%SERVER_DIR%\.env" copy "%SERVER_DIR%\.env.example" "%SERVER_DIR%\.env" >nul
 
 echo Instalando dependencias do backend local...
-pushd server
-call npm ci
+pushd %SERVER_DIR%
+call npm install
 set INSTALL_RESULT=%errorlevel%
 popd
 if not "%INSTALL_RESULT%"=="0" (
