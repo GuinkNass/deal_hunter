@@ -39,16 +39,27 @@
     "*://*.eletroclub.com.br/*",
     "*://eletroclub.com.br/*"
   ],
-  "content_scripts": [{
-    "matches": [
-      "*://*.amazon.com.br/*",
-      "*://*.magazineluiza.com.br/*",
-      "*://*.eletroclub.com.br/*",
-      "*://eletroclub.com.br/*"
-    ],
-    "js": ["content/content.js"],
-    "run_at": "document_idle"
-  }],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.amazon.com.br/*",
+        "*://*.magazineluiza.com.br/*",
+        "*://*.eletroclub.com.br/*",
+        "*://eletroclub.com.br/*"
+      ],
+      "js": ["content/content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*.vercel.app/*",
+        "http://localhost:3000/*",
+        "http://127.0.0.1:3000/*"
+      ],
+      "js": ["content/auth-sync.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "web_accessible_resources": [{
     "resources": ["sidepanel/assets/alert.gif"],
     "matches": [

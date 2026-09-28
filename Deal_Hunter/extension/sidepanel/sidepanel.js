@@ -281,7 +281,7 @@ function updateLicenseUI(license) {
     if (scanButton && !document.body.classList.contains('is-scanning')) {
       scanButton.disabled = false;
     }
-  } else if (license?.authorized && license?.subscription_status === 'active') {
+  } else if (license?.authorized) {
     badge.classList.add('license-active');
     badge.innerHTML = '✅ Pro Ativo';
     badge.title = `Plano Pro Ativo (${license.email || ''})`;
@@ -326,12 +326,15 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 document.getElementById('gate-login-btn')?.addEventListener('click', async () => {
   const url = await getWebAuthUrl();
-  chrome.tabs.create({ url: `${url}/login` });
+  chrome.tabs.create({ url: `${url}/login?extensionId=${chrome.runtime.id}` });
+  // Agenda verificações pós-login
+  setTimeout(() => loadLicense(), 3000);
+  setTimeout(() => loadLicense(), 8000);
 });
 
 document.getElementById('gate-subscribe-btn')?.addEventListener('click', async () => {
   const url = await getWebAuthUrl();
-  chrome.tabs.create({ url: `${url}/login` });
+  chrome.tabs.create({ url: `${url}/login?extensionId=${chrome.runtime.id}` });
 });
 
 document.getElementById('scan').addEventListener('click', async (event) => {

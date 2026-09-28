@@ -71,18 +71,19 @@ async function checkAuthorization() {
 
 chrome.runtime.onMessageExternal.addListener((message, _sender, sendResponse) => {
   if (message?.type === 'AUTH_SUCCESS') {
-    const { token, user } = message;
+    const { token, user, license } = message;
     (async () => {
       try {
+        const isAuth = !!(license?.authorized || user?.authorized);
         await chrome.storage.local.set({
           auth_token: token,
           auth_user: user,
           licenseStatus: {
-            authorized: !!user?.authorized,
-            role: user?.role || 'user',
-            plan: user?.plan || 'pro',
-            subscription_status: user?.subscription_status || 'active',
-            email: user?.email || '',
+            authorized: isAuth,
+            role: license?.role || user?.role || 'user',
+            plan: license?.plan || user?.plan || 'pro',
+            subscription_status: license?.subscription_status || user?.subscription_status || 'active',
+            email: license?.email || user?.email || '',
             checkedAt: Date.now(),
           },
         });
@@ -634,6 +635,31 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       const error = chrome.runtime.lastError;
       sendResponse(error ? { ok: false, message: error.message } : { ok: true, tabId: tab?.id });
     });
+    return true;
+  }
+  if (message?.type === 'DEAL_HUNTER_SAVE_AUTH') {
+    const { token, user, license } = message;
+    (async () => {
+      try {
+        const isAuth = !!(license?.authorized || user?.authorized);
+        await chrome.storage.local.set({
+          auth_token: token,
+          auth_user: user,
+          licenseStatus: {
+            authorized: isAuth,
+            role: license?.role || user?.role || 'user',
+            plan: license?.plan || user?.plan || 'pro',
+            subscription_status: license?.subscription_status || user?.subscription_status || 'active',
+            email: license?.email || user?.email || '',
+            checkedAt: Date.now(),
+          },
+        });
+        const fresh = await verifyLicenseStatus();
+        sendResponse({ success: true, licenseStatus: fresh });
+      } catch (err) {
+        sendResponse({ success: false, error: err.message });
+      }
+    })();
     return true;
   }
   if (message?.type === 'DEAL_HUNTER_GET_LICENSE') {

@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [sessionUser, setSessionUser] = useState<any>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
   const [extensionSynced, setExtensionSynced] = useState(false);
   const [verifyingLicense, setVerifyingLicense] = useState(false);
   const [licenseInfo, setLicenseInfo] = useState<any>(null);
@@ -27,8 +28,18 @@ export default function LoginPage() {
       if (params.get('checkout') === 'success') {
         setIsCheckoutSuccess(true);
       }
-    }
 
+      function handleMsg(event: MessageEvent) {
+        if (event.data?.source === 'DEAL_HUNTER_EXTENSION' && event.data?.type === 'SYNC_CONFIRMED') {
+          setExtensionSynced(true);
+        }
+      }
+      window.addEventListener('message', handleMsg);
+      return () => window.removeEventListener('message', handleMsg);
+    }
+  }, []);
+
+  useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         handlePostAuth(session.access_token, session.user);
@@ -42,6 +53,7 @@ export default function LoginPage() {
         handlePostAuth(session.access_token, session.user);
       } else {
         setSessionUser(null);
+        setAuthToken(null);
         setExtensionSynced(false);
         setLicenseInfo(null);
       }
@@ -53,6 +65,7 @@ export default function LoginPage() {
   // 2. Rotina pós-autenticação: Valida licença e comunica com a Extensão do Chrome
   async function handlePostAuth(token: string, user: any) {
     setSessionUser(user);
+    setAuthToken(token);
     setVerifyingLicense(true);
     setErrorMessage(null);
 
@@ -78,23 +91,40 @@ export default function LoginPage() {
   }
 
   function syncWithExtension(token: string, user: any, license: any) {
-    if (typeof window !== 'undefined' && (window as any).chrome?.runtime?.sendMessage && extensionId) {
+    if (typeof window === 'undefined') return;
+
+    // 1. Envia via postMessage para o script de conteúdo da extensão (auth-sync.js)
+    window.postMessage(
+      {
+        source: 'DEAL_HUNTER_WEB',
+        type: 'AUTH_SYNC',
+        token,
+        user: { id: user?.id, email: user?.email },
+        license,
+      },
+      '*'
+    );
+
+    // 2. Se houver extensionId na URL ou no env, envia diretamente via chrome.runtime
+    const queryExtId = new URLSearchParams(window.location.search).get('extensionId');
+    const targetExtId = queryExtId || extensionId;
+
+    if ((window as any).chrome?.runtime?.sendMessage && targetExtId) {
       try {
         (window as any).chrome.runtime.sendMessage(
-          extensionId,
+          targetExtId,
           {
             type: 'AUTH_SUCCESS',
             token,
             user: {
-              id: user.id,
-              email: user.email,
+              id: user?.id,
+              email: user?.email,
             },
             license,
           },
           (response: any) => {
             if ((window as any).chrome.runtime.lastError) {
               console.warn('Extensão não alcançada via sendMessage:', (window as any).chrome.runtime.lastError.message);
-              setExtensionSynced(false);
             } else if (response?.success) {
               setExtensionSynced(true);
             }
@@ -273,16 +303,24 @@ export default function LoginPage() {
                 <p className="text-xs text-gray-300 leading-relaxed">
                   Sua conta está autorizada com sucesso. A extensão Deal Hunter está liberada para varreduras ilimitadas e alertas em tempo real.
                 </p>
-                {extensionSynced ? (
-                  <div className="inline-flex items-center gap-1.5 text-xs text-emerald-300 font-medium pt-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    Sincronizado diretamente com a extensão do Chrome!
-                  </div>
-                ) : (
-                  <p className="text-xs text-amber-300/80 pt-1">
-                    💡 Você já pode fechar esta aba e abrir o painel da extensão no seu navegador.
-                  </p>
-                )}
+                {/* Botão de Sincronização Imediata */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (authToken && sessionUser && licenseInfo) {
+                      syncWithExtension(authToken, sessionUser, licenseInfo);
+                      setExtensionSynced(true);
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-900/30 transition-all active:scale-[0.98]"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  {extensionSynced ? '✅ Extensão Conectada e Sincronizada!' : '⚡ Sincronizar com a Extensão Agora'}
+                </button>
+
+                <p className="text-xs text-amber-300/80 pt-1">
+                  💡 Clique no botão acima para sincronizar ou simplesmente feche esta aba e abra a extensão.
+                </p>
               </div>
             ) : (
               <div className="p-4 bg-amber-950/30 border border-amber-500/30 rounded-2xl space-y-3">
@@ -447,6 +485,16 @@ export default function LoginPage() {
           </div>
         )}
       </div>
+
+      {authToken && (
+        <div
+          id="deal-hunter-auth-payload"
+          style={{ display: 'none' }}
+          data-token={authToken}
+          data-user={JSON.stringify({ id: sessionUser?.id, email: sessionUser?.email })}
+          data-license={JSON.stringify(licenseInfo)}
+        />
+      )}
 
       <footer className="mt-8 text-center text-xs text-gray-500">
         Deal Hunter &copy; {new Date().getFullYear()} — Plataforma Segura via Supabase &amp; Stripe
