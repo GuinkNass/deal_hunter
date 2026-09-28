@@ -385,14 +385,20 @@ document.getElementById('history-clear').addEventListener('click', async () => {
 // ---------- Pareamento ----------
 async function loadPairingTab() {
   const { baseUrl, apiToken } = await api.getConfig();
+  const { webAuthUrl } = await chrome.storage.local.get('webAuthUrl');
   document.getElementById('pair-base-url').value = baseUrl;
   document.getElementById('pair-token').value = apiToken || '';
+  document.getElementById('web-auth-url').value = webAuthUrl || 'https://deal-hunter-8t4129hk4-guilhermernascimento-9353s-projects.vercel.app';
 }
 
 document.getElementById('pair-save').addEventListener('click', async () => {
   const baseUrl = document.getElementById('pair-base-url').value.trim();
   const token = document.getElementById('pair-token').value.trim();
-  await chrome.storage.local.set({ baseUrl: baseUrl || undefined });
+  const webAuthUrl = document.getElementById('web-auth-url').value.trim();
+  await chrome.storage.local.set({
+    baseUrl: baseUrl || undefined,
+    webAuthUrl: webAuthUrl || undefined,
+  });
   await api.setApiToken(token);
-  document.getElementById('pair-feedback').textContent = '✅ Salvo.';
+  document.getElementById('pair-feedback').textContent = '✅ Salvo com sucesso.';
 });
