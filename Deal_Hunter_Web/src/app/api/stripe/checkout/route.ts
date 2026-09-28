@@ -97,11 +97,10 @@ export async function POST(req: NextRequest) {
     }
     const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || fallbackUrl).replace(/\/$/, '');
 
-    // Criação da Sessão do Stripe Checkout
+    // Criação da Sessão do Stripe Checkout com Métodos Dinâmicos (Cartão, Pix, Boleto, etc)
     const session = await stripe.checkout.sessions.create({
       ...(customerId ? { customer: customerId } : { customer_email: userEmail }),
       mode: 'subscription',
-      payment_method_types: ['card'],
       line_items: [
         {
           price: priceId,
@@ -109,7 +108,6 @@ export async function POST(req: NextRequest) {
         },
       ],
       client_reference_id: user.id,
-      customer_email: customerId ? undefined : userEmail,
       metadata: {
         userId: user.id,
         userEmail: userEmail,
