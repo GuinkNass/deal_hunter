@@ -2,7 +2,7 @@ importScripts('../utils/api.js');
 
 const SYNC_ALARM = 'deal-hunter-status-badge';
 const LICENSE_ALARM = 'deal-hunter-license-alarm';
-const DEFAULT_WEB_URL = 'https://deal-hunter-8t4129hk4-guilhermernascimento-9353s-projects.vercel.app';
+const DEFAULT_WEB_URL = 'https://deal-hunter-guilhermernascimento-9353s-projects.vercel.app';
 const MAX_BROWSER_PAGES_PER_SCAN = 300;
 const BROWSER_PAGE_TIMEOUT_MS = 30000;
 let currentBrowserScan = null;

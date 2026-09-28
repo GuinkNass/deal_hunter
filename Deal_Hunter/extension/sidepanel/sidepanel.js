@@ -260,7 +260,7 @@ let currentLicense = null;
 
 async function getWebAuthUrl() {
   const { webAuthUrl } = await chrome.storage.local.get('webAuthUrl');
-  return webAuthUrl || 'https://deal-hunter-8t4129hk4-guilhermernascimento-9353s-projects.vercel.app';
+  return webAuthUrl || 'https://deal-hunter-guilhermernascimento-9353s-projects.vercel.app';
 }
 
 function updateLicenseUI(license) {

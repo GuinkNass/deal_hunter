@@ -388,7 +388,7 @@ async function loadPairingTab() {
   const { webAuthUrl } = await chrome.storage.local.get('webAuthUrl');
   document.getElementById('pair-base-url').value = baseUrl;
   document.getElementById('pair-token').value = apiToken || '';
-  document.getElementById('web-auth-url').value = webAuthUrl || 'https://deal-hunter-8t4129hk4-guilhermernascimento-9353s-projects.vercel.app';
+  document.getElementById('web-auth-url').value = webAuthUrl || 'https://deal-hunter-guilhermernascimento-9353s-projects.vercel.app';
 }
 
 document.getElementById('pair-save').addEventListener('click', async () => {
