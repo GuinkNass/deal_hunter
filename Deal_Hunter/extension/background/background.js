@@ -634,6 +634,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       const error = chrome.runtime.lastError;
       sendResponse(error ? { ok: false, message: error.message } : { ok: true, tabId: tab?.id });
     });
+    return true;
+  }
   if (message?.type === 'DEAL_HUNTER_GET_LICENSE') {
     checkAuthorization().then((license) => sendResponse({ ok: true, license }));
     return true;
