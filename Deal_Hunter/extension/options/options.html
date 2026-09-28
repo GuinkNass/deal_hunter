@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Deal Hunter — Configurações</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><img src="../icons/icon32.png" alt="" /> Deal Hunter</div>
+      <nav>
+        <button class="nav-item" data-tab="onboarding">🚀 Início</button>
+        <button class="nav-item" data-tab="telegram">📨 Telegram</button>
+        <button class="nav-item" data-tab="catalog">🛍️ Lojas e categorias</button>
+        <button class="nav-item" data-tab="scan">⏱️ Agendamento</button>
+        <button class="nav-item" data-tab="filters">🎛️ Filtros de alerta</button>
+        <button class="nav-item" data-tab="history">📜 Histórico</button>
+        <button class="nav-item" data-tab="pairing">🔑 Pareamento</button>
+      </nav>
+    </aside>
+
+    <main class="content">
+
+      <!-- ONBOARDING -->
+      <section id="tab-onboarding" class="tab">
+        <h1>Configuração inicial</h1>
+
+        <div class="card">
+          <h2>Passo 1 — Pareie a extensão com o backend</h2>
+          <p class="muted">
+            Ao rodar <code>2-Ativar-Backend.bat</code>, um token é exibido no
+            console e salvo em <code>server/data/extension-token.txt</code>. Cole-o abaixo.
+          </p>
+          <div class="field">
+            <label>Token de pareamento</label>
+            <input id="ob-token" type="text" placeholder="cole o token aqui" />
+          </div>
+          <button id="ob-save-token" class="btn btn--primary">Salvar token</button>
+          <span id="ob-token-status" class="hint"></span>
+        </div>
+
+        <div class="card">
+          <h2>Passo 2 — Configure seu Telegram (opcional)</h2>
+          <ol class="muted steps">
+            <li>Abra o Telegram e procure <b>@BotFather</b>.</li>
+            <li>Envie <code>/newbot</code> e siga as instruções.</li>
+            <li>Copie o <b>Bot Token</b> gerado.</li>
+            <li>Envie uma mensagem ao seu bot e descubra o <b>Chat ID</b> (ex.: via @userinfobot).</li>
+          </ol>
+          <div class="field">
+            <label>Bot Token</label>
+            <input id="ob-bot-token" type="password" placeholder="123456:ABC-DEF..." />
+          </div>
+          <div class="field">
+            <label>Chat ID</label>
+            <input id="ob-chat-id" type="text" placeholder="123456789" />
+          </div>
+          <button id="ob-test-telegram" class="btn btn--primary">Testar conexão</button>
+          <span id="ob-telegram-status" class="hint"></span>
+        </div>
+
+        <div class="card">
+          <h2>Passo 3 — Escolha onde procurar</h2>
+          <p class="muted">Selecione uma ou mais lojas e categorias na lista de URLs pré-configuradas.</p>
+          <button id="ob-open-catalog" class="btn btn--primary">Selecionar lojas e categorias</button>
+        </div>
+
+        <div class="card">
+          <h2>Pronto!</h2>
+          <p class="muted">O backend monitora as categorias selecionadas no intervalo configurado e envia ao Telegram as ofertas que atingirem seu desconto mínimo.</p>
+        </div>
+      </section>
+
+      <!-- TELEGRAM -->
+      <section id="tab-telegram" class="tab hidden">
+        <h1>Configuração do Telegram</h1>
+        <div class="card">
+          <div class="status-line">
+            <span id="tg-dot" class="dot dot--gray"></span>
+            <span id="tg-status-text">Verificando…</span>
+          </div>
+          <div class="field">
+            <label>Bot Token</label>
+            <input id="tg-bot-token" type="password" placeholder="123456:ABC-DEF..." />
+          </div>
+          <div class="field">
+            <label>Chat ID</label>
+            <input id="tg-chat-id" type="text" placeholder="123456789" />
+          </div>
+          <div class="row">
+            <button id="tg-test" class="btn btn--primary">Testar Telegram</button>
+            <button id="tg-send-test" class="btn">Enviar mensagem de teste</button>
+            <button id="tg-remove" class="btn btn--danger">Remover configuração</button>
+          </div>
+          <p id="tg-feedback" class="hint"></p>
+        </div>
+      </section>
+
+      <!-- CATALOG -->
+      <section id="tab-catalog" class="tab hidden">
+        <h1>Lojas e categorias</h1>
+        <div class="card">
+          <h2>Login no Eletroclub</h2>
+          <p class="muted">O Eletroclub mostra preços exclusivos após o login. Abra a página oficial, entre na sua conta e deixe o Chrome aberto. O acesso exige uma conta válida e pode exigir o código de indicação do clube. O Deal Hunter não recebe nem armazena sua senha ou cookies.</p>
+          <button id="eletroclub-login" class="btn btn--primary">Entrar no Eletroclub</button>
+          <span id="eletroclub-login-feedback" class="hint"></span>
+        </div>
+        <div class="card">
+          <p class="muted">Marque as categorias que deseja monitorar. A extensão abre cada listagem em uma aba de fundo no Chrome e envia ao backend somente os dados dos produtos encontrados.</p>
+          <div class="field" style="margin: 12px 0 8px 0;">
+            <input type="text" id="catalog-search" placeholder="🔍 Filtrar categorias por nome ou loja..." />
+          </div>
+          <div id="catalog-list" class="catalog-list">Carregando categorias…</div>
+          <button id="catalog-save" class="btn btn--primary">Salvar seleção</button>
+          <span id="catalog-feedback" class="hint"></span>
+        </div>
+      </section>
+
+      <!-- SCAN SCHEDULE -->
+      <section id="tab-scan" class="tab hidden">
+        <h1>Agendamento da varredura</h1>
+        <div class="card">
+          <div class="field">
+            <label>Páginas lidas por categoria</label>
+            <select id="scan-pages"></select>
+          </div>
+          <div class="field">
+            <label>Intervalo entre varreduras</label>
+            <select id="scan-interval"></select>
+          </div>
+          <button id="scan-save" class="btn btn--primary">Salvar varredura</button>
+          <button id="scan-run-now" class="btn">Verificar agora no Chrome</button>
+          <button id="scan-stop-now" class="btn btn--danger hidden" type="button">■ Parar varredura</button>
+          <span id="scan-feedback" class="hint"></span>
+          <p class="hint">As páginas são lidas em uma janela minimizada do Chrome para usar a sessão ativa das lojas. Mantenha o Chrome e a extensão ativos. Limite: até 50 alertas por varredura, com no máximo 5 por URL/categoria.</p>
+        </div>
+      </section>
+
+      <!-- FILTROS -->
+      <section id="tab-filters" class="tab hidden">
+        <h1>Filtros de alerta</h1>
+        <div class="card">
+          <div class="field">
+            <label>Desconto mínimo (%)</label>
+            <select id="set-min-discount"></select>
+          </div>
+          <div class="field">
+            <label>Preço máximo (R$, opcional)</label>
+            <input id="set-max-price" type="number" min="0" step="0.01" />
+          </div>
+          <div class="field">
+            <label>Não repetir o mesmo alerta durante (horas)</label>
+            <input id="set-repeat-hours" type="number" min="1" />
+          </div>
+          <button id="set-save" class="btn btn--primary">Salvar filtros</button>
+          <span id="set-feedback" class="hint"></span>
+        </div>
+      </section>
+
+      <!-- HISTORY -->
+      <section id="tab-history" class="tab hidden">
+        <h1>Histórico de oportunidades</h1>
+        <div class="row">
+          <input id="history-search" type="text" placeholder="Pesquisar por produto…" />
+          <button id="history-clear" class="btn btn--danger">Excluir histórico</button>
+        </div>
+        <table class="table">
+          <thead>
+            <tr><th>Data</th><th>Produto</th><th>Preço</th><th>Desconto</th><th>Score</th><th>Telegram</th></tr>
+          </thead>
+          <tbody id="history-body"></tbody>
+        </table>
+      </section>
+
+      <!-- PAIRING -->
+      <section id="tab-pairing" class="tab hidden">
+        <h1>Pareamento com o backend</h1>
+        <div class="card">
+          <div class="field">
+            <label>URL do backend</label>
+            <input id="pair-base-url" type="text" placeholder="http://127.0.0.1:3000" />
+          </div>
+          <div class="field">
+            <label>Token de pareamento</label>
+            <input id="pair-token" type="text" placeholder="cole o token gerado pelo 2-Ativar-Backend.bat" />
+          </div>
+          <button id="pair-save" class="btn btn--primary">Salvar</button>
+          <span id="pair-feedback" class="hint"></span>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="../utils/api.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

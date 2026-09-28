@@ -1,0 +1,109 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  width: 340px;
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.app { padding: 14px; }
+
+.app__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; }
+.brand img { width: 22px; height: 22px; }
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: #94a3b8;
+}
+
+.panel {
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.panel h3 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #94a3b8; }
+
+.status-row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 4px; }
+
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot--green { background: #22c55e; }
+.dot--red { background: #ef4444; }
+.dot--gray { background: #64748b; }
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 10px 0 6px;
+}
+
+.stat {
+  background: #0b1220;
+  border-radius: 8px;
+  padding: 8px;
+  text-align: center;
+}
+.stat span { display: block; font-size: 18px; font-weight: 700; color: #38bdf8; }
+.stat label { font-size: 10px; color: #94a3b8; }
+
+.last-check { font-size: 11px; color: #64748b; }
+
+.muted { color: #94a3b8; font-size: 12px; margin-bottom: 8px; word-break: break-all; }
+
+.btn {
+  display: block;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid #1f2937;
+  background: #1e293b;
+  color: #e2e8f0;
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+.btn:hover { background: #263349; }
+.btn--primary { background: #0284c7; border-color: #0284c7; color: white; font-weight: 600; }
+.btn--primary:hover { background: #0369a1; }
+
+.actions .btn:last-child { margin-bottom: 0; }
+
+.hint { font-size: 12px; color: #4ade80; }
+
+.hidden { display: none !important; }
+
+.banner {
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.banner--warn { background: #7c2d12; color: #fed7aa; }
+
+.toast {
+  position: fixed;
+  bottom: 10px;
+  left: 14px;
+  right: 14px;
+  background: #0284c7;
+  color: white;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  text-align: center;
+}

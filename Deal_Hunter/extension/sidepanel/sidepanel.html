@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Deal Hunter</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <div class="panel-shell">
+    <div class="scan-fire" id="scan-fire" aria-hidden="true"><video id="fire-video" muted loop playsinline preload="none"><source src="assets/fire.webm" type="video/webm" /></video></div>
+    <header class="topbar">
+      <div class="brand"><img src="../icons/icon32.png" alt="" /><span>Deal Hunter</span></div>
+      <div class="topbar-actions">
+        <span id="license-badge" class="license-badge license-checking" title="Status de Assinatura">Verificando...</span>
+        <button class="icon-button" id="settings" aria-label="Abrir configurações" title="Configurações">⚙</button>
+      </div>
+    </header>
+
+    <div id="offline" class="offline hidden"></div>
+
+    <main>
+      <!-- Gating card de Assinatura quando unauthorized -->
+      <section id="license-gate-banner" class="license-gate-banner hidden">
+        <div class="gate-header">
+          <div class="gate-icon">🔒</div>
+          <div>
+            <strong>Acesso Restrito</strong>
+            <p id="gate-message">Faça login ou ative sua assinatura Pro para liberar o monitoramento automático.</p>
+          </div>
+        </div>
+        <div class="gate-buttons">
+          <button id="gate-login-btn" class="gate-btn gate-btn-primary"><span>🔑</span> Conectar / Login</button>
+          <button id="gate-subscribe-btn" class="gate-btn gate-btn-accent"><span>✦</span> Assinar Plano Pro</button>
+        </div>
+      </section>
+      <section class="hero" id="home-view">
+        <div class="hello-row">
+          <div><p class="eyebrow">PAINEL DE MONITORAMENTO</p><h1>Ofertas sob controle</h1></div>
+          <div class="system-indicator"><span id="system-state" class="state-pill"><i></i>Conectando</span><img id="offline-sticker" class="offline-sticker hidden" alt="Backend offline" /></div>
+        </div>
+        <p class="hero-copy">Acompanhe preços e receba oportunidades selecionadas para você.</p>
+        <div class="stats">
+          <div><strong id="products-count">—</strong><span>produtos rastreados</span></div>
+          <div><strong id="offers-count">—</strong><span>ofertas registradas</span></div>
+        </div>
+        <div class="scan-actions"><button class="scan-button" id="scan"><span>⌕</span> Verificar agora no Chrome</button><button class="scan-stop-button hidden" id="scan-stop" type="button">■ Parar varredura</button></div>
+        <div class="last-scan">Última varredura <span id="last-scan">—</span></div>
+      </section>
+
+      <section class="live-search" id="live-search" aria-live="polite">
+        <div class="live-heading"><span class="live-pulse"></span><div class="live-copy"><strong id="live-status">Aguardando varredura</strong><p id="live-location">O andamento aparecerá aqui.</p></div><div class="live-stickers"><img id="scan-sticker" class="live-sticker hidden" alt="Animação durante a varredura" /><img id="completion-sticker" class="live-sticker hidden" alt="Animação de conclusão" /></div></div>
+        <div class="live-product hidden" id="live-product"><img id="live-image" alt="" /><div><strong id="live-product-name"></strong><span id="live-product-price"></span></div></div>
+      </section>
+
+      <section class="section-head">
+        <div><p class="eyebrow">SELEÇÃO RECENTE</p><h2 id="list-title">Ofertas encontradas</h2></div>
+        <button id="refresh" class="text-button">Atualizar</button>
+      </section>
+      <div id="offer-list" class="offer-list"><div class="empty">Carregando ofertas…</div></div>
+
+      <section class="setup-card">
+        <div class="setup-icon">✦</div>
+        <div><strong id="telegram-label">Telegram</strong><p id="category-label">Carregando configuração…</p></div>
+        <button id="catalog" class="arrow-button" aria-label="Configurar lojas">›</button>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Navegação">
+      <button class="nav-button active" data-view="home"><span>⌂</span>Início</button>
+      <button class="nav-button" data-view="offers"><span>✦</span>Ofertas</button>
+      <button class="nav-button" data-view="stores"><span>▦</span>Lojas</button>
+    </nav>
+    <div id="toast" class="toast hidden" role="status"></div>
+    <div id="offer-alert-overlay" class="offer-alert-overlay hidden" role="alert"><img id="offer-alert-gif" alt="Alerta de oferta" /><div class="offer-alert-copy"><strong>Oferta encontrada</strong><span id="offer-alert-store"></span><b id="offer-alert-name"></b><span id="offer-alert-price"></span></div><button id="offer-alert-close" aria-label="Fechar alerta">×</button></div>
+  </div>
+  <script src="../utils/api.js"></script>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

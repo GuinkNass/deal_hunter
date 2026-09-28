@@ -1,0 +1,22 @@
+{
+  "name": "deal-hunter-server",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Backend local do Deal Hunter (monitoramento de categorias por leitura de páginas)",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node --use-system-ca src/index.js",
+    "dev": "node --use-system-ca --watch src/index.js",
+    "test": "node --use-system-ca --test tests/discount.test.js tests/fingerprint.test.js tests/score.test.js tests/startup.test.js tests/migration.test.js tests/listing.test.js tests/scanner.test.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "node-cron": "^3.0.3"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}

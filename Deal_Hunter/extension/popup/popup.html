@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Deal Hunter</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app__header">
+      <div class="brand">
+        <img src="../icons/icon32.png" alt="" />
+        <span>Deal Hunter</span>
+      </div>
+      <button id="btn-settings" class="icon-btn" title="Configurações">⚙️</button>
+    </header>
+
+    <div id="offline-banner" class="banner banner--warn hidden">
+      🔴 Backend local não encontrado. Execute <code>2-Ativar-Backend.bat</code> na pasta do projeto.
+    </div>
+
+    <section id="dashboard" class="panel">
+      <div class="status-row">
+        <span id="status-dot" class="dot dot--gray"></span>
+        <span id="status-text">Verificando status…</span>
+      </div>
+      <div class="status-row">
+        <span id="telegram-dot" class="dot dot--gray"></span>
+        <span id="telegram-text">Telegram: verificando…</span>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat"><span id="stat-products">—</span><label>Produtos rastreados</label></div>
+        <div class="stat"><span id="stat-opps">—</span><label>Ofertas encontradas</label></div>
+      </div>
+      <div class="last-check">Última varredura: <span id="last-check">—</span></div>
+    </section>
+
+    <section id="scan-config" class="panel">
+      <h3>Varredura configurada</h3>
+      <div id="scan-summary" class="muted">Carregando…</div>
+      <div id="no-config" class="hint hidden">⚠️ Nenhuma categoria selecionada — abra Configurações &gt; Lojas e categorias.</div>
+    </section>
+
+    <section class="panel actions">
+      <button id="btn-scan-now" class="btn btn--primary">Verificar agora no Chrome</button>
+      <button id="btn-history" class="btn">Histórico</button>
+    </section>
+
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <script src="../utils/api.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
