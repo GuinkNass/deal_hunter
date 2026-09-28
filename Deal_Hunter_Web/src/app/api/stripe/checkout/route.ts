@@ -58,11 +58,11 @@ export async function POST(req: NextRequest) {
         { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } }
       );
     }
+    const prefix = rawSecret.slice(0, 8);
     if (rawSecret.startsWith('pk_')) {
       return NextResponse.json(
         {
-          error:
-            'Chave incorreta: Você configurou a chave publicável (pk_...) no STRIPE_SECRET_KEY. Acesse o Stripe Dashboard e use a Secret Key (sk_test_... ou sk_live_...).',
+          error: `Chave incorreta: A Vercel está lendo uma chave que começa com "${prefix}..." no STRIPE_SECRET_KEY. Essa é a chave publicável. Você precisa salvar a Secret Key (que começa com "sk_live_..." ou "sk_test_...") na Vercel e fazer um Redeploy.`,
         },
         { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } }
       );
