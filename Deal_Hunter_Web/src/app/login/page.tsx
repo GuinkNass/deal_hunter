@@ -264,6 +264,14 @@ export default function LoginPage() {
                 <p className="text-xs text-gray-300 leading-relaxed">
                   Para utilizar a extensão e receber notificações de descontos em tempo real, assine o plano Deal Hunter Pro.
                 </p>
+
+                {errorMessage && (
+                  <div className="flex items-center gap-2 p-3 bg-red-950/50 border border-red-500/50 rounded-xl text-xs text-red-300">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-400" />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
+
                 <button
                   onClick={handleCheckout}
                   disabled={loading}

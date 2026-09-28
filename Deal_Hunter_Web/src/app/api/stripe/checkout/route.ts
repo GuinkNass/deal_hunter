@@ -95,7 +95,16 @@ export async function POST(req: NextRequest) {
         .eq('id', user.id);
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://seu-dominio.vercel.app';
+    const origin = req.headers.get('origin') || req.headers.get('referer');
+    let fallbackUrl = 'https://deal-hunter-guilhermernascimento-9353s-projects.vercel.app';
+    if (origin) {
+      try {
+        fallbackUrl = new URL(origin).origin;
+      } catch (_) {}
+    } else if (process.env.VERCEL_URL) {
+      fallbackUrl = `https://${process.env.VERCEL_URL}`;
+    }
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || fallbackUrl).replace(/\/$/, '');
 
     // Criação da Sessão do Stripe Checkout
     const session = await stripe.checkout.sessions.create({
