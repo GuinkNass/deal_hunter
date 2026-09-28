@@ -51,11 +51,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const priceId = (process.env.STRIPE_PRICE_ID || process.env.STRIPE_PRICE_ID_PRO || '').trim();
+    const rawSecret = (process.env.STRIPE_SECRET_KEY || '').trim().replace(/^["']|["']$/g, '');
+    if (!rawSecret) {
+      return NextResponse.json(
+        { error: 'STRIPE_SECRET_KEY não foi configurada nas variáveis da Vercel.' },
+        { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } }
+      );
+    }
+    if (rawSecret.startsWith('pk_')) {
+      return NextResponse.json(
+        {
+          error:
+            'Chave incorreta: Você configurou a chave publicável (pk_...) no STRIPE_SECRET_KEY. Acesse o Stripe Dashboard e use a Secret Key (sk_test_... ou sk_live_...).',
+        },
+        { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } }
+      );
+    }
+
+    const priceId = (process.env.STRIPE_PRICE_ID || process.env.STRIPE_PRICE_ID_PRO || '').trim().replace(/^["']|["']$/g, '');
     if (!priceId) {
       console.error('STRIPE_PRICE_ID não configurado no ambiente.');
       return NextResponse.json(
-        { error: 'Preço de assinatura não configurado no servidor.' },
+        { error: 'Preço de assinatura (STRIPE_PRICE_ID) não configurado no servidor.' },
         { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } }
       );
     }
@@ -67,33 +84,7 @@ export async function POST(req: NextRequest) {
       .eq('id', user.id)
       .single();
 
-    let customerId = profile?.stripe_customer_id;
-
-    // Se não tiver, busca ou cria no Stripe
-    if (!customerId) {
-      const existingCustomers = await stripe.customers.list({
-        email: userEmail,
-        limit: 1,
-      });
-
-      if (existingCustomers.data.length > 0) {
-        customerId = existingCustomers.data[0].id;
-      } else {
-        const newCustomer = await stripe.customers.create({
-          email: userEmail,
-          metadata: {
-            supabase_user_id: user.id,
-          },
-        });
-        customerId = newCustomer.id;
-      }
-
-      // Salva no perfil para reaproveitar
-      await supabase
-        .from('profiles')
-        .update({ stripe_customer_id: customerId })
-        .eq('id', user.id);
-    }
+    const customerId = profile?.stripe_customer_id;
 
     const origin = req.headers.get('origin') || req.headers.get('referer');
     let fallbackUrl = 'https://deal-hunter-guilhermernascimento-9353s-projects.vercel.app';
@@ -108,7 +99,7 @@ export async function POST(req: NextRequest) {
 
     // Criação da Sessão do Stripe Checkout
     const session = await stripe.checkout.sessions.create({
-      customer: customerId,
+      ...(customerId ? { customer: customerId } : { customer_email: userEmail }),
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [
