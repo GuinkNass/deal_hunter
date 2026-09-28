@@ -86,16 +86,27 @@ export async function POST(req: NextRequest) {
 
     const customerId = profile?.stripe_customer_id;
 
+    const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
+    const proto = req.headers.get('x-forwarded-proto') || 'https';
     const origin = req.headers.get('origin') || req.headers.get('referer');
-    let fallbackUrl = 'https://deal-hunter-guilhermernascimento-9353s-projects.vercel.app';
+
+    let siteUrl = '';
     if (origin) {
       try {
-        fallbackUrl = new URL(origin).origin;
+        siteUrl = new URL(origin).origin;
       } catch (_) {}
-    } else if (process.env.VERCEL_URL) {
-      fallbackUrl = `https://${process.env.VERCEL_URL}`;
     }
-    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || fallbackUrl).replace(/\/$/, '');
+    if (!siteUrl && host) {
+      siteUrl = `${proto}://${host}`;
+    }
+    if (!siteUrl || siteUrl.includes('localhost') || siteUrl.includes('127.0.0.1')) {
+      if (process.env.NEXT_PUBLIC_SITE_URL && !process.env.NEXT_PUBLIC_SITE_URL.includes('localhost')) {
+        siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+      } else {
+        siteUrl = 'https://deal-hunter-guilhermernascimento-9353s-projects.vercel.app';
+      }
+    }
+    siteUrl = siteUrl.replace(/\/$/, '');
 
     // Criação da Sessão do Stripe Checkout com Métodos Dinâmicos (Cartão, Pix, Boleto, etc)
     const session = await stripe.checkout.sessions.create({
@@ -118,7 +129,7 @@ export async function POST(req: NextRequest) {
           userEmail: userEmail,
         },
       },
-      success_url: `${siteUrl}/login?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${siteUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteUrl}/login?checkout=cancelled`,
       allow_promotion_codes: true,
     });

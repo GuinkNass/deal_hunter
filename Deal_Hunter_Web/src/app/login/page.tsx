@@ -16,11 +16,19 @@ export default function LoginPage() {
   const [extensionSynced, setExtensionSynced] = useState(false);
   const [verifyingLicense, setVerifyingLicense] = useState(false);
   const [licenseInfo, setLicenseInfo] = useState<any>(null);
+  const [isCheckoutSuccess, setIsCheckoutSuccess] = useState(false);
 
   const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID || 'lenaiemkaapkamkpbpdppmfblbpghhnc';
 
-  // 1. Monitora sessão ativa do Supabase
+  // 1. Monitora sessão ativa do Supabase e parâmetros da URL
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('checkout') === 'success') {
+        setIsCheckoutSuccess(true);
+      }
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         handlePostAuth(session.access_token, session.user);
@@ -207,6 +215,27 @@ export default function LoginPage() {
           Autenticação e Licença de Monitoramento de Ofertas
         </p>
       </div>
+
+      {/* Banner de Pagamento Concluído com Sucesso */}
+      {isCheckoutSuccess && (
+        <div className="mb-6 p-5 bg-gradient-to-br from-emerald-950/90 to-teal-950/80 border-2 border-emerald-500/60 rounded-3xl shadow-xl shadow-emerald-950/60 space-y-3 animate-in fade-in zoom-in-95 duration-500">
+          <div className="flex items-center gap-3 text-emerald-300 font-bold text-base">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex-shrink-0">
+              <CheckCircle2 className="w-5 h-5" />
+            </span>
+            <span>🎉 Pagamento Concluído com Sucesso!</span>
+          </div>
+          <p className="text-xs text-gray-200 leading-relaxed">
+            Sua assinatura do <strong>Deal Hunter Pro</strong> foi confirmada e sua conta já está com acesso total liberado!
+          </p>
+          <div className="p-3 bg-black/40 rounded-2xl border border-emerald-500/30 text-xs text-emerald-100 space-y-1.5">
+            <p className="font-semibold text-emerald-300">👉 Próximos passos para usar:</p>
+            <p>1. Volte para a extensão <strong>Deal Hunter</strong> no seu navegador.</p>
+            <p>2. Clique em <strong>Conectar / Login</strong> para validar e sincronizar seu acesso Pro.</p>
+            <p>3. Pronto! As varreduras automáticas e alertas de desconto em tempo real já estão ativos.</p>
+          </div>
+        </div>
+      )}
 
       {/* Card Principal */}
       <div className="bg-[#161b26] border border-[#2a3245] rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">

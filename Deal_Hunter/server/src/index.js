@@ -17,8 +17,11 @@ const app = express();
 // Só aceita chamadas de extensões Chrome/Edge locais e de localhost —
 // nunca de sites arbitrários na internet.
 app.use(cors());
-app.use(express.json({ limit: '12mb' }));
 app.use('/api', authMiddleware, routes);
+app.get('/login', (req, res) => {
+  const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+  res.redirect(`https://deal-hunter-guilhermernascimento-9353s-projects.vercel.app/login${query}`);
+});
 
 app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
   logger.error(`Erro não tratado: ${err.message}`);
