@@ -5,7 +5,21 @@ const DEFAULT_BASE_URL = 'http://127.0.0.1:3000';
 
 async function getConfig() {
   const { baseUrl, apiToken } = await chrome.storage.local.get(['baseUrl', 'apiToken']);
-  return { baseUrl: baseUrl || DEFAULT_BASE_URL, apiToken: apiToken || null };
+  let cleanUrl = String(baseUrl || DEFAULT_BASE_URL).trim().replace(/\/+$/, '');
+
+  // Se o usuário acidentalmente colou a URL da Vercel no campo de backend local
+  if (cleanUrl.includes('vercel.app')) {
+    cleanUrl = DEFAULT_BASE_URL;
+  }
+  // Normaliza localhost para 127.0.0.1 (evita falha de resolução IPv6 no Windows)
+  cleanUrl = cleanUrl.replace('://localhost', '://127.0.0.1');
+
+  if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+    cleanUrl = `http://${cleanUrl}`;
+  }
+
+  const cleanToken = typeof apiToken === 'string' ? apiToken.trim() : null;
+  return { baseUrl: cleanUrl, apiToken: cleanToken || null };
 }
 
 async function setApiToken(token) {

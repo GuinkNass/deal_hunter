@@ -16,14 +16,7 @@ const app = express();
 
 // Só aceita chamadas de extensões Chrome/Edge locais e de localhost —
 // nunca de sites arbitrários na internet.
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || origin === 'http://localhost' || origin.startsWith('http://localhost:') || origin === 'http://127.0.0.1' || origin.startsWith('http://127.0.0.1:') || origin.startsWith('chrome-extension://')) {
-      return callback(null, true);
-    }
-    callback(new Error('Origem não permitida'));
-  },
-}));
+app.use(cors());
 app.use(express.json({ limit: '12mb' }));
 app.use('/api', authMiddleware, routes);
 

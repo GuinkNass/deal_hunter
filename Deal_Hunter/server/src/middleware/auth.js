@@ -31,7 +31,8 @@ function authMiddleware(req, res, next) {
 
   const token = ensureToken();
   const header = req.headers.authorization || '';
-  const provided = header.startsWith('Bearer ') ? header.slice(7) : req.headers['x-deal-hunter-token'];
+  const rawProvided = header.startsWith('Bearer ') ? header.slice(7) : req.headers['x-deal-hunter-token'];
+  const provided = typeof rawProvided === 'string' ? rawProvided.trim() : '';
 
   if (!provided || provided !== token) {
     return res.status(401).json({ error: 'Token inválido ou ausente. Configure o token na extensão.' });
