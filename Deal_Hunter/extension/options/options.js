@@ -188,24 +188,35 @@ async function loadCatalogTab() {
   }
 }
 
-document.getElementById('catalog-save').addEventListener('click', async (event) => {
+document.getElementById('catalog-save').addEventListener('click', async () => {
+  const saveBtn = document.getElementById('catalog-save');
   const feedback = document.getElementById('catalog-feedback');
-  const selectedIds = [...document.querySelectorAll('#catalog-list input[data-category-id]:checked')]
-    .map((input) => input.dataset.categoryId);
-  event.target.disabled = true;
+  const selectedInputs = document.querySelectorAll('#catalog-list input[data-category-id]:checked');
+  const selectedIds = [...selectedInputs].map((input) => input.dataset.categoryId);
+
+  if (selectedIds.length === 0) {
+    feedback.textContent = '⚠️ Selecione pelo menos uma categoria antes de salvar.';
+    return;
+  }
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Salvando…';
+  feedback.textContent = '⏳ Gravando seleção no backend…';
+
   try {
     const saved = await api.saveCategories(selectedIds);
     const verified = await api.getCategories();
     const confirmedIds = verified.filter((category) => category.selected).map((category) => category.id).sort();
-    const expectedIds = [...(saved.selectedIds || selectedIds)].sort();
+    const expectedIds = [...(saved?.selectedIds || selectedIds)].sort();
     if (confirmedIds.length !== expectedIds.length || confirmedIds.some((id, index) => id !== expectedIds[index])) {
       throw new Error('A seleção foi enviada, mas não foi confirmada pelo backend. Tente salvar novamente.');
     }
-    feedback.textContent = `✅ ${confirmedIds.length} categoria(s) salva(s) e confirmada(s). A próxima varredura usará esta seleção.`;
+    feedback.textContent = `✅ ${confirmedIds.length} categoria(s) salva(s) com sucesso! A varredura agora está liberada para rodar.`;
   } catch (err) {
-    feedback.textContent = err.message;
+    feedback.textContent = `🔴 ${err.message || 'Falha ao salvar categorias. Verifique a conexão com o backend local.'}`;
   } finally {
-    event.target.disabled = false;
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Salvar seleção';
   }
 });
 
