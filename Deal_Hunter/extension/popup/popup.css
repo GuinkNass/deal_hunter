@@ -3,9 +3,9 @@
 body {
   margin: 0;
   width: 340px;
-  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  background: #0f172a;
-  color: #e2e8f0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  background: #070a12;
+  color: #f1f5f9;
 }
 
 .app { padding: 14px; }
@@ -14,96 +14,157 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
-.brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; }
+.brand { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+  font-weight: 800; 
+  font-size: 14px; 
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
 .brand img { width: 22px; height: 22px; }
 
 .icon-btn {
-  background: transparent;
-  border: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 14px;
   color: #94a3b8;
+  transition: all 0.15s ease;
+}
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
 }
 
 .panel {
-  background: #111827;
-  border: 1px solid #1f2937;
-  border-radius: 10px;
-  padding: 12px;
+  background: #0c101d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 13px;
   margin-bottom: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-.panel h3 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #94a3b8; }
+.panel h3 { 
+  margin: 0 0 8px; 
+  font-size: 11px; 
+  font-weight: 800;
+  text-transform: uppercase; 
+  letter-spacing: .06em; 
+  color: #818cf8; 
+}
 
-.status-row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 4px; }
+.status-row { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+  font-size: 12px; 
+  margin-bottom: 6px; 
+  color: #cbd5e1;
+}
 
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.dot--green { background: #22c55e; }
-.dot--red { background: #ef4444; }
+.dot--green { background: #22c55e; box-shadow: 0 0 8px #22c55e88; }
+.dot--red { background: #ef4444; box-shadow: 0 0 8px #ef444488; }
 .dot--gray { background: #64748b; }
 
 .stats-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin: 10px 0 6px;
+  margin: 12px 0 8px;
 }
 
 .stat {
-  background: #0b1220;
-  border-radius: 8px;
-  padding: 8px;
+  background: #111728;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 10px 8px;
   text-align: center;
 }
-.stat span { display: block; font-size: 18px; font-weight: 700; color: #38bdf8; }
-.stat label { font-size: 10px; color: #94a3b8; }
+.stat span { 
+  display: block; 
+  font-size: 20px; 
+  font-weight: 800; 
+  color: #d4ff32; 
+  letter-spacing: -0.02em;
+}
+.stat label { font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
 
-.last-check { font-size: 11px; color: #64748b; }
+.last-check { font-size: 10px; color: #64748b; margin-top: 4px; }
 
 .muted { color: #94a3b8; font-size: 12px; margin-bottom: 8px; word-break: break-all; }
 
 .btn {
   display: block;
   width: 100%;
-  padding: 9px 10px;
-  border-radius: 8px;
-  border: 1px solid #1f2937;
-  background: #1e293b;
-  color: #e2e8f0;
-  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f1f5f9;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   cursor: pointer;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  transition: all 0.15s ease;
 }
-.btn:hover { background: #263349; }
-.btn--primary { background: #0284c7; border-color: #0284c7; color: white; font-weight: 600; }
-.btn--primary:hover { background: #0369a1; }
+.btn:hover { background: rgba(255, 255, 255, 0.12); }
+.btn--primary { 
+  background: #d4ff32; 
+  border-color: #d4ff32; 
+  color: #000000; 
+  font-weight: 800; 
+  box-shadow: 0 4px 14px rgba(212, 255, 50, 0.25);
+}
+.btn--primary:hover { 
+  background: #c3f01c; 
+  border-color: #c3f01c;
+  box-shadow: 0 6px 18px rgba(212, 255, 50, 0.35);
+}
 
 .actions .btn:last-child { margin-bottom: 0; }
 
-.hint { font-size: 12px; color: #4ade80; }
+.hint { font-size: 11px; color: #4ade80; line-height: 1.4; }
 
 .hidden { display: none !important; }
 
 .banner {
-  font-size: 12px;
-  padding: 8px 10px;
-  border-radius: 8px;
+  font-size: 11px;
+  padding: 9px 12px;
+  border-radius: 10px;
   margin-bottom: 10px;
+  line-height: 1.4;
 }
-.banner--warn { background: #7c2d12; color: #fed7aa; }
+.banner--warn { 
+  background: rgba(239, 68, 68, 0.15); 
+  border: 1px solid rgba(239, 68, 68, 0.35); 
+  color: #fca5a5; 
+}
 
 .toast {
   position: fixed;
   bottom: 10px;
   left: 14px;
   right: 14px;
-  background: #0284c7;
+  background: #6366f1;
   color: white;
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: 9px 12px;
+  border-radius: 9999px;
   font-size: 12px;
+  font-weight: 700;
   text-align: center;
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
 }

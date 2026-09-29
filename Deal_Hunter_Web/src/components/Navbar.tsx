@@ -72,12 +72,12 @@ export default function Navbar() {
     user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
 
   return (
-    <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-[#07090e]/80 border-b border-gray-800/60 transition-all">
+    <header className="sticky top-0 z-40 w-full backdrop-blur-2xl bg-[#080b14]/85 border-b border-white/[0.08] transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         
         {/* Logo & Marca */}
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-cyan-500/10 group-hover:scale-105 transition-all flex items-center justify-center bg-[#0d131f]/60 p-0.5 border border-cyan-500/30">
+          <div className="w-10 h-10 rounded-2xl overflow-hidden shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-all flex items-center justify-center bg-[#0e1322] p-1 border border-indigo-500/30">
             <img
               src="/images/logo.png"
               alt="Deal Hunter Pro Logo"
@@ -85,17 +85,17 @@ export default function Navbar() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-extrabold text-lg sm:text-xl tracking-tight text-white group-hover:text-cyan-300 transition-colors">
+            <span className="font-black text-lg sm:text-xl tracking-tight text-white group-hover:text-indigo-300 transition-colors uppercase">
               Deal Hunter
             </span>
-            <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-md shadow-sm">
+            <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-full shadow-sm border border-indigo-400/30">
               Pro
             </span>
           </div>
         </Link>
 
         {/* Links de Navegação Desktop */}
-        <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-300">
+        <nav className="hidden md:flex items-center gap-7 text-xs font-semibold uppercase tracking-wider text-gray-300">
           <a href="#como-funciona" className="hover:text-white transition-colors">
             Como Funciona
           </a>
@@ -117,38 +117,38 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-3">
           {user ? (
             /* ================= USUÁRIO LOGADO ================= */
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <Link
                 href="/login"
-                className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-[#111724] border border-gray-800 hover:border-gray-700 transition-all group"
+                className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-white/[0.06] border border-white/10 hover:border-white/20 transition-all group"
                 title={user.email}
               >
                 {avatarUrl ? (
                   <img
                     src={avatarUrl}
                     alt={displayName}
-                    className="w-6 h-6 rounded-full object-cover border border-emerald-500/60"
+                    className="w-6 h-6 rounded-full object-cover border border-emerald-400"
                   />
                 ) : (
-                  <div className="w-6 h-6 rounded-full bg-orange-500/20 text-orange-400 font-bold text-xs flex items-center justify-center border border-orange-500/40">
+                  <div className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300 font-bold text-xs flex items-center justify-center border border-indigo-500/40">
                     <UserIcon className="w-3.5 h-3.5" />
                   </div>
                 )}
-                <span className="text-xs font-bold text-white group-hover:text-orange-400 transition-colors max-w-[130px] truncate">
+                <span className="text-xs font-bold text-white group-hover:text-indigo-300 transition-colors max-w-[130px] truncate">
                   {displayName}
                 </span>
               </Link>
 
               <Link
                 href="/login"
-                className="text-xs font-semibold text-gray-300 hover:text-white px-2 py-2 transition-colors"
+                className="text-xs font-semibold uppercase tracking-wider text-gray-300 hover:text-white px-2 py-2 transition-colors"
               >
                 Painel
               </Link>
 
               <button
                 onClick={handleSignOut}
-                className="text-xs font-medium text-gray-400 hover:text-red-400 px-2.5 py-1.5 rounded-lg hover:bg-red-950/20 border border-transparent hover:border-red-900/30 transition-all flex items-center gap-1.5"
+                className="text-xs font-semibold text-gray-400 hover:text-red-400 px-3 py-1.5 rounded-full hover:bg-red-950/20 border border-transparent hover:border-red-900/30 transition-all flex items-center gap-1.5"
                 title="Encerrar sessão"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -157,7 +157,7 @@ export default function Navbar() {
 
               <a
                 href="#planos"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold shadow-lg shadow-orange-500/20 hover:shadow-orange-500/35 transition-all active:scale-[0.98]"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-indigo-600/25 hover:shadow-indigo-600/40 hover:-translate-y-0.5 transition-all active:scale-[0.98]"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Planos</span>
@@ -165,11 +165,11 @@ export default function Navbar() {
             </div>
           ) : (
             /* ================= USUÁRIO NÃO LOGADO ================= */
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <button
                 onClick={handleGoogleLogin}
                 disabled={googleLoading}
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-gray-100 text-gray-900 font-semibold text-xs transition-all shadow-md active:scale-[0.98]"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white hover:bg-gray-100 text-gray-900 font-bold text-xs transition-all shadow-md hover:-translate-y-0.5 active:scale-[0.98]"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path
@@ -189,19 +189,21 @@ export default function Navbar() {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                   />
                 </svg>
-                <span>{googleLoading ? 'Conectando...' : 'Continuar com o Google'}</span>
+                <span>{googleLoading ? 'Conectando...' : 'Google'}</span>
               </button>
+
               <Link
                 href="/login"
-                className="text-xs font-semibold text-gray-300 hover:text-white px-2 py-2 transition-colors"
+                className="text-xs font-semibold uppercase tracking-wider text-gray-300 hover:text-white px-2 py-2 transition-colors"
               >
-                Área de Membros
+                Membros
               </Link>
+
               <a
                 href="#planos"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold shadow-lg shadow-orange-500/20 hover:shadow-orange-500/35 transition-all active:scale-[0.98]"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-indigo-600/30 hover:shadow-indigo-600/50 hover:-translate-y-0.5 transition-all active:scale-[0.98]"
               >
-                <Sparkles className="w-3.5 h-3.5" />
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                 <span>Testar 7 Dias Grátis</span>
               </a>
             </div>
