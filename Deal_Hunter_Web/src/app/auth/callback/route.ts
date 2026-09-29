@@ -7,8 +7,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
-  const next = requestUrl.searchParams.get('next') ?? '/login';
-  const origin = requestUrl.origin;
+  const next = requestUrl.searchParams.get('next') ?? '/';
 
   if (code) {
     const cookieStore = await cookies();
@@ -26,7 +25,7 @@ export async function GET(request: Request) {
               cookieStore.set(name, value, options);
             });
           } catch {
-            // Ignorado caso chamado de Server Component
+            // Ignorado se chamado em Server Component
           }
         },
       },
@@ -38,18 +37,20 @@ export async function GET(request: Request) {
       const isLocalEnv = process.env.NODE_ENV === 'development';
 
       if (isLocalEnv) {
-        return NextResponse.redirect(`${origin}${next}`);
+        return NextResponse.redirect(new URL(next, request.url));
       } else if (forwardedHost) {
         return NextResponse.redirect(`https://${forwardedHost}${next}`);
       } else {
-        return NextResponse.redirect(`${origin}${next}`);
+        return NextResponse.redirect(new URL(next, request.url));
       }
     } else {
       console.error('[Auth Callback] Erro ao trocar código por sessão:', error.message);
-      return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`);
+      return NextResponse.redirect(
+        new URL(`/login?error=${encodeURIComponent(error.message)}`, request.url)
+      );
     }
   }
 
-  // Se nenhum código for recebido, redireciona para a página de login
-  return NextResponse.redirect(`${origin}/login`);
+  // Redirecionamento limpo para a rota de origem
+  return NextResponse.redirect(new URL('/', request.url));
 }
