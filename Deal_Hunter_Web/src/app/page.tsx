@@ -42,8 +42,8 @@ export default function LandingPage() {
   const infinitePayPixUrl = 'https://checkout.infinitepay.io/deal-hunter-pro-br/AoJYT9KaSj';
   const stripeCardUrl = '/login';
   const checkoutUrl = '/login';
-  // Placeholder para o vídeo de tutorial/demonstração
-  const demoVideoEmbedUrl = 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1';
+  // Vídeo de tutorial e demonstração oficial
+  const demoVideoEmbedUrl = 'https://www.youtube.com/embed/52BbMllmT18?autoplay=1';
 
   async function handleGoogleLogin() {
     setGoogleLoading(true);
