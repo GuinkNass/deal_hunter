@@ -345,9 +345,7 @@ export default function LoginPage() {
                 <div className="space-y-2.5 pt-1">
                   {/* Opção 1: Pix InfinitePay */}
                   <a
-                    href={`https://checkout.infinitepay.io/guilherme-rodrigues-u8i/AoJYT9KaSj${
-                      sessionUser?.email ? `?customer_email=${encodeURIComponent(sessionUser.email)}` : ''
-                    }`}
+                    href="https://checkout.infinitepay.io/guilherme-rodrigues-u8i/AoJYT9KaSj"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/25 transition-all active:scale-[0.98]"
