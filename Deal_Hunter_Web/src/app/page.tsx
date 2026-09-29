@@ -175,28 +175,28 @@ export default function LandingPage() {
             </a>
 
             {/* Botão Secundário: Teste 7 Dias */}
-            <a
-              href="#planos"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl bg-[#121622] hover:bg-[#181e2e] border border-gray-700/80 hover:border-gray-600 text-white font-bold text-sm sm:text-base shadow-lg transition-all active:scale-[0.98]"
+            <Link
+              href="/login"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl bg-[#121622] hover:bg-[#181e2e] border border-orange-500/40 hover:border-orange-400 text-white font-bold text-sm sm:text-base shadow-lg transition-all active:scale-[0.98]"
             >
               <Sparkles className="w-4 h-4 text-amber-400" />
               <span>Testar 7 Dias Grátis</span>
-            </a>
+            </Link>
           </div>
 
           {/* Badges de Confiança */}
           <div className="pt-4 flex flex-wrap items-center justify-center gap-y-2 gap-x-6 text-xs text-gray-400">
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>7 dias de garantia incondicional</span>
+              <span><strong>7 dias grátis:</strong> sem cartão e sem Pix para testar</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Zap className="w-4 h-4 text-amber-400" />
-              <span>Instalação em 1 minuto</span>
+              <span>Ativação imediata no 1º login</span>
             </div>
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Sem fidelidade: cancele quando quiser</span>
+              <span>Após os 7 dias: R$ 29,90 no Pix ou Cartão</span>
             </div>
           </div>
 
@@ -493,43 +493,57 @@ export default function LandingPage() {
       <section id="planos" className="py-16 sm:py-24 bg-[#0a0d15]/80 border-y border-gray-800/60 relative">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          <div className="text-center space-y-3 mb-12">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 text-xs font-semibold uppercase tracking-wider">
-              <Gift className="w-3.5 h-3.5" />
-              Escolha a Melhor Opção Para Você
+          <div className="text-center space-y-3 mb-10">
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-gradient-to-r from-orange-500/20 to-emerald-500/20 border border-orange-500/30 text-amber-300 text-xs font-bold uppercase tracking-wider">
+              <Gift className="w-3.5 h-3.5 text-amber-400" />
+              Teste 100% Gratuito sem Compromisso
             </div>
             <h2 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
-              Planos Flexíveis e Sem Pegadinhas
+              7 Dias de Teste Grátis Para Todos
             </h2>
-            <p className="text-sm text-gray-300 max-w-xl mx-auto">
-              Pague menos no Pix com liberação imediata ou experimente grátis por 7 dias no cartão de crédito.
+            <p className="text-sm sm:text-base text-gray-300 max-w-2xl mx-auto leading-relaxed">
+              Não precisa cadastrar cartão e nem pagar Pix para começar a testar. 
+              <br className="hidden sm:inline" />
+              Basta fazer login para ter <strong>acesso total liberado por 7 dias</strong>. Após o teste, você escolhe como prefere continuar por apenas <strong>R$ 29,90</strong>:
             </p>
+
+            {/* Banner de Destaque do Teste */}
+            <div className="pt-2">
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-sm sm:text-base shadow-xl shadow-orange-500/25 hover:shadow-orange-500/40 hover:-translate-y-0.5 transition-all active:scale-[0.98]"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Começar Meus 7 Dias Grátis (Sem Cartão)</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
 
-          {/* Grid de Planos: Pix Instantâneo vs. Cartão de Crédito */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+          {/* Grid de Planos Pós-Teste: Pix Instantâneo vs. Cartão de Crédito */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch pt-2">
             
-            {/* CARD 1: PIX INSTANTÂNEO (INFINITEPAY) - DESTAQUE ECONÔMICO */}
+            {/* CARD 1: PIX INSTANTÂNEO (INFINITEPAY) */}
             <div className="relative rounded-3xl bg-gradient-to-b from-[#0f1f1a] via-[#0d1715] to-[#0a100f] border-2 border-emerald-500/70 p-7 sm:p-9 shadow-2xl shadow-emerald-950/40 flex flex-col justify-between overflow-hidden group hover:border-emerald-400 transition-all">
               
               {/* Badge Topo */}
               <div className="absolute top-0 right-0">
                 <div className="bg-gradient-to-l from-emerald-500 to-teal-500 text-white text-[11px] font-black uppercase tracking-wider py-1.5 px-5 rounded-bl-2xl shadow-md flex items-center gap-1.5">
                   <Zap className="w-3.5 h-3.5 fill-white" />
-                  <span>Mais Econômico</span>
+                  <span>Pagamento Manual</span>
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Pix Instantâneo (InfinitePay)</span>
+                  <span>Opção 1 · Pix (InfinitePay)</span>
                 </div>
                 <h3 className="text-2xl font-black text-white">
-                  Acesso Mensal via Pix
+                  30 Dias de Acesso via Pix
                 </h3>
                 <p className="text-xs text-gray-300 leading-relaxed mt-1">
-                  Ideal para quem deseja ativar na hora pagando menos, sem necessidade de cartão de crédito.
+                  Ideal para quem deseja pagar mês a mês no Pix com controle total e sem renovações automáticas no cartão.
                 </p>
 
                 {/* Preço */}
@@ -543,23 +557,19 @@ export default function LandingPage() {
                     </span>
                   </div>
                   <p className="text-[11px] text-gray-400 mt-1">
-                    Pagamento único à vista · Sem renovações automáticas inesperadas
+                    Pagamento avulso à vista · Você só renova quando quiser
                   </p>
                 </div>
 
                 {/* Checklist de Benefícios */}
                 <div className="pt-6 border-t border-emerald-500/20 my-6">
                   <p className="text-xs font-bold text-gray-200 uppercase tracking-wider mb-3">
-                    O que está liberado no Pix:
+                    Vantagens completas inclusas:
                   </p>
                   <ul className="space-y-2.5 text-xs text-gray-200">
                     <li className="flex items-center gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                      <span><strong>Ativação imediata:</strong> licença liberada em segundos</span>
-                    </li>
-                    <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                      <span>30 dias completos de monitoramento ilimitado</span>
+                      <span><strong>Mesmas funções completas</strong> do plano Pro</span>
                     </li>
                     <li className="flex items-center gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
@@ -572,6 +582,10 @@ export default function LandingPage() {
                     <li className="flex items-center gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                       <span>Download imediato da extensão (.zip) pré-configurada</span>
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>Sem necessidade de cadastrar cartão de crédito</span>
                     </li>
                     <li className="flex items-center gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
@@ -593,71 +607,71 @@ export default function LandingPage() {
                   <span>Pagar R$ 29,90 via Pix</span>
                 </a>
                 <p className="text-center text-[11px] text-emerald-400 font-medium mt-2.5">
-                  ⚡ Checkout oficial seguro InfinitePay com liberação automática
+                  ⚡ Liberação automática instantânea por 30 dias
                 </p>
               </div>
 
             </div>
 
-            {/* CARD 2: CARTÃO DE CRÉDITO (STRIPE) - 7 DIAS GRÁTIS */}
+            {/* CARD 2: CARTÃO DE CRÉDITO (STRIPE) */}
             <div className="relative rounded-3xl bg-gradient-to-b from-[#141a29] via-[#0f1422] to-[#0a0d15] border-2 border-orange-500/60 p-7 sm:p-9 shadow-2xl shadow-orange-500/10 flex flex-col justify-between overflow-hidden group hover:border-orange-400 transition-all">
               
               {/* Badge Topo */}
               <div className="absolute top-0 right-0">
                 <div className="bg-gradient-to-l from-orange-500 to-amber-500 text-white text-[11px] font-black uppercase tracking-wider py-1.5 px-5 rounded-bl-2xl shadow-md flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-white" />
-                  <span>7 Dias Sem Custo</span>
+                  <span>Renovação Automática</span>
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-wider mb-2">
                   <Flame className="w-3.5 h-3.5 fill-orange-400" />
-                  <span>Cartão de Crédito (Stripe)</span>
+                  <span>Opção 2 · Cartão de Crédito (Stripe)</span>
                 </div>
                 <h3 className="text-2xl font-black text-white">
-                  Assinatura com Teste Grátis
+                  Assinatura Contínua
                 </h3>
                 <p className="text-xs text-gray-300 leading-relaxed mt-1">
-                  Teste todos os recursos sem pagar nada hoje. Cancele quando quiser antes do 7º dia.
+                  Mesmas vantagens com a conveniência de não precisar pagar manualmente todo mês para continuar com o serviço ativo.
                 </p>
 
                 {/* Preço Cartão Stripe */}
-                <div className="mt-5 mb-2">
+                <div className="mt-6 mb-2">
                   <div className="flex items-baseline gap-2">
                     <span className="text-4xl sm:text-5xl font-black text-white">
                       R$ 29,90
                     </span>
                     <span className="text-xs text-orange-400 font-bold uppercase tracking-wider">
-                      / mês após 7 dias
+                      / mês
                     </span>
                   </div>
                   <p className="text-[11px] text-amber-400 font-semibold mt-1">
-                    🛡️ R$ 0,00 cobrado hoje · Primeiros 7 dias grátis, depois R$ 29,90/mês
+                    🔄 Renovação automática · Cancele com 1 clique a qualquer momento
                   </p>
                 </div>
 
                 {/* Checklist de Benefícios */}
                 <div className="pt-6 border-t border-orange-500/20 my-6">
                   <p className="text-xs font-bold text-gray-200 uppercase tracking-wider mb-3">
-                    Incluso no teste de 7 dias:
+                    Vantagens completas inclusas:
                   </p>
                   <ul className="space-y-2.5 text-xs text-gray-200">
                     <li className="flex items-center gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                      <span><strong>7 dias inteiros</strong> sem cobrança inicial no cartão</span>
+                      <span><strong>Mesmas funções completas</strong> do plano Pro</span>
                     </li>
                     <li className="flex items-center gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                      <span>Varreduras ilimitadas 24h por dia</span>
-                    </li>
-                    <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                      <span>Monitoramento de Amazon, Magalu e Eletroclub</span>
+                      <span>Varredura simultânea de Amazon, Magalu e Eletroclub</span>
                     </li>
                     <li className="flex items-center gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                       <span>Alertas instantâneos em canais/grupos do Telegram</span>
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                      <span><strong>Vantagem exclusiva:</strong> renovação automática mensal sem preocupação</span>
                     </li>
                     <li className="flex items-center gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
@@ -678,10 +692,10 @@ export default function LandingPage() {
                   className="w-full flex items-center justify-center gap-2.5 py-4 px-6 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-sm sm:text-base shadow-xl shadow-orange-500/30 hover:shadow-orange-500/50 hover:-translate-y-0.5 transition-all active:scale-[0.98]"
                 >
                   <Sparkles className="w-4 h-4" />
-                  <span>Testar 7 Dias Grátis no Cartão</span>
+                  <span>Assinar R$ 29,90 no Cartão</span>
                 </Link>
                 <p className="text-center text-[11px] text-gray-400 mt-2.5">
-                  🛡️ Pagamento seguro via Stripe · Cancele antes de 7 dias sem custos
+                  🛡️ Pagamento seguro via Stripe · Gerencie ou cancele quando quiser
                 </p>
               </div>
 
@@ -842,94 +856,87 @@ export default function LandingPage() {
                 <img src="/images/logo.png" alt="Deal Hunter Pro" className="w-full h-full object-contain" />
               </div>
               <h3 className="text-xl sm:text-2xl font-black text-white">
-                Escolha Como Deseja Começar
+                Como Deseja Começar?
               </h3>
               <p className="text-xs sm:text-sm text-gray-300">
-                Selecione a opção de contratação ideal para o seu perfil:
+                Você pode <strong>testar 7 dias grátis sem cartão</strong> ou assinar por R$ 29,90:
               </p>
             </div>
 
-            <div className="space-y-4">
+            {/* Destaque 1: Iniciar Teste Grátis de 7 Dias com o Google */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-orange-500/15 via-amber-500/10 to-emerald-500/15 border-2 border-orange-500/40 text-center space-y-3">
+              <div className="inline-flex items-center gap-1.5 text-amber-300 font-extrabold text-xs uppercase tracking-wider">
+                <Sparkles className="w-4 h-4 text-orange-400" />
+                <span>🎉 7 Dias Grátis (Sem Cartão e Sem Pix)</span>
+              </div>
+              <p className="text-xs text-gray-200 leading-relaxed">
+                Entre com sua conta Google e tenha <strong>acesso total liberado</strong> na extensão imediatamente. Sem taxa inicial e sem pegadinhas.
+              </p>
+              <button
+                onClick={handleGoogleLogin}
+                disabled={googleLoading}
+                className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl bg-white hover:bg-gray-100 text-gray-900 font-extrabold text-xs sm:text-sm shadow-md transition-all active:scale-[0.98]"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span>{googleLoading ? 'Conectando...' : 'Iniciar Teste de 7 Dias com o Google'}</span>
+              </button>
+            </div>
+
+            <div className="relative flex items-center justify-center my-1">
+              <div className="border-t border-gray-800 w-full" />
+              <span className="bg-[#0e131f] px-3 text-[10px] uppercase text-gray-500 font-bold tracking-wider">
+                ou assinar diretamente por R$ 29,90
+              </span>
+            </div>
+
+            <div className="space-y-3">
               {/* Opção 1: Pix InfinitePay */}
-              <div className="relative p-5 rounded-2xl bg-gradient-to-b from-[#11241f] to-[#0d1715] border-2 border-emerald-500/70 hover:border-emerald-400 transition-all space-y-3">
+              <div className="relative p-4 rounded-2xl bg-gradient-to-b from-[#11241f] to-[#0d1715] border border-emerald-500/60 hover:border-emerald-400 transition-all space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
-                    ⚡ Mais Econômico · Imediato
+                    ⚡ Pix Instantâneo
                   </span>
-                  <span className="text-lg font-black text-white">R$ 29,90</span>
+                  <span className="text-base font-black text-white">R$ 29,90 <span className="text-[10px] text-gray-400 font-normal">/ 30 dias</span></span>
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-white">Pix Instantâneo (InfinitePay)</h4>
-                  <p className="text-xs text-gray-300 mt-0.5">
-                    Liberação automática em segundos com 30 dias de acesso sem renovação surpresa.
-                  </p>
-                </div>
+                <p className="text-xs text-gray-300">
+                  Pagamento manual mês a mês · Sem renovação automática no cartão
+                </p>
                 <a
                   href={infinitePayPixUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-sm shadow-md transition-all active:scale-[0.98]"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-[0.98]"
                 >
-                  <Zap className="w-4 h-4 fill-white" />
+                  <Zap className="w-3.5 h-3.5 fill-white" />
                   <span>Pagar R$ 29,90 via Pix</span>
                 </a>
               </div>
 
               {/* Opção 2: Cartão de Crédito Stripe */}
-              <div className="relative p-5 rounded-2xl bg-gradient-to-b from-[#161c2b] to-[#101420] border border-gray-700 hover:border-orange-500/60 transition-all space-y-3">
+              <div className="relative p-4 rounded-2xl bg-gradient-to-b from-[#161c2b] to-[#101420] border border-orange-500/50 hover:border-orange-400 transition-all space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="px-2.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-wider">
-                    🛡️ 7 Dias Grátis
+                    🔄 Renovação Automática
                   </span>
-                  <span className="text-sm font-semibold text-gray-400">R$ 29,90 / mês após teste</span>
+                  <span className="text-base font-black text-white">R$ 29,90 <span className="text-[10px] text-gray-400 font-normal">/ mês</span></span>
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-white">Cartão de Crédito (Stripe)</h4>
-                  <p className="text-xs text-gray-300 mt-0.5">
-                    Comece sem pagar nada hoje. Cancele com 1 clique antes dos 7 dias sem custos.
-                  </p>
-                </div>
+                <p className="text-xs text-gray-300">
+                  Mesmas vantagens com a comodidade de não precisar pagar manualmente todo mês
+                </p>
                 <Link
                   href={stripeCardUrl}
                   onClick={() => setCheckoutModalOpen(false)}
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#1d2537] hover:bg-[#253047] border border-gray-700 text-white font-bold text-sm transition-all active:scale-[0.98]"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#1d2537] hover:bg-[#253047] border border-gray-700 text-white font-bold text-xs transition-all active:scale-[0.98]"
                 >
-                  <Sparkles className="w-4 h-4 text-amber-400" />
-                  <span>Testar 7 Dias Grátis no Cartão</span>
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Assinar R$ 29,90 no Cartão</span>
                 </Link>
               </div>
-            </div>
-
-            {/* Opção Login com Google */}
-            <div className="pt-2 border-t border-gray-800 space-y-2">
-              <p className="text-center text-[11px] text-gray-400">
-                Já é membro ou quer entrar com sua conta Google?
-              </p>
-              <button
-                onClick={handleGoogleLogin}
-                disabled={googleLoading}
-                className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl bg-white hover:bg-gray-100 text-gray-900 font-semibold text-xs sm:text-sm shadow-md transition-all active:scale-[0.98]"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24">
-                  <path
-                    fill="#4285F4"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                  />
-                </svg>
-                <span>{googleLoading ? 'Conectando ao Google...' : 'Continuar com o Google'}</span>
-              </button>
             </div>
 
             <p className="text-center text-[11px] text-gray-400">

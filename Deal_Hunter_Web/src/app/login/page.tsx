@@ -268,6 +268,17 @@ export default function LoginPage() {
             <p>3. Pronto! As varreduras automáticas e alertas de desconto em tempo real já estão ativos.</p>
           </div>
         </div>
+      {/* Banner Informativo de 7 Dias Grátis */}
+      {!sessionUser && (
+        <div className="mb-6 p-4 bg-gradient-to-r from-orange-500/15 via-amber-500/10 to-emerald-500/15 border border-orange-500/30 rounded-3xl text-center space-y-1.5 shadow-lg shadow-orange-950/20">
+          <div className="inline-flex items-center gap-1.5 text-amber-400 font-extrabold text-xs uppercase tracking-wider">
+            <Sparkles className="w-4 h-4 text-orange-400" />
+            <span>🎉 Comece com 7 Dias Grátis</span>
+          </div>
+          <p className="text-xs text-gray-200 leading-relaxed">
+            Faça login com Google ou e-mail para liberar a extensão imediatamente. <strong>Zero cobrança para testar. Sem cartão e sem Pix para começar!</strong>
+          </p>
+        </div>
       )}
 
       {/* Card Principal */}
@@ -294,45 +305,98 @@ export default function LoginPage() {
                 Verificando licença e permissões...
               </div>
             ) : licenseInfo?.authorized ? (
-              <div className="p-4 bg-emerald-950/40 border border-emerald-500/30 rounded-2xl space-y-3">
-                <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
-                  <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
-                  <span>
-                    {licenseInfo.plan === 'admin_unlimited'
-                      ? '👑 Acesso Vitalício (Admin Master)'
-                      : '✅ Assinatura Pro Ativa'}
-                  </span>
+              licenseInfo.plan === 'admin_unlimited' ? (
+                <div className="p-4 bg-emerald-950/40 border border-emerald-500/30 rounded-2xl space-y-3">
+                  <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
+                    <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+                    <span>👑 Acesso Vitalício (Admin Master)</span>
+                  </div>
+                  <p className="text-xs text-gray-300 leading-relaxed">
+                    Sua conta de administrador possui acesso vitalício permanente com todas as funções liberadas.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (authToken && sessionUser && licenseInfo) {
+                        syncWithExtension(authToken, sessionUser, licenseInfo);
+                        setExtensionSynced(true);
+                      }
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-900/30 transition-all active:scale-[0.98]"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {extensionSynced ? '✅ Extensão Conectada e Sincronizada!' : '⚡ Sincronizar com a Extensão Agora'}
+                  </button>
                 </div>
-                <p className="text-xs text-gray-300 leading-relaxed">
-                  Sua conta está autorizada com sucesso. A extensão Deal Hunter está liberada para varreduras ilimitadas e alertas em tempo real.
-                </p>
-                {/* Botão de Sincronização Imediata */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (authToken && sessionUser && licenseInfo) {
-                      syncWithExtension(authToken, sessionUser, licenseInfo);
-                      setExtensionSynced(true);
-                    }
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-900/30 transition-all active:scale-[0.98]"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  {extensionSynced ? '✅ Extensão Conectada e Sincronizada!' : '⚡ Sincronizar com a Extensão Agora'}
-                </button>
+              ) : licenseInfo.is_trial ? (
+                <div className="p-4 bg-gradient-to-br from-emerald-950/50 via-[#0d1e18] to-teal-950/40 border-2 border-emerald-500/40 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+                      <Sparkles className="w-5 h-5 text-amber-400 animate-pulse" />
+                      <span>🛡️ Modo de Teste Grátis Ativo</span>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-extrabold border border-emerald-500/30">
+                      {licenseInfo.trial_days_left} {licenseInfo.trial_days_left === 1 ? 'dia restante' : 'dias restantes'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-200 leading-relaxed">
+                    Sua extensão Deal Hunter está <strong>100% liberada</strong> sem custos e sem pegadinhas. Aproveite seus 7 dias inteiros de teste com varreduras e alertas ilimitados!
+                  </p>
 
-                <p className="text-xs text-amber-300/80 pt-1">
-                  💡 Clique no botão acima para sincronizar ou simplesmente feche esta aba e abra a extensão.
-                </p>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (authToken && sessionUser && licenseInfo) {
+                        syncWithExtension(authToken, sessionUser, licenseInfo);
+                        setExtensionSynced(true);
+                      }
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-900/30 transition-all active:scale-[0.98]"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {extensionSynced ? '✅ Extensão Conectada e Sincronizada!' : '⚡ Sincronizar com a Extensão Agora'}
+                  </button>
+
+                  <p className="text-[11px] text-gray-400 pt-1 text-center">
+                    💡 Após os 7 dias, você escolhe se continua por R$ 29,90 no Pix ou Cartão.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-4 bg-emerald-950/40 border border-emerald-500/30 rounded-2xl space-y-3">
+                  <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
+                    <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+                    <span>✅ Assinatura Pro Ativa</span>
+                  </div>
+                  <p className="text-xs text-gray-300 leading-relaxed">
+                    Sua assinatura está ativa. A extensão Deal Hunter está liberada para varreduras ilimitadas e alertas em tempo real.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (authToken && sessionUser && licenseInfo) {
+                        syncWithExtension(authToken, sessionUser, licenseInfo);
+                        setExtensionSynced(true);
+                      }
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-900/30 transition-all active:scale-[0.98]"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {extensionSynced ? '✅ Extensão Conectada e Sincronizada!' : '⚡ Sincronizar com a Extensão Agora'}
+                  </button>
+                </div>
+              )
             ) : (
               <div className="p-4 bg-amber-950/30 border border-amber-500/30 rounded-2xl space-y-3">
                 <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
                   <Lock className="w-5 h-5 flex-shrink-0" />
-                  <span>Assinatura Necessária</span>
+                  <span>
+                    {licenseInfo?.trial_expired ? '⏰ Período de Teste de 7 Dias Encerrado' : 'Assinatura Necessária'}
+                  </span>
                 </div>
                 <p className="text-xs text-gray-300 leading-relaxed">
-                  Para utilizar a extensão e receber notificações de descontos em tempo real, assine o plano Deal Hunter Pro.
+                  {licenseInfo?.trial_expired
+                    ? 'Seu período de teste de 7 dias gratuitos encerrou. Escolha como prefere continuar por apenas R$ 29,90:'
+                    : 'Para utilizar a extensão e receber notificações de descontos em tempo real, escolha sua forma de pagamento:'}
                 </p>
 
                 {errorMessage && (
@@ -342,37 +406,49 @@ export default function LoginPage() {
                   </div>
                 )}
 
-                <div className="space-y-2.5 pt-1">
+                <div className="space-y-3 pt-1">
                   {/* Opção 1: Pix InfinitePay */}
-                  <a
-                    href="https://checkout.infinitepay.io/deal-hunter-pro-br/AoJYT9KaSj"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/25 transition-all active:scale-[0.98]"
-                  >
-                    <Zap className="w-4 h-4 fill-white" />
-                    <span>Pagar R$ 29,90 via Pix (InfinitePay)</span>
-                  </a>
-                  <p className="text-center text-[11px] text-emerald-400/90 font-medium">
-                    ⚡ Liberação automática instantânea por 30 dias
-                  </p>
-
-                  <div className="relative flex items-center justify-center py-1">
-                    <div className="border-t border-gray-800 w-full" />
-                    <span className="bg-[#161b26] px-3 text-[10px] uppercase text-gray-500 font-semibold tracking-wider">
-                      ou com cartão
-                    </span>
+                  <div className="p-3.5 bg-black/40 border border-emerald-500/30 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-emerald-400 flex items-center gap-1.5">
+                        <Zap className="w-4 h-4" /> Pix Instantâneo
+                      </span>
+                      <span className="font-extrabold text-white text-sm">R$ 29,90 <span className="text-[10px] text-gray-400 font-normal">/ 30 dias</span></span>
+                    </div>
+                    <p className="text-[11px] text-gray-300 leading-relaxed">
+                      Pagamento manual mês a mês · Sem cobrança automática no cartão
+                    </p>
+                    <a
+                      href="https://checkout.infinitepay.io/deal-hunter-pro-br/AoJYT9KaSj"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-[0.98]"
+                    >
+                      <Zap className="w-3.5 h-3.5 fill-white" />
+                      <span>Pagar R$ 29,90 via Pix</span>
+                    </a>
                   </div>
 
                   {/* Opção 2: Cartão / Stripe */}
-                  <button
-                    onClick={handleCheckout}
-                    disabled={loading}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#1d2433] hover:bg-[#252e42] border border-gray-700/80 text-gray-200 hover:text-white font-semibold text-xs shadow-md transition-all active:scale-[0.98]"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                    {loading ? 'Preparando Checkout...' : 'Assinar via Cartão (7 Dias Grátis · Stripe)'}
-                  </button>
+                  <div className="p-3.5 bg-black/40 border border-orange-500/30 rounded-2xl space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-orange-400 flex items-center gap-1.5">
+                        <Sparkles className="w-4 h-4 text-amber-400" /> Cartão de Crédito
+                      </span>
+                      <span className="font-extrabold text-white text-sm">R$ 29,90 <span className="text-[10px] text-gray-400 font-normal">/ mês</span></span>
+                    </div>
+                    <p className="text-[11px] text-gray-300 leading-relaxed">
+                      Renovação automática mensal · Mesmas vantagens com a conveniência de não precisar pagar manualmente todo mês
+                    </p>
+                    <button
+                      onClick={handleCheckout}
+                      disabled={loading}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#1d2433] hover:bg-[#252e42] border border-orange-500/40 text-white font-bold text-xs shadow-md transition-all active:scale-[0.98]"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      {loading ? 'Preparando Checkout...' : 'Assinar por R$ 29,90 no Cartão'}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

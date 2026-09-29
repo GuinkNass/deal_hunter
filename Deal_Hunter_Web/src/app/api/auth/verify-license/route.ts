@@ -63,9 +63,9 @@ async function handleVerification(req: NextRequest) {
   const userEmail = (user.email || '').toLowerCase().trim();
 
   // 2. Busca do perfil no banco de dados
-  const { data: profile, error: profileError } = await supabase
+  let { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('role, subscription_status, stripe_customer_id, stripe_subscription_id, expires_at')
+    .select('role, subscription_status, stripe_customer_id, stripe_subscription_id, expires_at, created_at')
     .eq('id', user.id)
     .single();
 
@@ -74,7 +74,7 @@ async function handleVerification(req: NextRequest) {
     if (profileError.message?.toLowerCase().includes('expires_at')) {
       const retry = await supabase
         .from('profiles')
-        .select('role, subscription_status, stripe_customer_id, stripe_subscription_id')
+        .select('role, subscription_status, stripe_customer_id, stripe_subscription_id, created_at')
         .eq('id', user.id)
         .single();
       if (retry.data) {
@@ -85,11 +85,35 @@ async function handleVerification(req: NextRequest) {
     }
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://seu-dominio.vercel.app';
+  // Se o perfil ainda não existe, tenta criar para persistir a data de primeiro acesso
+  if (!profile) {
+    try {
+      const initialRole = userEmail === ADMIN_EMAIL ? 'admin' : 'user';
+      const initialStatus = userEmail === ADMIN_EMAIL ? 'active' : 'inactive';
+      const nowIso = new Date().toISOString();
+      const { data: newProfile } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          email: userEmail,
+          role: initialRole,
+          subscription_status: initialStatus,
+          created_at: user.created_at || nowIso,
+          updated_at: nowIso,
+        })
+        .select()
+        .single();
+      if (newProfile) profile = newProfile;
+    } catch (insertErr) {
+      console.warn('Auto-criação de perfil no verify-license:', insertErr);
+    }
+  }
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://dealhunterpro.com.br';
   const checkoutUrl = `${siteUrl}/login?checkout=required`;
 
   // 3. REGRA DE OURO: Conta Administrador Master (guilherme.r.nascimento@live.com)
-  // Possui acesso permanente e ilimitado, independente de ter assinatura no Stripe
+  // Possui acesso permanente e ilimitado, independente de pagamentos
   if (userEmail === ADMIN_EMAIL || profile?.role === 'admin') {
     return NextResponse.json(
       {
@@ -97,6 +121,7 @@ async function handleVerification(req: NextRequest) {
         plan: 'admin_unlimited',
         email: userEmail,
         role: 'admin',
+        is_trial: false,
         message: 'Acesso Vitalício de Administrador concedido com sucesso.',
       },
       {
@@ -106,21 +131,22 @@ async function handleVerification(req: NextRequest) {
     );
   }
 
-  // 4. Verificação de Usuário: Status da Assinatura e Data de Expiração
+  // 4. Verificação de Assinatura Paga Ativa (Stripe ou InfinitePay Pix)
   const status = profile?.subscription_status || 'inactive';
-  const isExpired = profile?.expires_at ? new Date(profile.expires_at).getTime() < Date.now() : false;
-  const isAuthorized = (status === 'active' || status === 'trialing') && !isExpired;
+  const hasExpiresAt = !!profile?.expires_at;
+  const isPaidActive = status === 'active' && (!hasExpiresAt || new Date(profile.expires_at).getTime() > Date.now());
 
-  if (isAuthorized) {
+  if (isPaidActive) {
     return NextResponse.json(
       {
         authorized: true,
         plan: 'pro_monthly',
         email: userEmail,
         role: 'user',
-        status,
+        status: 'active',
+        is_trial: false,
         expires_at: profile?.expires_at || null,
-        message: 'Assinatura ativa. Acesso liberado.',
+        message: 'Assinatura Pro ativa. Acesso liberado.',
       },
       {
         status: 200,
@@ -129,16 +155,49 @@ async function handleVerification(req: NextRequest) {
     );
   }
 
-  // Usuário autenticado mas sem assinatura ativa
+  // 5. REGRA DE OURO: Modo de Teste Grátis de 7 Dias para Todo Usuário Cadastrado
+  // Não requer cartão de crédito nem Pix. Começa no momento do primeiro login/cadastro.
+  const userRegistrationTime = new Date(profile?.created_at || user.created_at || Date.now()).getTime();
+  const trialDurationMs = 7 * 24 * 60 * 60 * 1000; // 7 dias
+  const trialEndsAt = userRegistrationTime + trialDurationMs;
+  const now = Date.now();
+
+  const isTrialActive = now < trialEndsAt;
+  const trialDaysLeft = Math.max(1, Math.ceil((trialEndsAt - now) / (1000 * 60 * 60 * 24)));
+
+  if (isTrialActive) {
+    return NextResponse.json(
+      {
+        authorized: true,
+        plan: 'trial_7_days',
+        email: userEmail,
+        role: 'user',
+        status: 'trialing',
+        is_trial: true,
+        trial_days_left: trialDaysLeft,
+        trial_ends_at: new Date(trialEndsAt).toISOString(),
+        message: `Modo de teste gratuito ativo. Você tem ${trialDaysLeft} dia(s) restante(s) de acesso total sem custos.`,
+      },
+      {
+        status: 200,
+        headers: { 'Access-Control-Allow-Origin': '*' },
+      }
+    );
+  }
+
+  // 6. Teste de 7 dias encerrado e sem assinatura ativa
   return NextResponse.json(
     {
       authorized: false,
       plan: 'none',
       email: userEmail,
       role: 'user',
-      status,
+      status: 'trial_expired',
+      is_trial: false,
+      trial_expired: true,
+      trial_ends_at: new Date(trialEndsAt).toISOString(),
       checkout_url: checkoutUrl,
-      message: 'Assinatura inativa ou cancelada. Assine o plano para continuar.',
+      message: 'Seu período de teste gratuito de 7 dias encerrou. Escolha pagar via Pix ou Cartão por R$ 29,90 para continuar.',
     },
     {
       status: 403,
