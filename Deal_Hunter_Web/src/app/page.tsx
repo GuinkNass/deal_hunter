@@ -39,7 +39,7 @@ export default function LandingPage() {
 
   // Links de pagamento e download
   const downloadZipUrl = '/downloads/deal-hunter-pro.zip';
-  const infinitePayPixUrl = 'https://checkout.infinitepay.io/guilherme-rodrigues-u8i/AoJYT9KaSj';
+  const infinitePayPixUrl = 'https://checkout.infinitepay.io/deal-hunter-pro-br/AoJYT9KaSj';
   const stripeCardUrl = '/login';
   const checkoutUrl = '/login';
   // Placeholder para o vídeo de tutorial/demonstração
