@@ -268,6 +268,8 @@ export default function LoginPage() {
             <p>3. Pronto! As varreduras automáticas e alertas de desconto em tempo real já estão ativos.</p>
           </div>
         </div>
+      )}
+
       {/* Banner Informativo de 7 Dias Grátis */}
       {!sessionUser && (
         <div className="mb-6 p-4 bg-gradient-to-r from-orange-500/15 via-amber-500/10 to-emerald-500/15 border border-orange-500/30 rounded-3xl text-center space-y-1.5 shadow-lg shadow-orange-950/20">
