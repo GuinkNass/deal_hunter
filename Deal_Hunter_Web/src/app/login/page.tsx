@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { ShieldCheck, ArrowRight, CheckCircle2, Lock, Sparkles, RefreshCw, Mail, AlertCircle } from 'lucide-react';
+import { ShieldCheck, ArrowRight, CheckCircle2, Lock, Sparkles, RefreshCw, Mail, AlertCircle, Zap } from 'lucide-react';
 
 export default function LoginPage() {
   const [supabase] = useState(() => createClient());
