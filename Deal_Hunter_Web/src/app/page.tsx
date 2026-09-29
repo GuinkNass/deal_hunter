@@ -32,7 +32,6 @@ import {
 
 export default function LandingPage() {
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [videoPlaying, setVideoPlaying] = useState(false);
   const [downloadToast, setDownloadToast] = useState(false);
@@ -623,38 +622,18 @@ export default function LandingPage() {
                   Teste todos os recursos sem pagar nada hoje. Cancele quando quiser antes do 7º dia.
                 </p>
 
-                {/* Preço com Toggle Mensal / Anual */}
+                {/* Preço Cartão Stripe */}
                 <div className="mt-5 mb-2">
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className={`text-xs font-semibold ${billingCycle === 'monthly' ? 'text-white' : 'text-gray-400'}`}>
-                      Mensal
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
-                      className="relative w-11 h-5 bg-gray-800 rounded-full p-0.5 transition-colors focus:outline-none"
-                    >
-                      <div
-                        className={`w-4 h-4 rounded-full bg-orange-500 transition-transform ${
-                          billingCycle === 'annual' ? 'translate-x-6' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-xs font-semibold ${billingCycle === 'annual' ? 'text-white' : 'text-gray-400'}`}>
-                        Anual (-20%)
-                      </span>
-                    </div>
-                  </div>
-
                   <div className="flex items-baseline gap-2">
                     <span className="text-4xl sm:text-5xl font-black text-white">
-                      {billingCycle === 'monthly' ? 'R$ 49,90' : 'R$ 39,90'}
+                      R$ 29,90
                     </span>
-                    <span className="text-xs text-gray-400 font-medium">/ mês</span>
+                    <span className="text-xs text-orange-400 font-bold uppercase tracking-wider">
+                      / mês após 7 dias
+                    </span>
                   </div>
                   <p className="text-[11px] text-amber-400 font-semibold mt-1">
-                    🛡️ Primeiros 7 dias grátis · Renovação automática após o período
+                    🛡️ R$ 0,00 cobrado hoje · Primeiros 7 dias grátis, depois R$ 29,90/mês
                   </p>
                 </div>
 
@@ -902,7 +881,7 @@ export default function LandingPage() {
                   <span className="px-2.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-wider">
                     🛡️ 7 Dias Grátis
                   </span>
-                  <span className="text-sm font-semibold text-gray-400">R$ 49,90 / mês após teste</span>
+                  <span className="text-sm font-semibold text-gray-400">R$ 29,90 / mês após teste</span>
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-white">Cartão de Crédito (Stripe)</h4>
