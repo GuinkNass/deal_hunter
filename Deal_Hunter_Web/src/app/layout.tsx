@@ -22,6 +22,24 @@ export const metadata: Metadata = {
     siteName: 'Deal Hunter Pro',
     locale: 'pt_BR',
     type: 'website',
+    images: [
+      {
+        url: '/images/logo.png',
+        width: 500,
+        height: 500,
+        alt: 'Deal Hunter Pro Logo',
+      },
+    ],
+  },
+  icons: {
+    icon: [
+      { url: '/images/logo.png', sizes: 'any' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/images/logo.png' },
+    ],
   },
 };
 

@@ -45,11 +45,11 @@ export default function PaginaSucesso() {
         
         {/* Header / Brand */}
         <div className="text-center">
-          <Link href="/" className="inline-flex items-center gap-2 mb-4 group">
-            <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400 group-hover:scale-105 transition-transform">
-              <Flame className="w-5 h-5 fill-orange-400" />
+          <Link href="/" className="inline-flex items-center gap-2.5 mb-4 group">
+            <div className="w-10 h-10 rounded-xl overflow-hidden bg-[#0d131f] border border-cyan-500/30 flex items-center justify-center p-0.5 group-hover:scale-105 transition-transform shadow-lg shadow-cyan-500/10">
+              <img src="/images/logo.png" alt="Deal Hunter Pro Logo" className="w-full h-full object-contain" />
             </div>
-            <span className="font-extrabold text-lg text-white tracking-tight">Deal Hunter Pro</span>
+            <span className="font-extrabold text-lg text-white tracking-tight group-hover:text-cyan-300 transition-colors">Deal Hunter Pro</span>
           </Link>
         </div>
 

@@ -788,8 +788,8 @@ export default function LandingPage() {
             
             {/* Logo Footer */}
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center text-white">
-                <Flame className="w-4 h-4 fill-white" />
+              <div className="w-8 h-8 rounded-lg overflow-hidden bg-[#0d131f] border border-cyan-500/30 flex items-center justify-center p-0.5">
+                <img src="/images/logo.png" alt="Deal Hunter Pro" className="w-full h-full object-contain" />
               </div>
               <span className="font-extrabold text-base text-white">Deal Hunter Pro</span>
             </div>
@@ -859,8 +859,8 @@ export default function LandingPage() {
             </button>
 
             <div className="text-center space-y-2">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-400 text-white shadow-lg shadow-orange-500/20 mb-1">
-                <Flame className="w-6 h-6 fill-white" />
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#0d131f] border border-cyan-500/30 shadow-lg shadow-cyan-500/10 mb-1 p-1">
+                <img src="/images/logo.png" alt="Deal Hunter Pro" className="w-full h-full object-contain" />
               </div>
               <h3 className="text-xl sm:text-2xl font-black text-white">
                 Escolha Como Deseja Começar

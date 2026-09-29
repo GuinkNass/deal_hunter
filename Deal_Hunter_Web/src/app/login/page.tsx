@@ -235,11 +235,13 @@ export default function LoginPage() {
     <div className="w-full max-w-md mx-auto px-4 py-12 my-auto">
       {/* Header com Logo */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-400 shadow-lg shadow-orange-500/20 mb-4">
-          <ShieldCheck className="w-9 h-9 text-white" />
-        </div>
+        <Link href="/" className="inline-block group mb-4">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-[#0d131f] border border-cyan-500/30 shadow-xl shadow-cyan-500/10 p-2 group-hover:scale-105 transition-transform">
+            <img src="/images/logo.png" alt="Deal Hunter Pro Logo" className="w-full h-full object-contain" />
+          </div>
+        </Link>
         <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
-          Deal Hunter
+          Deal Hunter Pro
         </h1>
         <p className="mt-2 text-sm text-gray-400">
           Autenticação e Licença de Monitoramento de Ofertas

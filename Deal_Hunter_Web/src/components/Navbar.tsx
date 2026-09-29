@@ -77,13 +77,15 @@ export default function Navbar() {
         
         {/* Logo & Marca */}
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-500 to-amber-400 p-[1px] shadow-lg shadow-orange-500/20 group-hover:shadow-orange-500/40 transition-all">
-            <div className="w-full h-full bg-[#0d111a] rounded-[11px] flex items-center justify-center">
-              <Flame className="w-5 h-5 text-orange-400 fill-orange-400/20" />
-            </div>
+          <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-cyan-500/10 group-hover:scale-105 transition-all flex items-center justify-center bg-[#0d131f]/60 p-0.5 border border-cyan-500/30">
+            <img
+              src="/images/logo.png"
+              alt="Deal Hunter Pro Logo"
+              className="w-full h-full object-contain"
+            />
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-extrabold text-lg sm:text-xl tracking-tight text-white">
+            <span className="font-extrabold text-lg sm:text-xl tracking-tight text-white group-hover:text-cyan-300 transition-colors">
               Deal Hunter
             </span>
             <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-md shadow-sm">
