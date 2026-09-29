@@ -339,14 +339,40 @@ export default function LoginPage() {
                   </div>
                 )}
 
-                <button
-                  onClick={handleCheckout}
-                  disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm shadow-lg shadow-orange-500/25 transition-all"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  {loading ? 'Preparando Checkout...' : 'Assinar Plano Pro via Stripe'}
-                </button>
+                <div className="space-y-2.5 pt-1">
+                  {/* Opção 1: Pix InfinitePay */}
+                  <a
+                    href={`https://checkout.infinitepay.io/guilherme-rodrigues-u8i/AoJYT9KaSj${
+                      sessionUser?.email ? `?customer_email=${encodeURIComponent(sessionUser.email)}` : ''
+                    }`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-sm shadow-lg shadow-emerald-500/25 transition-all active:scale-[0.98]"
+                  >
+                    <Zap className="w-4 h-4 fill-white" />
+                    <span>Pagar R$ 29,90 via Pix (InfinitePay)</span>
+                  </a>
+                  <p className="text-center text-[11px] text-emerald-400/90 font-medium">
+                    ⚡ Liberação automática instantânea por 30 dias
+                  </p>
+
+                  <div className="relative flex items-center justify-center py-1">
+                    <div className="border-t border-gray-800 w-full" />
+                    <span className="bg-[#161b26] px-3 text-[10px] uppercase text-gray-500 font-semibold tracking-wider">
+                      ou com cartão
+                    </span>
+                  </div>
+
+                  {/* Opção 2: Cartão / Stripe */}
+                  <button
+                    onClick={handleCheckout}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#1d2433] hover:bg-[#252e42] border border-gray-700/80 text-gray-200 hover:text-white font-semibold text-xs shadow-md transition-all active:scale-[0.98]"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    {loading ? 'Preparando Checkout...' : 'Assinar via Cartão (7 Dias Grátis · Stripe)'}
+                  </button>
+                </div>
               </div>
             )}
 

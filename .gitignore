@@ -44,3 +44,6 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Root archives
+Deal_Hunter_Cliente.zip

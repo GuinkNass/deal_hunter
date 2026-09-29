@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
           userEmail: userEmail,
         },
       },
-      success_url: `${siteUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${siteUrl}/sucesso?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${siteUrl}/login?checkout=cancelled`,
       allow_promotion_codes: true,
     });

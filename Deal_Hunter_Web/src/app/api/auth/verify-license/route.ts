@@ -65,12 +65,24 @@ async function handleVerification(req: NextRequest) {
   // 2. Busca do perfil no banco de dados
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('role, subscription_status, stripe_customer_id, stripe_subscription_id')
+    .select('role, subscription_status, stripe_customer_id, stripe_subscription_id, expires_at')
     .eq('id', user.id)
     .single();
 
   if (profileError && profileError.code !== 'PGRST116') {
-    console.error('Erro ao consultar profile:', profileError);
+    // Se falhar apenas por coluna inexistente, tenta sem expires_at
+    if (profileError.message?.toLowerCase().includes('expires_at')) {
+      const retry = await supabase
+        .from('profiles')
+        .select('role, subscription_status, stripe_customer_id, stripe_subscription_id')
+        .eq('id', user.id)
+        .single();
+      if (retry.data) {
+        profile = retry.data;
+      }
+    } else {
+      console.error('Erro ao consultar profile:', profileError);
+    }
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://seu-dominio.vercel.app';
@@ -94,9 +106,10 @@ async function handleVerification(req: NextRequest) {
     );
   }
 
-  // 4. Verificação de Usuário Comum: Status da Assinatura Stripe
+  // 4. Verificação de Usuário: Status da Assinatura e Data de Expiração
   const status = profile?.subscription_status || 'inactive';
-  const isAuthorized = status === 'active' || status === 'trialing';
+  const isExpired = profile?.expires_at ? new Date(profile.expires_at).getTime() < Date.now() : false;
+  const isAuthorized = (status === 'active' || status === 'trialing') && !isExpired;
 
   if (isAuthorized) {
     return NextResponse.json(
@@ -106,6 +119,7 @@ async function handleVerification(req: NextRequest) {
         email: userEmail,
         role: 'user',
         status,
+        expires_at: profile?.expires_at || null,
         message: 'Assinatura ativa. Acesso liberado.',
       },
       {

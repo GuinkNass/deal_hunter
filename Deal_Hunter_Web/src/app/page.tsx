@@ -30,14 +30,16 @@ import {
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [videoPlaying, setVideoPlaying] = useState(false);
   const [downloadToast, setDownloadToast] = useState(false);
 
-  // Link configurável para o arquivo da extensão
+  // Links de pagamento e download
   const downloadZipUrl = '/downloads/deal-hunter-pro.zip';
-  // Link para cadastro/checkout com 7 dias grátis
+  const infinitePayPixUrl = 'https://checkout.infinitepay.io/guilherme-rodrigues-u8i/AoJYT9KaSj';
+  const stripeCardUrl = '/login';
   const checkoutUrl = '/login';
   // Placeholder para o vídeo de tutorial/demonstração
   const demoVideoEmbedUrl = 'https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1';
@@ -594,147 +596,238 @@ export default function LandingPage() {
       {/* 6. TABELA DE PREÇOS & PLANOS (PRICING)                                     */}
       {/* ========================================================================= */}
       <section id="planos" className="py-16 sm:py-24 bg-[#0a0d15]/80 border-y border-gray-800/60 relative">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          <div className="text-center space-y-3 mb-10">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold uppercase tracking-wider">
+          <div className="text-center space-y-3 mb-12">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/30 text-orange-400 text-xs font-semibold uppercase tracking-wider">
               <Gift className="w-3.5 h-3.5" />
-              Experimente Sem Risco
+              Escolha a Melhor Opção Para Você
             </div>
             <h2 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
-              Comece com 7 Dias Grátis
+              Planos Flexíveis e Sem Pegadinhas
             </h2>
-            <p className="text-sm text-gray-300 max-w-lg mx-auto">
-              Acesso irrestrito a todos os recursos. Se a ferramenta não encontrar promoções que superem o valor da assinatura, você não paga nada.
+            <p className="text-sm text-gray-300 max-w-xl mx-auto">
+              Pague menos no Pix com liberação imediata ou experimente grátis por 7 dias no cartão de crédito.
             </p>
           </div>
 
-          {/* Toggle Mensal / Anual */}
-          <div className="flex items-center justify-center gap-3 mb-10">
-            <span className={`text-xs font-semibold ${billingCycle === 'monthly' ? 'text-white' : 'text-gray-400'}`}>
-              Mensal
-            </span>
-            <button
-              onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
-              className="relative w-12 h-6 bg-gray-800 rounded-full p-0.5 transition-colors focus:outline-none"
-            >
-              <div
-                className={`w-5 h-5 rounded-full bg-orange-500 transition-transform ${
-                  billingCycle === 'annual' ? 'translate-x-6' : 'translate-x-0'
-                }`}
-              />
-            </button>
-            <div className="flex items-center gap-2">
-              <span className={`text-xs font-semibold ${billingCycle === 'annual' ? 'text-white' : 'text-gray-400'}`}>
-                Anual
-              </span>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">
-                Economize 20%
-              </span>
+          {/* Grid de Planos: Pix Instantâneo vs. Cartão de Crédito */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+            
+            {/* CARD 1: PIX INSTANTÂNEO (INFINITEPAY) - DESTAQUE ECONÔMICO */}
+            <div className="relative rounded-3xl bg-gradient-to-b from-[#0f1f1a] via-[#0d1715] to-[#0a100f] border-2 border-emerald-500/70 p-7 sm:p-9 shadow-2xl shadow-emerald-950/40 flex flex-col justify-between overflow-hidden group hover:border-emerald-400 transition-all">
+              
+              {/* Badge Topo */}
+              <div className="absolute top-0 right-0">
+                <div className="bg-gradient-to-l from-emerald-500 to-teal-500 text-white text-[11px] font-black uppercase tracking-wider py-1.5 px-5 rounded-bl-2xl shadow-md flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 fill-white" />
+                  <span>Mais Econômico</span>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Pix Instantâneo (InfinitePay)</span>
+                </div>
+                <h3 className="text-2xl font-black text-white">
+                  Acesso Mensal via Pix
+                </h3>
+                <p className="text-xs text-gray-300 leading-relaxed mt-1">
+                  Ideal para quem deseja ativar na hora pagando menos, sem necessidade de cartão de crédito.
+                </p>
+
+                {/* Preço */}
+                <div className="mt-6 mb-2">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl sm:text-5xl font-black text-white">
+                      R$ 29,90
+                    </span>
+                    <span className="text-xs text-emerald-400 font-bold uppercase tracking-wider">
+                      / 30 dias de acesso
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Pagamento único à vista · Sem renovações automáticas inesperadas
+                  </p>
+                </div>
+
+                {/* Checklist de Benefícios */}
+                <div className="pt-6 border-t border-emerald-500/20 my-6">
+                  <p className="text-xs font-bold text-gray-200 uppercase tracking-wider mb-3">
+                    O que está liberado no Pix:
+                  </p>
+                  <ul className="space-y-2.5 text-xs text-gray-200">
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span><strong>Ativação imediata:</strong> licença liberada em segundos</span>
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>30 dias completos de monitoramento ilimitado</span>
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>Varredura simultânea de Amazon, Magalu e Eletroclub</span>
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>Alertas de bugs e quedas direto no Telegram em &lt; 3s</span>
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>Download imediato da extensão (.zip) pré-configurada</span>
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>Suporte técnico prioritário via WhatsApp</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Botão de Ação Pix */}
+              <div className="pt-2">
+                <a
+                  href={infinitePayPixUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2.5 py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-extrabold text-sm sm:text-base shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 transition-all active:scale-[0.98]"
+                >
+                  <Zap className="w-4 h-4 fill-white" />
+                  <span>Pagar R$ 29,90 via Pix</span>
+                </a>
+                <p className="text-center text-[11px] text-emerald-400 font-medium mt-2.5">
+                  ⚡ Checkout oficial seguro InfinitePay com liberação automática
+                </p>
+              </div>
+
             </div>
+
+            {/* CARD 2: CARTÃO DE CRÉDITO (STRIPE) - 7 DIAS GRÁTIS */}
+            <div className="relative rounded-3xl bg-gradient-to-b from-[#141a29] via-[#0f1422] to-[#0a0d15] border-2 border-orange-500/60 p-7 sm:p-9 shadow-2xl shadow-orange-500/10 flex flex-col justify-between overflow-hidden group hover:border-orange-400 transition-all">
+              
+              {/* Badge Topo */}
+              <div className="absolute top-0 right-0">
+                <div className="bg-gradient-to-l from-orange-500 to-amber-500 text-white text-[11px] font-black uppercase tracking-wider py-1.5 px-5 rounded-bl-2xl shadow-md flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-white" />
+                  <span>7 Dias Sem Custo</span>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 text-orange-400 font-bold text-xs uppercase tracking-wider mb-2">
+                  <Flame className="w-3.5 h-3.5 fill-orange-400" />
+                  <span>Cartão de Crédito (Stripe)</span>
+                </div>
+                <h3 className="text-2xl font-black text-white">
+                  Assinatura com Teste Grátis
+                </h3>
+                <p className="text-xs text-gray-300 leading-relaxed mt-1">
+                  Teste todos os recursos sem pagar nada hoje. Cancele quando quiser antes do 7º dia.
+                </p>
+
+                {/* Preço com Toggle Mensal / Anual */}
+                <div className="mt-5 mb-2">
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className={`text-xs font-semibold ${billingCycle === 'monthly' ? 'text-white' : 'text-gray-400'}`}>
+                      Mensal
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
+                      className="relative w-11 h-5 bg-gray-800 rounded-full p-0.5 transition-colors focus:outline-none"
+                    >
+                      <div
+                        className={`w-4 h-4 rounded-full bg-orange-500 transition-transform ${
+                          billingCycle === 'annual' ? 'translate-x-6' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-xs font-semibold ${billingCycle === 'annual' ? 'text-white' : 'text-gray-400'}`}>
+                        Anual (-20%)
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl sm:text-5xl font-black text-white">
+                      {billingCycle === 'monthly' ? 'R$ 49,90' : 'R$ 39,90'}
+                    </span>
+                    <span className="text-xs text-gray-400 font-medium">/ mês</span>
+                  </div>
+                  <p className="text-[11px] text-amber-400 font-semibold mt-1">
+                    🛡️ Primeiros 7 dias grátis · Renovação automática após o período
+                  </p>
+                </div>
+
+                {/* Checklist de Benefícios */}
+                <div className="pt-6 border-t border-orange-500/20 my-6">
+                  <p className="text-xs font-bold text-gray-200 uppercase tracking-wider mb-3">
+                    Incluso no teste de 7 dias:
+                  </p>
+                  <ul className="space-y-2.5 text-xs text-gray-200">
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span><strong>7 dias inteiros</strong> sem cobrança inicial no cartão</span>
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>Varreduras ilimitadas 24h por dia</span>
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>Monitoramento de Amazon, Magalu e Eletroclub</span>
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>Alertas instantâneos em canais/grupos do Telegram</span>
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>Extensão oficial compatível com Google Chrome e Edge</span>
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>Cancelamento com 1 clique a qualquer momento no portal</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Botão de Ação Cartão */}
+              <div className="pt-2">
+                <Link
+                  href={stripeCardUrl}
+                  className="w-full flex items-center justify-center gap-2.5 py-4 px-6 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-sm sm:text-base shadow-xl shadow-orange-500/30 hover:shadow-orange-500/50 hover:-translate-y-0.5 transition-all active:scale-[0.98]"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Testar 7 Dias Grátis no Cartão</span>
+                </Link>
+                <p className="text-center text-[11px] text-gray-400 mt-2.5">
+                  🛡️ Pagamento seguro via Stripe · Cancele antes de 7 dias sem custos
+                </p>
+              </div>
+
+            </div>
+
           </div>
 
-          {/* Card do Plano Principal */}
-          <div className="relative rounded-3xl bg-gradient-to-b from-[#141a29] to-[#0e121d] border-2 border-orange-500/60 p-8 sm:p-10 shadow-2xl shadow-orange-500/10 overflow-hidden">
-            
-            {/* Badge de Destaque no Topo */}
-            <div className="absolute top-0 right-0">
-              <div className="bg-gradient-to-l from-orange-500 to-amber-500 text-white text-[11px] font-extrabold uppercase tracking-wider py-1.5 px-6 rounded-bl-2xl shadow-md">
-                Mais Escolhido
-              </div>
+          {/* Rodapé da Seção com Garantia */}
+          <div className="mt-12 p-5 rounded-2xl bg-[#0d121c] border border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-300">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="w-6 h-6 text-emerald-400 flex-shrink-0" />
+              <span>
+                <strong>Garantia de Satisfação:</strong> Se o Deal Hunter Pro não te fizer economizar ou lucrar mais do que a mensalidade, nós devolvemos o seu dinheiro.
+              </span>
             </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              
-              {/* Lado Esquerdo: Preço e Destaque */}
-              <div className="lg:col-span-6 space-y-4">
-                <div className="flex items-center gap-2 text-orange-400 font-bold text-sm uppercase tracking-wider">
-                  <Flame className="w-4 h-4 fill-orange-400" />
-                  <span>Plano Deal Hunter Pro</span>
-                </div>
-                <h3 className="text-2xl font-extrabold text-white">
-                  Acesso Total &amp; Ilimitado
-                </h3>
-                <p className="text-xs text-gray-300 leading-relaxed">
-                  Para caçadores de ofertas, compradores inteligentes e donos de canais de achadinhos.
-                </p>
-
-                <div className="pt-2 flex items-baseline gap-2">
-                  <span className="text-4xl sm:text-5xl font-black text-white">
-                    {billingCycle === 'monthly' ? 'R$ 49,90' : 'R$ 39,90'}
-                  </span>
-                  <span className="text-xs text-gray-400 font-medium">/ mês</span>
-                </div>
-
-                {billingCycle === 'annual' && (
-                  <p className="text-[11px] text-emerald-400 font-semibold">
-                    Cobrado anualmente (R$ 478,80/ano) · 2 meses grátis
-                  </p>
-                )}
-
-                <div className="pt-4">
-                  <Link
-                    href={checkoutUrl}
-                    className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-sm shadow-xl shadow-orange-500/30 hover:shadow-orange-500/50 hover:-translate-y-0.5 transition-all active:scale-[0.98]"
-                  >
-                    <span>Começar Meu Teste de 7 Dias</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                  <p className="text-center text-[11px] text-gray-400 mt-2">
-                    🛡️ Cancele a qualquer momento antes dos 7 dias sem cobrança.
-                  </p>
-                </div>
-              </div>
-
-              {/* Lado Direito: Checklist de Benefícios */}
-              <div className="lg:col-span-6 bg-[#0a0d15]/80 border border-gray-800/80 rounded-2xl p-6 space-y-3">
-                <p className="text-xs font-bold text-gray-200 uppercase tracking-wider mb-2">
-                  Tudo o que está incluso no seu plano:
-                </p>
-                <ul className="space-y-2.5 text-xs text-gray-200">
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                    <span>Varreduras ilimitadas 24h por dia</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                    <span>Monitoramento de Amazon, Magalu e Eletroclub</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                    <span>Alertas instantâneos em canais/grupos do Telegram</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                    <span>Filtros personalizados por % de desconto e preço</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                    <span>Extensão oficial compatível com Google Chrome e Edge</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                    <span>Suporte prioritário VIP via WhatsApp</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                    <span>Garantia incondicional de reembolso por 7 dias</span>
-                  </li>
-                </ul>
-
-                {/* Selos de Pagamento */}
-                <div className="pt-4 border-t border-gray-800/60 flex items-center justify-between text-[11px] text-gray-400">
-                  <span>Pagamento seguro via Stripe</span>
-                  <div className="flex items-center gap-2 text-gray-300 font-semibold">
-                    <span>Pix</span>
-                    <span>·</span>
-                    <span>Cartão de Crédito</span>
-                  </div>
-                </div>
-              </div>
-
+            <div className="flex items-center gap-3 text-gray-400 font-medium">
+              <span className="text-white font-semibold">Métodos Aceitos:</span>
+              <span className="text-emerald-400 font-bold">⚡ Pix Instantâneo</span>
+              <span>·</span>
+              <span className="text-orange-400 font-bold">💳 Cartão de Crédito</span>
             </div>
-
           </div>
 
         </div>
@@ -853,6 +946,91 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* ========================================================================= */}
+      {/* 9. MODAL DE SELEÇÃO DE CHECKOUT (PIX vs. CARTÃO)                          */}
+      {/* ========================================================================= */}
+      {checkoutModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg bg-[#0e131f] border-2 border-gray-700/80 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/80 space-y-6 animate-in zoom-in-95 duration-200">
+            {/* Botão Fechar */}
+            <button
+              onClick={() => setCheckoutModalOpen(false)}
+              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white rounded-xl bg-gray-800/50 hover:bg-gray-800 transition-colors"
+              aria-label="Fechar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center space-y-2">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-400 text-white shadow-lg shadow-orange-500/20 mb-1">
+                <Flame className="w-6 h-6 fill-white" />
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-white">
+                Escolha Como Deseja Começar
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-300">
+                Selecione a opção de contratação ideal para o seu perfil:
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {/* Opção 1: Pix InfinitePay */}
+              <div className="relative p-5 rounded-2xl bg-gradient-to-b from-[#11241f] to-[#0d1715] border-2 border-emerald-500/70 hover:border-emerald-400 transition-all space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
+                    ⚡ Mais Econômico · Imediato
+                  </span>
+                  <span className="text-lg font-black text-white">R$ 29,90</span>
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white">Pix Instantâneo (InfinitePay)</h4>
+                  <p className="text-xs text-gray-300 mt-0.5">
+                    Liberação automática em segundos com 30 dias de acesso sem renovação surpresa.
+                  </p>
+                </div>
+                <a
+                  href={infinitePayPixUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-sm shadow-md transition-all active:scale-[0.98]"
+                >
+                  <Zap className="w-4 h-4 fill-white" />
+                  <span>Pagar R$ 29,90 via Pix</span>
+                </a>
+              </div>
+
+              {/* Opção 2: Cartão de Crédito Stripe */}
+              <div className="relative p-5 rounded-2xl bg-gradient-to-b from-[#161c2b] to-[#101420] border border-gray-700 hover:border-orange-500/60 transition-all space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="px-2.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-wider">
+                    🛡️ 7 Dias Grátis
+                  </span>
+                  <span className="text-sm font-semibold text-gray-400">R$ 49,90 / mês após teste</span>
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white">Cartão de Crédito (Stripe)</h4>
+                  <p className="text-xs text-gray-300 mt-0.5">
+                    Comece sem pagar nada hoje. Cancele com 1 clique antes dos 7 dias sem custos.
+                  </p>
+                </div>
+                <Link
+                  href={stripeCardUrl}
+                  onClick={() => setCheckoutModalOpen(false)}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#1d2537] hover:bg-[#253047] border border-gray-700 text-white font-bold text-sm transition-all active:scale-[0.98]"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>Testar 7 Dias Grátis no Cartão</span>
+                </Link>
+              </div>
+            </div>
+
+            <p className="text-center text-[11px] text-gray-400">
+              🔒 Pagamentos processados com criptografia de ponta a ponta.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
