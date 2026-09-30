@@ -183,15 +183,15 @@ export default function LandingPage() {
               <span>Testar 7 Dias Grátis</span>
             </Link>
 
-            {/* Botão Terciário: Assistir Vídeo (Circular Play) */}
+            {/* Botão Secundário: Conhecer como funciona */}
             <a
-              href="#demonstracao"
+              href="#como-funciona"
               className="inline-flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-300 hover:text-white transition-colors group px-2 py-1"
             >
-              <span className="w-10 h-10 rounded-full bg-[#f97316] group-hover:bg-[#ea580c] text-white flex items-center justify-center shadow-lg shadow-orange-500/30 transition-transform group-hover:scale-110">
-                <Play className="w-4 h-4 fill-white translate-x-0.5" />
+              <span className="w-10 h-10 rounded-full bg-violet-600/30 border border-violet-500/40 text-violet-400 group-hover:bg-violet-600/50 flex items-center justify-center transition-transform group-hover:scale-110">
+                <Zap className="w-4 h-4 text-violet-400" />
               </span>
-              <span className="uppercase tracking-wider">Ver Vídeo</span>
+              <span className="uppercase tracking-wider">Como Funciona</span>
             </a>
           </div>
 
@@ -311,10 +311,10 @@ export default function LandingPage() {
                 </div>
                 <div className="pt-6">
                   <a
-                    href="#demonstracao"
+                    href="#como-funciona"
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-xs font-bold text-white transition-all"
                   >
-                    <span>Ver Demonstração</span>
+                    <span>Conhecer o Motor</span>
                     <ArrowRight className="w-3.5 h-3.5 text-violet-400" />
                   </a>
                 </div>
@@ -355,94 +355,87 @@ export default function LandingPage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 4. SEÇÃO DE VÍDEO / DEMONSTRAÇÃO PRÁTICA                                   */}
+      {/* 4. SEÇÃO DE VÍDEO / DEMONSTRAÇÃO PRÁTICA (DESABILITADA TEMPORARIAMENTE)     */}
       {/* ========================================================================= */}
-      <section id="demonstracao" className="py-16 sm:py-24 relative">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          <div className="text-center space-y-3 mb-10">
-            <h2 className="text-xs font-black text-[#d4ff32] uppercase tracking-widest">
-              Demonstração ao Vivo
-            </h2>
-            <p className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white">
-              Veja o Deal Hunter Pro em Ação
-            </p>
-            <p className="text-sm text-slate-300 max-w-xl mx-auto">
-              Assista como a extensão varre dezenas de categorias por minuto e despacha alertas com link direto para o Telegram.
-            </p>
-          </div>
-
-          {/* Mockup de Janela do Navegador / Player */}
-          <div className="relative rounded-[2.5rem] bg-[#0c101d] border border-white/[0.08] shadow-2xl shadow-black/80 overflow-hidden group">
-            {/* Barra Superior estilo Navegador Moderno */}
-            <div className="px-5 py-3.5 bg-[#090d18] border-b border-white/[0.06] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-rose-500/80 inline-block" />
-                <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block" />
-                <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block" />
-              </div>
-              <div className="flex-1 max-w-md mx-auto hidden sm:flex items-center justify-center gap-2 px-4 py-1 rounded-full bg-[#111728] border border-white/[0.06] text-[11px] text-slate-400 font-mono">
-                <Lock className="w-3 h-3 text-emerald-400" />
-                <span>dealhunterpro.com.br/scan-engine</span>
-              </div>
-              <div className="text-[11px] text-violet-400 font-bold uppercase tracking-wider">Extensão Ativa</div>
+      {false && (
+        <section id="demonstracao" className="py-16 sm:py-24 relative">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center space-y-3 mb-10">
+              <h2 className="text-xs font-black text-[#d4ff32] uppercase tracking-widest">
+                Demonstração ao Vivo
+              </h2>
+              <p className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white">
+                Veja o Deal Hunter Pro em Ação
+              </p>
+              <p className="text-sm text-slate-300 max-w-xl mx-auto">
+                Assista como a extensão varre dezenas de categorias por minuto e despacha alertas com link direto para o Telegram.
+              </p>
             </div>
 
-            {/* Conteúdo do Player / Vídeo */}
-            <div className="relative aspect-video w-full bg-[#070a12] flex items-center justify-center overflow-hidden">
-              {videoPlaying ? (
-                <iframe
-                  src={demoVideoEmbedUrl}
-                  title="Tutorial Deal Hunter Pro"
-                  className="w-full h-full border-0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              ) : (
-                <div className="relative w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-[#0c101d] via-[#090d18] to-[#070a12]">
-                  {/* Gradiente decorativo dentro do player */}
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.18)_0,transparent_70%)] pointer-events-none" />
-
-                  {/* Botão de Play Coral Chamativo */}
-                  <button
-                    onClick={() => setVideoPlaying(true)}
-                    className="relative z-10 w-20 h-20 rounded-full bg-[#f97316] hover:bg-[#ea580c] text-white flex items-center justify-center shadow-2xl shadow-orange-500/40 hover:scale-105 active:scale-95 transition-all group-hover:shadow-orange-500/60"
-                    aria-label="Assistir vídeo de demonstração"
-                  >
-                    <Play className="w-8 h-8 fill-white translate-x-0.5" />
-                  </button>
-
-                  <div className="relative z-10 mt-6 space-y-1">
-                    <p className="text-sm sm:text-base font-black uppercase tracking-wider text-white">
-                      Clique para assistir ao tutorial completo (2 min)
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      Veja a instalação, configuração do Telegram e a captura de ofertas ao vivo
-                    </p>
-                  </div>
+            <div className="relative rounded-[2.5rem] bg-[#0c101d] border border-white/[0.08] shadow-2xl shadow-black/80 overflow-hidden group">
+              <div className="px-5 py-3.5 bg-[#090d18] border-b border-white/[0.06] flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-rose-500/80 inline-block" />
+                  <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block" />
+                  <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block" />
                 </div>
-              )}
-            </div>
-
-            {/* Legenda inferior do card */}
-            <div className="p-4 sm:p-5 bg-[#090d18] border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-300">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                <span>Varreduras automáticas em segundo plano com notificações em &lt; 3 segundos.</span>
+                <div className="flex-1 max-w-md mx-auto hidden sm:flex items-center justify-center gap-2 px-4 py-1 rounded-full bg-[#111728] border border-white/[0.06] text-[11px] text-slate-400 font-mono">
+                  <Lock className="w-3 h-3 text-emerald-400" />
+                  <span>dealhunterpro.com.br/scan-engine</span>
+                </div>
+                <div className="text-[11px] text-violet-400 font-bold uppercase tracking-wider">Extensão Ativa</div>
               </div>
-              <a
-                href={downloadZipUrl}
-                download="Deal_Hunter_Cliente.zip"
-                onClick={triggerDownload}
-                className="text-[#d4ff32] hover:underline font-bold flex items-center gap-1.5 transition-colors uppercase tracking-wider text-[11px]"
-              >
-                <span>Baixar para testar agora</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </a>
+
+              <div className="relative aspect-video w-full bg-[#070a12] flex items-center justify-center overflow-hidden">
+                {videoPlaying ? (
+                  <iframe
+                    src={demoVideoEmbedUrl}
+                    title="Tutorial Deal Hunter Pro"
+                    className="w-full h-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <div className="relative w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-[#0c101d] via-[#090d18] to-[#070a12]">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.18)_0,transparent_70%)] pointer-events-none" />
+                    <button
+                      onClick={() => setVideoPlaying(true)}
+                      className="relative z-10 w-20 h-20 rounded-full bg-[#f97316] hover:bg-[#ea580c] text-white flex items-center justify-center shadow-2xl shadow-orange-500/40 hover:scale-105 active:scale-95 transition-all group-hover:shadow-orange-500/60"
+                      aria-label="Assistir vídeo de demonstração"
+                    >
+                      <Play className="w-8 h-8 fill-white translate-x-0.5" />
+                    </button>
+                    <div className="relative z-10 mt-6 space-y-1">
+                      <p className="text-sm sm:text-base font-black uppercase tracking-wider text-white">
+                        Clique para assistir ao tutorial completo (2 min)
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        Veja a instalação, configuração do Telegram e a captura de ofertas ao vivo
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 sm:p-5 bg-[#090d18] border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-300">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span>Varreduras automáticas em segundo plano com notificações em &lt; 3 segundos.</span>
+                </div>
+                <a
+                  href={downloadZipUrl}
+                  download="Deal_Hunter_Cliente.zip"
+                  onClick={triggerDownload}
+                  className="text-[#d4ff32] hover:underline font-bold flex items-center gap-1.5 transition-colors uppercase tracking-wider text-[11px]"
+                >
+                  <span>Baixar para testar agora</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </a>
+              </div>
             </div>
           </div>
-
-        </div>
+        </section>
+      )}
       </section>
 
       {/* ========================================================================= */}
@@ -1058,9 +1051,6 @@ export default function LandingPage() {
             <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-slate-400">
               <a href="#como-funciona" className="hover:text-white transition-colors">
                 Como Funciona
-              </a>
-              <a href="#demonstracao" className="hover:text-white transition-colors">
-                Demonstração
               </a>
               <a href="#recursos" className="hover:text-white transition-colors">
                 Recursos

@@ -95,7 +95,7 @@ async function request(path, { method = 'GET', body, timeoutMs = 60000 } = {}) {
     });
   } catch (err) {
     if (err.name === 'TimeoutError' || (err.message && err.message.includes('fetch'))) {
-      throw new Error('Não foi possível conectar ao servidor na nuvem (Render). Aguarde alguns segundos enquanto o serviço desperta.');
+      throw new Error('Não foi possível conectar ao servidor na nuvem. Aguarde alguns instantes enquanto o serviço desperta.');
     }
     throw err;
   }

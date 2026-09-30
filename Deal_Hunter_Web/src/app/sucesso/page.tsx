@@ -126,7 +126,7 @@ export default function PaginaSucesso() {
                   1
                 </span>
                 <span>
-                  <strong>Extraia o arquivo .zip</strong> baixado e clique duas vezes em <code>2-Ativar-Backend.bat</code> para iniciar o motor local.
+                  <strong>Extraia o arquivo .zip</strong> baixado em uma pasta de sua preferência no computador.
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
@@ -134,7 +134,7 @@ export default function PaginaSucesso() {
                   2
                 </span>
                 <span>
-                  No Chrome, acesse <code>chrome://extensions</code>, ative o <strong>Modo do Desenvolvedor</strong> e selecione a pasta <strong>Extensao</strong>.
+                  No Chrome ou Edge, acesse <code>chrome://extensions</code>, ative o <strong>Modo do Desenvolvedor</strong> e clique em <strong>Carregar sem compactação</strong> selecionando a pasta <strong>Extensao</strong>.
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
@@ -142,7 +142,7 @@ export default function PaginaSucesso() {
                   3
                 </span>
                 <span>
-                  Abra o painel da extensão no navegador e clique em <strong>Conectar / Login</strong> para sincronizar seu plano Pro ativo.
+                  Abra a extensão pelo ícone do navegador e clique em <strong>Fazer Login</strong>. A conexão com a nuvem é 100% automática!
                 </span>
               </li>
             </ol>

@@ -87,7 +87,7 @@ async function loadDashboard() {
       setUnknownDot('telegram-dot');
       document.getElementById('telegram-text').textContent = 'Telegram: conecte sua conta';
     } else {
-      banner.textContent = '🟡 Conectando à nuvem (Render)... Os servidores em nuvem podem levar alguns instantes para responder na primeira chamada.';
+      banner.textContent = '🟡 Conectando à nuvem... Os servidores podem levar alguns instantes para responder na primeira chamada.';
       setDot('status-dot', false);
       document.getElementById('status-text').textContent = 'Conectando ao servidor…';
       setUnknownDot('telegram-dot');

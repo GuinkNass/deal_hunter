@@ -499,7 +499,7 @@ document.getElementById('pair-reset-cloud').addEventListener('click', async () =
   const cloudUrl = typeof CONFIG !== 'undefined' ? CONFIG.PRODUCTION_API_URL : 'https://deal-hunter-server.onrender.com';
   document.getElementById('pair-base-url').value = cloudUrl;
   await chrome.storage.local.set({ baseUrl: cloudUrl });
-  document.getElementById('pair-feedback').textContent = '✅ URL padrão da nuvem (Render) restaurada.';
+  document.getElementById('pair-feedback').textContent = '✅ URL padrão da nuvem restaurada.';
   setTimeout(() => { document.getElementById('pair-feedback').textContent = ''; }, 3000);
 });
 
