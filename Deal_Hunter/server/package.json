@@ -5,8 +5,8 @@
   "description": "Backend local do Deal Hunter (monitoramento de categorias por leitura de páginas)",
   "main": "src/index.js",
   "scripts": {
-    "start": "node --use-system-ca src/index.js",
-    "dev": "node --use-system-ca --watch src/index.js",
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
     "test": "node --check src/index.js"
   },
   "dependencies": {
