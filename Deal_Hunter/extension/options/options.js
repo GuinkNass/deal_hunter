@@ -1,8 +1,62 @@
+// ---------- Controle de Acesso Restrito / Desenvolvedor ----------
+const DEV_ADMIN_EMAIL = 'guilherme.r.nascimentoml@gmail.com';
+
+async function getLoggedUserEmail() {
+  try {
+    const { auth_user, licenseStatus } = await chrome.storage.local.get([
+      'auth_user',
+      'licenseStatus',
+    ]);
+    return (licenseStatus?.email || auth_user?.email || '').trim().toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+async function checkDevAdminAccess() {
+  const email = await getLoggedUserEmail();
+  const isDevAdmin = email === DEV_ADMIN_EMAIL;
+  const navPairingBtn = document.getElementById('nav-item-pairing');
+  const tabPairing = document.getElementById('tab-pairing');
+
+  if (isDevAdmin) {
+    navPairingBtn?.classList.remove('hidden');
+  } else {
+    navPairingBtn?.classList.add('hidden');
+    tabPairing?.classList.add('hidden');
+
+    // Se estiver tentando acessar a aba de infraestrutura, redireciona para o início
+    if (location.hash === '#pairing') {
+      location.hash = 'onboarding';
+      showTab('onboarding');
+    }
+
+    // Para usuários não-desenvolvedores, assegura que a base URL seja a oficial de produção
+    const cloudUrl = typeof CONFIG !== 'undefined'
+      ? CONFIG.PRODUCTION_API_URL
+      : 'https://deal-hunter-server.onrender.com';
+    const { baseUrl } = await chrome.storage.local.get('baseUrl');
+    if (baseUrl && baseUrl !== cloudUrl) {
+      await chrome.storage.local.set({ baseUrl: cloudUrl });
+    }
+  }
+
+  return isDevAdmin;
+}
+
 // ---------- Navegação por abas ----------
 const tabs = document.querySelectorAll('.tab');
 const navItems = document.querySelectorAll('.nav-item');
 
-function showTab(name) {
+async function showTab(name) {
+  if (name === 'pairing') {
+    const isDev = await checkDevAdminAccess();
+    if (!isDev) {
+      name = 'onboarding';
+      location.hash = 'onboarding';
+    }
+  }
+
   tabs.forEach((t) => t.classList.toggle('hidden', t.id !== `tab-${name}`));
   navItems.forEach((n) => n.classList.toggle('active', n.dataset.tab === name));
   if (name === 'onboarding') loadOnboardingTab();
@@ -21,12 +75,15 @@ navItems.forEach((btn) => {
   });
 });
 
-const initialTab = location.hash.replace('#', '') || 'onboarding';
-showTab(initialTab);
-if (initialTab === 'onboarding') loadOnboardingTab();
+checkDevAdminAccess().then(() => {
+  const initialTab = location.hash.replace('#', '') || 'onboarding';
+  showTab(initialTab);
+});
 
 // ---------- Onboarding / Autenticação Automática na Nuvem ----------
 async function loadOnboardingTab() {
+  await checkDevAdminAccess();
+
   const serverBadge = document.getElementById('cloud-server-status');
   const licenseBadge = document.getElementById('cloud-license-status');
   const userDetails = document.getElementById('cloud-user-details');
@@ -105,9 +162,10 @@ document.getElementById('ob-logout-btn')?.addEventListener('click', async () => 
   }
 });
 
-// Atualiza a tela de opções instantaneamente se o usuário fizer login na aba web
-chrome.storage.onChanged.addListener((changes) => {
-  if (changes.auth_token || changes.licenseStatus) {
+// Atualiza a tela de opções instantaneamente se o usuário fizer login ou logout na aba web
+chrome.storage.onChanged.addListener(async (changes) => {
+  if (changes.auth_token || changes.licenseStatus || changes.auth_user) {
+    await checkDevAdminAccess();
     loadOnboardingTab();
   }
 });
@@ -473,8 +531,13 @@ document.getElementById('history-clear').addEventListener('click', async () => {
   loadHistory();
 });
 
-// ---------- Pareamento / Conexão Nuvem ----------
+// ---------- Pareamento / Conexão Nuvem (Restrito Dev) ----------
 async function loadPairingTab() {
+  const isDev = await checkDevAdminAccess();
+  if (!isDev) {
+    showTab('onboarding');
+    return;
+  }
   const { baseUrl, apiToken } = await api.getConfig();
   const { webAuthUrl } = await chrome.storage.local.get('webAuthUrl');
   document.getElementById('pair-base-url').value = baseUrl;

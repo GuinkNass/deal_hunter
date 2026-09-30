@@ -16,7 +16,7 @@
         <button class="nav-item" data-tab="scan">⏱️ Agendamento</button>
         <button class="nav-item" data-tab="filters">🎛️ Filtros de alerta</button>
         <button class="nav-item" data-tab="history">📜 Histórico</button>
-        <button class="nav-item" data-tab="pairing">☁️ Conexão Nuvem</button>
+        <button id="nav-item-pairing" class="nav-item hidden" data-tab="pairing">⚙️ Conexão Nuvem (Dev)</button>
       </nav>
     </aside>
 
@@ -183,12 +183,15 @@
         </table>
       </section>
 
-      <!-- PAIRING / CONEXAO NUVEM -->
+      <!-- PAIRING / CONEXAO NUVEM (EXCLUSIVO GUILHERME.R.NASCIMENTOML@GMAIL.COM) -->
       <section id="tab-pairing" class="tab hidden">
-        <h1>Conexão com a Nuvem</h1>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <h1 style="margin: 0;">Conexão com a Nuvem (Dev)</h1>
+          <span class="badge badge--warn" style="font-size: 10px;">Acesso Restrito: Desenvolvedor</span>
+        </div>
         <div class="card">
           <p class="muted">
-            O backend do Deal Hunter Pro roda 100% na nuvem. A extensão se comunica exclusivamente com a API remota, dispensando scripts locais.
+            Painel de infraestrutura e testes de API. Esta seção é exibida exclusivamente para o e-mail de desenvolvedor do sistema.
           </p>
           <div class="field">
             <label>URL do Servidor em Nuvem</label>

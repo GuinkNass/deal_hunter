@@ -5,20 +5,32 @@ const DEFAULT_CLOUD_URL = typeof CONFIG !== 'undefined'
   ? CONFIG.getDefaultApiUrl()
   : 'https://deal-hunter-server.onrender.com';
 
+const DEV_ADMIN_EMAIL = 'guilherme.r.nascimentoml@gmail.com';
+
 async function getConfig() {
-  const { baseUrl, apiToken, auth_token } = await chrome.storage.local.get(['baseUrl', 'apiToken', 'auth_token']);
+  const { baseUrl, apiToken, auth_token, auth_user, licenseStatus } = await chrome.storage.local.get([
+    'baseUrl',
+    'apiToken',
+    'auth_token',
+    'auth_user',
+    'licenseStatus',
+  ]);
+
+  const userEmail = (licenseStatus?.email || auth_user?.email || '').trim().toLowerCase();
+  const isDevAdmin = userEmail === DEV_ADMIN_EMAIL;
+
   let cleanUrl = String(baseUrl || DEFAULT_CLOUD_URL).trim().replace(/\/+$/, '');
 
-  // Se o usuário colou acidentalmente o link da Vercel no campo de API do backend
-  if (cleanUrl.includes('vercel.app')) {
-    cleanUrl = DEFAULT_CLOUD_URL;
-  }
-
-  // Em produção, se o storage tiver o endereço local antigo (localhost / 127.0.0.1),
-  // migra automaticamente para a URL oficial da nuvem no Render.
-  if (typeof CONFIG !== 'undefined' && CONFIG.ENVIRONMENT === 'production') {
-    if (cleanUrl.includes('127.0.0.1') || cleanUrl.includes('localhost')) {
-      cleanUrl = CONFIG.PRODUCTION_API_URL;
+  // Para qualquer outro usuário que não seja o desenvolvedor (ou deslogado),
+  // a extensão conecta nativamente e exclusivamente à URL de produção da nuvem.
+  if (!isDevAdmin) {
+    cleanUrl = typeof CONFIG !== 'undefined'
+      ? CONFIG.PRODUCTION_API_URL
+      : 'https://deal-hunter-server.onrender.com';
+  } else {
+    // Para o dev admin, se colou link da Vercel no campo de API do backend, normaliza
+    if (cleanUrl.includes('vercel.app')) {
+      cleanUrl = DEFAULT_CLOUD_URL;
     }
   }
 
