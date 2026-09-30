@@ -166,7 +166,22 @@ export default function LandingPage() {
       {/* 2. HERO SECTION                                                           */}
       {/* ========================================================================= */}
       <section className="relative pt-12 pb-16 sm:pt-20 sm:pb-24 overflow-hidden">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
+        {/* Vídeo WebM de Fundo Dinâmico no Topo (Ampliado, Proporcional sem distorção) */}
+        <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none -z-10">
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-full object-cover object-center opacity-35 scale-105"
+            src="/video/hero-background.webm"
+          />
+          {/* Overlays de contraste e vinheta para legibilidade do texto e transição suave */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#070a12]/80 via-[#070a12]/60 to-[#070a12]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#070a12]/90 via-transparent to-[#070a12]/90" />
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8 relative z-10">
           
           {/* Badge de Destaque Superior */}
           <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-violet-950/50 border border-violet-500/30 text-violet-300 text-xs font-bold tracking-widest uppercase backdrop-blur-md animate-in fade-in duration-700 shadow-sm">

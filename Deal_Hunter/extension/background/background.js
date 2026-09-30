@@ -210,7 +210,9 @@ function waitForTabComplete(tabId, expectedUrl = null, previousUrl = null) {
 
     const onUpdated = (updatedTabId, changeInfo) => {
       if (updatedTabId !== tabId) return;
-      if (changeInfo.status === 'complete') {
+      // Quando a aba completa o carregamento de rede inicial, não forçamos done() imediato
+      // em SPAs/lojas dinâmicas para permitir a hidratação e injeção dos produtos via PING.
+      if (changeInfo.status === 'complete' && pingCount >= 6) {
         done();
       }
     };
@@ -236,10 +238,16 @@ function waitForTabComplete(tabId, expectedUrl = null, previousUrl = null) {
           const isSpa = typeof response.url === 'string' && (
             response.url.includes('magazineluiza.') ||
             response.url.includes('amazon.') ||
-            response.url.includes('eletroclub.')
+            response.url.includes('eletroclub.') ||
+            response.url.includes('pichau.') ||
+            response.url.includes('shein.') ||
+            response.url.includes('shopee.') ||
+            response.url.includes('kabum.') ||
+            response.url.includes('lojasrenner.') ||
+            response.url.includes('renner.')
           );
-          const maxPings = isSpa ? 30 : 8; // Concede até 15s para hidratação
-          const isReady = isSpa ? Boolean(response.hasPrices) : (response.count > 0);
+          const maxPings = isSpa ? 26 : 8; // Concede até 13s para hidratação
+          const isReady = Boolean(response.hasPrices) || (response.count > 0 && pingCount >= 4);
           if (isReady || pingCount >= maxPings) {
             done();
           }

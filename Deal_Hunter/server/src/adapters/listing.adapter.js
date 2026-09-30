@@ -242,6 +242,9 @@ function cardSelectors(domain) {
     '.productCard',
   ];
   if (domain.includes('pichau.')) return [
+    'a[data-cy="list-product"]',
+    '[data-cy="list-product"]',
+    '[class*="product_item"]',
     '[class*="MuiCard"]',
     '[class*="product-card"]',
     'a[href*="/tela-"]',
@@ -255,10 +258,18 @@ function cardSelectors(domain) {
     'a[href*="/p/"]',
   ];
   if (domain.includes('shein.')) return [
+    '[class*="bs-product-card"]',
+    '[class*="product-list__item"]',
     '[class*="product-card"]',
     '[class*="product-item"]',
     'a[href*="-p-"]',
     '.c-goodsitem',
+  ];
+  if (domain.includes('shopee.')) return [
+    '[data-sq="item"]',
+    '[class*="shopee-search-item-result__item"]',
+    'a[href*="-i."]',
+    '.shopee-search-item-result__item',
   ];
   return [
     '[itemtype*="schema.org/Product"]', 'li.product', '.product-item', '.product-card',
@@ -303,21 +314,33 @@ function currentPriceSelectors(domain) {
   if (domain.includes('kabum.')) return [
     '[class*="priceText"]',
     '[class*="finalPrice"]',
+    '[class*="priceCard"]',
     '[class*="price"]',
   ];
   if (domain.includes('pichau.')) return [
     '[class*="price_vista"]',
+    '[class*="price_total"]',
     '[class*="price_final"]',
     '[class*="price"]',
   ];
   if (domain.includes('lojasrenner.')) return [
+    '[class*="best_price"]',
     '[class*="price_sale"]',
     '[class*="best-price"]',
     '[class*="price"]',
   ];
   if (domain.includes('shein.')) return [
+    '[class*="final-price"]',
+    '[class*="offscreen"]',
+    '[class*="price__main"]',
     '[class*="sale-price"]',
     '[class*="current-price"]',
+    '[class*="price"]',
+  ];
+  if (domain.includes('shopee.')) return [
+    '[class*="text-shopee-primary"]',
+    'span.text-base',
+    '[class*="font-medium"]',
     '[class*="price"]',
   ];
   return ['[itemprop="price"]', '[data-testid="price-value"]', '.price ins', '.sale-price', '.price'];
@@ -346,24 +369,35 @@ function originalPriceSelectors(domain) {
     'del',
   ];
   if (domain.includes('kabum.')) return [
+    '[class*="oldPriceCard"]',
     '[class*="oldPrice"]',
     'del',
     's',
   ];
   if (domain.includes('pichau.')) return [
+    '[class*="price_from"] [class*="strikeThrough"]',
+    '[class*="strikeThrough"]',
+    '[class*="price_from"]',
     '[class*="price_antigo"]',
     'del',
     's',
   ];
   if (domain.includes('lojasrenner.')) return [
+    '[class*="list_price"]',
     '[class*="price_regular"]',
+    'del',
+  ];
+  if (domain.includes('shein.')) return [
+    '[class*="price__secondary"] del',
+    '[class*="original-price"]',
     'del',
     's',
   ];
-  if (domain.includes('shein.')) return [
-    '[class*="del-price"]',
-    '[class*="original-price"]',
+  if (domain.includes('shopee.')) return [
     'del',
+    's',
+    '[class*="text-xs"][class*="line-through"]',
+    '[class*="line-through"]',
   ];
   if (domain.includes('eletroclub.')) return [
     '[class*="listPriceValue"]',

@@ -14,20 +14,44 @@
     '[class*="DealCard"]', '[class*="deal-card"]', '[class*="DealGridItem"]',
     'a[href*="/dp/"]', 'a[href*="/gp/product/"]', 'a[href*="/deal/"]',
 
-    // Magazine Luiza
-    '[data-testid="product-card-link"]',
+    // Magazine Luiza (prioriza containers de card completos)
     '[data-testid="product-card-container"]',
-    '[data-testid="product-card-content"]',
-    'a[data-testid="product-card-container"]',
-    'a[data-testid="product-card-link"]',
+    'div[data-testid="product-card-container"]',
     'li[data-testid="product-list-item"]',
-    'li[data-testid*="product"]',
-    '[data-testid="product-card"]',
-    '[data-testid*="product-card"]',
+    'a[data-testid="product-card-link"]',
     'a[href*="/p/"]',
-    '[data-testid="product-card-price"]',
 
-    // Electro Club
+    // Pichau
+    'a[data-cy="list-product"]',
+    '[data-cy="list-product"]',
+    '[class*="product_item"]',
+    'div.MuiCard-root',
+    '[class*="MuiCard"]',
+
+    // Shein
+    '[class*="bs-product-card"]',
+    '[class*="product-list__item"]',
+    'a[href*="-p-"]',
+    '.c-goodsitem',
+    '.c-goods-item',
+
+    // Shopee
+    '[data-sq="item"]',
+    '[class*="shopee-search-item-result__item"]',
+    'div.shopee-search-item-result__item',
+    'a[href*="-i."]',
+
+    // KaBuM!
+    'article[class*="productCard"]',
+    '[class*="productCard"]',
+    'a[href*="/produto/"]',
+
+    // Lojas Renner
+    '[class*="product_item"]',
+    '[class*="product-card"]',
+    'a[href*="/p/"]',
+
+    // Electro Club / VTEX
     '.vtex-product-summary-2-x-container',
     '[class*="vtex-product-summary-2-x-container"]',
     '[class*="vtex-search-result-3-x-galleryItem"]',
@@ -45,7 +69,20 @@
   const isAmazon = host.includes('amazon.');
   const isMagalu = host.includes('magazineluiza.');
   const isEletroclub = host.includes('eletroclub.');
-  const siteTag = isMagalu ? 'Magalu' : isEletroclub ? 'Eletroclub' : isAmazon ? 'Amazon' : 'Loja';
+  const isPichau = host.includes('pichau.');
+  const isShein = host.includes('shein.');
+  const isShopee = host.includes('shopee.');
+  const isKabum = host.includes('kabum.');
+  const isRenner = host.includes('lojasrenner.') || host.includes('renner.');
+  const siteTag = isMagalu ? 'Magalu'
+    : isEletroclub ? 'Eletroclub'
+    : isAmazon ? 'Amazon'
+    : isPichau ? 'Pichau'
+    : isShein ? 'Shein'
+    : isShopee ? 'Shopee'
+    : isKabum ? 'KaBuM!'
+    : isRenner ? 'Renner'
+    : 'Loja';
 
   const MONEY_RE = /R\$\s*\d[\d.\u00a0 ]*(?:,\d{2})?/g;
   const MAX_SCROLL_ROUNDS = 20;
@@ -79,17 +116,40 @@
   }
 
   function cardFor(element) {
+    if (isMagalu) {
+      const container = element.closest('[data-testid="product-card-container"], li[data-testid="product-list-item"]');
+      if (container) return container;
+    }
+    if (isPichau) {
+      const pichauCard = element.closest('a[data-cy="list-product"], [class*="product_item"], [class*="MuiCard-root"]');
+      if (pichauCard) return pichauCard;
+    }
+    if (isShein) {
+      const sheinCard = element.closest('[class*="bs-product-card"], [class*="product-list__item"], [role="listitem"]');
+      if (sheinCard) return sheinCard;
+    }
+    if (isShopee) {
+      const shopeeCard = element.closest('[data-sq="item"], [class*="shopee-search-item-result__item"], a[href*="-i."]');
+      if (shopeeCard) return shopeeCard;
+    }
+    if (isKabum) {
+      const kabumCard = element.closest('article[class*="productCard"], [class*="productCard"]');
+      if (kabumCard) return kabumCard;
+    }
+    if (isRenner) {
+      const rennerCard = element.closest('[class*="product_item"], [class*="product-card"]');
+      if (rennerCard) return rennerCard;
+    }
+
     const knownCard = element.closest([
-      '[data-testid="product-card"]',
-      '[data-testid="product-card-link"]',
       '[data-testid="product-card-container"]',
-      '[data-testid="product-card-content"]',
-      '[data-testid*="product-card" i]',
-      'a[data-testid="product-card-container"]',
-      'a[data-testid="product-card-link"]',
+      '[data-testid="product-card"]',
+      'a[data-cy="list-product"]',
+      '[class*="bs-product-card"]',
+      '[data-sq="item"]',
+      'article[class*="productCard"]',
       'li[data-testid="product-list-item"]',
       'li[data-testid*="product" i]',
-      'a[href*="/p/"]',
       '[data-deal-id]',
       '[data-csa-c-item-type="deal"]',
       '[data-asin]',
@@ -105,8 +165,10 @@
       '[data-af-element="search-result"]',
       '[class*="galleryItem" i]',
       '[class*="product-summary" i]',
+      '[class*="product_item" i]',
     ].join(', '));
     if (knownCard) return knownCard;
+
     let current = element;
     for (let depth = 0; depth < 7 && current?.parentElement; depth += 1) {
       const text = current.innerText || '';
@@ -119,7 +181,7 @@
       }
       current = current.parentElement;
     }
-    return element.closest('[data-testid="product-card"], [data-asin], [data-testid="product-list-item"], [data-testid="product-card-container"], [data-testid="product-card-link"], [class*="galleryItem"], [class*="product-summary"]') || element;
+    return element.closest('[data-testid="product-card-container"], [data-testid="product-card"], a[data-cy="list-product"], [class*="bs-product-card"], [data-sq="item"], [data-asin]') || element;
   }
 
   function productFrom(element) {
@@ -412,6 +474,167 @@
       if (!advertisedDiscount) advertisedDiscount = parseDiscount(card.innerText || card.textContent);
 
       // Bidirecional Eletroclub
+      if (!originalPrice && advertisedDiscount && price > 0) {
+        originalPrice = Math.round((price / (1 - advertisedDiscount / 100)) * 100) / 100;
+      }
+      if (!advertisedDiscount && originalPrice && price && originalPrice > price) {
+        advertisedDiscount = Math.round(((originalPrice - price) / originalPrice) * 100);
+      }
+
+    } else if (isPichau) {
+      // 1. TÍTULO PICHAU
+      const nameEl = card.querySelector('h2[class*="product_info_title"], [class*="product_info_title"], h2, [class*="productName"]');
+      name = (nameEl?.innerText || card.querySelector('img[alt]')?.alt || card.querySelector('img[title]')?.title || link.getAttribute('title') || '')
+        .replace(/\s+/g, ' ').trim().slice(0, 500);
+
+      // 2. PREÇO ATUAL (À vista / Por)
+      const porEl = card.querySelector('[class*="price_vista"], [class*="price_total"], [class*="finalPrice"]');
+      if (porEl) price = parsePrice(porEl.innerText || porEl.textContent);
+      if (!price) {
+        const porMatch = (card.innerText || '').match(/(?:por|à\s+vista|no\s+pix|por\s+apenas)\s*R\$\s*([\d.,]+)/i)
+          || (card.innerText || '').match(/R\$\s*([\d.,]+)\s*à\s*vista/i);
+        if (porMatch) price = parsePrice(porMatch[1]);
+      }
+
+      // 3. PREÇO ORIGINAL "DE" PICHAU
+      const deEl = card.querySelector('[class*="price_from"] [class*="strikeThrough"], [class*="strikeThrough"], [class*="price_from"], del, s');
+      if (deEl) originalPrice = parsePrice(deEl.innerText || deEl.textContent);
+      if (!originalPrice || originalPrice <= price) {
+        const deMatch = (card.innerText || '').match(/(?:de|de:)\s*R\$\s*([\d.,]+)/i);
+        if (deMatch) {
+          const parsedDe = parsePrice(deMatch[1]);
+          if (parsedDe && (!price || parsedDe > price)) originalPrice = parsedDe;
+        }
+      }
+
+      // 4. DESCONTO % PICHAU
+      const discEl = card.querySelector('[class*="availability_span_discount"], [class*="discount"]');
+      if (discEl) advertisedDiscount = parseDiscount(discEl.innerText || discEl.textContent);
+      if (!advertisedDiscount) {
+        const discMatch = (card.innerText || '').match(/(\d{1,2})\s*%\s*OFF/i);
+        if (discMatch) advertisedDiscount = Number(discMatch[1]);
+      }
+
+      // Bidirecional Pichau
+      if (!originalPrice && advertisedDiscount && price > 0) {
+        originalPrice = Math.round((price / (1 - advertisedDiscount / 100)) * 100) / 100;
+      }
+      if (!advertisedDiscount && originalPrice && price && originalPrice > price) {
+        advertisedDiscount = Math.round(((originalPrice - price) / originalPrice) * 100);
+      }
+
+    } else if (isShein) {
+      // 1. TÍTULO SHEIN
+      const nameEl = card.querySelector('[class*="goods-name-text"], [class*="goods-title-link"], a[title]');
+      name = (nameEl?.innerText || nameEl?.getAttribute('title') || card.querySelector('img[alt]')?.alt || '')
+        .replace(/^-\d+%\s*/, '')
+        .replace(/\s+/g, ' ').trim().slice(0, 500);
+
+      // 2. PREÇO ATUAL SHEIN
+      const curEl = card.querySelector('[class*="final-price"], [class*="offscreen"], [class*="price__main"], [class*="sale-price"]');
+      if (curEl) price = parsePrice(curEl.innerText || curEl.textContent);
+      if (!price) {
+        const prices = (card.innerText || '').match(MONEY_RE) || [];
+        if (prices.length) price = parsePrice(prices[0]);
+      }
+
+      // 3. PREÇO ORIGINAL "DE" SHEIN
+      const origEl = card.querySelector('[class*="price__secondary"] del, del, s, [class*="original-price"]');
+      if (origEl) originalPrice = parsePrice(origEl.innerText || origEl.textContent);
+
+      // 4. DESCONTO % SHEIN
+      const discEl = card.querySelector('[class*="discount-label"], [class*="title-discount-label"], [class*="discount"]');
+      if (discEl) advertisedDiscount = parseDiscount(discEl.getAttribute('aria-label') || discEl.innerText || discEl.textContent);
+      if (!advertisedDiscount) {
+        const discMatch = (card.innerText || '').match(/[-](\d{1,2})%/i);
+        if (discMatch) advertisedDiscount = Number(discMatch[1]);
+      }
+
+      // Bidirecional Shein
+      if (!originalPrice && advertisedDiscount && price > 0) {
+        originalPrice = Math.round((price / (1 - advertisedDiscount / 100)) * 100) / 100;
+      }
+      if (!advertisedDiscount && originalPrice && price && originalPrice > price) {
+        advertisedDiscount = Math.round(((originalPrice - price) / originalPrice) * 100);
+      }
+
+    } else if (isShopee) {
+      // 1. TÍTULO SHOPEE
+      const nameEl = card.querySelector('[class*="line-clamp-2"], div[class*="truncate"], [class*="title"], [class*="name"]');
+      name = (nameEl?.innerText || card.querySelector('img[alt]')?.alt || '')
+        .replace(/\s+/g, ' ').trim().slice(0, 500);
+
+      // 2. PREÇO ATUAL SHOPEE
+      const curEl = card.querySelector('[class*="text-shopee-primary"], span.text-base, [class*="font-medium"], [class*="price"]');
+      if (curEl) price = parsePrice(curEl.innerText || curEl.textContent);
+      if (!price) {
+        const prices = (card.innerText || '').match(MONEY_RE) || [];
+        if (prices.length) price = parsePrice(prices[0]);
+      }
+
+      // 3. PREÇO ORIGINAL SHOPEE
+      const origEl = card.querySelector('del, s, [class*="text-xs"][class*="line-through"], [class*="line-through"]');
+      if (origEl) originalPrice = parsePrice(origEl.innerText || origEl.textContent);
+
+      // 4. DESCONTO % SHOPEE
+      const discEl = card.querySelector('[class*="discount"], [class*="text-xs"][class*="text-shopee-primary"]');
+      if (discEl) advertisedDiscount = parseDiscount(discEl.innerText || discEl.textContent);
+      if (!advertisedDiscount) {
+        const discMatch = (card.innerText || '').match(/[-](\d{1,2})%/i);
+        if (discMatch) advertisedDiscount = Number(discMatch[1]);
+      }
+
+      // Bidirecional Shopee
+      if (!originalPrice && advertisedDiscount && price > 0) {
+        originalPrice = Math.round((price / (1 - advertisedDiscount / 100)) * 100) / 100;
+      }
+      if (!advertisedDiscount && originalPrice && price && originalPrice > price) {
+        advertisedDiscount = Math.round(((originalPrice - price) / originalPrice) * 100);
+      }
+
+    } else if (isKabum) {
+      // 1. TÍTULO KABUM
+      const nameEl = card.querySelector('[class*="nameCard"], [data-testid="product-title"], h2, h3');
+      name = (nameEl?.innerText || card.querySelector('img[alt]')?.alt || '')
+        .replace(/\s+/g, ' ').trim().slice(0, 500);
+
+      // 2. PREÇO ATUAL KABUM
+      const curEl = card.querySelector('[class*="priceCard"], [class*="price"], [class*="finalPrice"]');
+      if (curEl) price = parsePrice(curEl.innerText || curEl.textContent);
+
+      // 3. PREÇO ORIGINAL KABUM
+      const origEl = card.querySelector('[class*="oldPriceCard"], del, s');
+      if (origEl) originalPrice = parsePrice(origEl.innerText || origEl.textContent);
+
+      // 4. DESCONTO KABUM
+      const discEl = card.querySelector('[class*="discountCard"], [class*="tagDiscount"], [class*="discount"]');
+      if (discEl) advertisedDiscount = parseDiscount(discEl.innerText || discEl.textContent);
+
+      if (!originalPrice && advertisedDiscount && price > 0) {
+        originalPrice = Math.round((price / (1 - advertisedDiscount / 100)) * 100) / 100;
+      }
+      if (!advertisedDiscount && originalPrice && price && originalPrice > price) {
+        advertisedDiscount = Math.round(((originalPrice - price) / originalPrice) * 100);
+      }
+
+    } else if (isRenner) {
+      // 1. TÍTULO RENNER
+      const nameEl = card.querySelector('[class*="product_name"], [class*="title"], h2, h3');
+      name = (nameEl?.innerText || card.querySelector('img[alt]')?.alt || '')
+        .replace(/\s+/g, ' ').trim().slice(0, 500);
+
+      // 2. PREÇO ATUAL RENNER
+      const curEl = card.querySelector('[class*="best_price"], [class*="price_sale"], [class*="price"]');
+      if (curEl) price = parsePrice(curEl.innerText || curEl.textContent);
+
+      // 3. PREÇO ORIGINAL RENNER
+      const origEl = card.querySelector('[class*="list_price"], del, s');
+      if (origEl) originalPrice = parsePrice(origEl.innerText || origEl.textContent);
+
+      // 4. DESCONTO RENNER
+      const discEl = card.querySelector('[class*="discount"], [class*="flag_discount"]');
+      if (discEl) advertisedDiscount = parseDiscount(discEl.innerText || discEl.textContent);
+
       if (!originalPrice && advertisedDiscount && price > 0) {
         originalPrice = Math.round((price / (1 - advertisedDiscount / 100)) * 100) / 100;
       }
