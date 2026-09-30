@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -52,6 +53,43 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" className="dark scroll-smooth">
+      <head>
+        {/* Google Consent Mode (Modo de Consentimento padrão "denied" para conformidade com EEA / LGPD) */}
+        <Script
+          id="google-consent-mode"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('consent', 'default', {
+                'ad_storage': 'denied',
+                'ad_user_data': 'denied',
+                'ad_personalization': 'denied',
+                'analytics_storage': 'denied'
+              });
+            `,
+          }}
+        />
+
+        {/* Google tag (gtag.js) - Google Ads AW-18485467530 */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=AW-18485467530"
+          strategy="afterInteractive"
+        />
+        <Script
+          id="google-ads-config"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'AW-18485467530');
+            `,
+          }}
+        />
+      </head>
       <body className="bg-[#07090e] text-gray-100 antialiased min-h-screen flex flex-col">
         {children}
       </body>
