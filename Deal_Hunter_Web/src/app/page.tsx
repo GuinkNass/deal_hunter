@@ -869,12 +869,21 @@ export default function LandingPage() {
               
               {/* Coluna Texto */}
               <div className="lg:col-span-7 space-y-5">
-                <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white leading-tight">
-                  Conheça o <br />
-                  <span className="bg-gradient-to-r from-violet-400 via-indigo-300 to-cyan-300 bg-clip-text text-transparent">
-                    Profit Hunter Pro
-                  </span>
-                </h2>
+                <div className="flex items-center gap-4 sm:gap-5">
+                  <img
+                    src="/images/profit-hunter-logo.png"
+                    alt="Profit Hunter Pro Logo"
+                    className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-[0_8px_24px_rgba(139,92,246,0.6)] flex-shrink-0"
+                  />
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider text-violet-300">
+                      Bônus Incluso no Plano
+                    </span>
+                    <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white leading-tight">
+                      Profit Hunter Pro
+                    </h2>
+                  </div>
+                </div>
                 <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
                   Uma <strong>segunda extensão completa</strong> para você caçar ofertas de forma cirúrgica. Enquanto o Deal Hunter monitora centenas de categorias em massa na nuvem, o Profit Hunter injeta um <strong>botão flutuante inteligente</strong> em qualquer loja (Mercado Livre, Shopee, Amazon, Magalu) para você capturar produtos direto da tela com 1 clique.
                 </p>
@@ -935,8 +944,12 @@ export default function LandingPage() {
               <div className="lg:col-span-5">
                 <div className="relative rounded-2xl bg-[#070a12] border border-white/10 p-6 shadow-2xl space-y-4">
                   <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">🎯</span>
+                    <div className="flex items-center gap-2.5">
+                      <img
+                        src="/images/profit-hunter-logo.png"
+                        alt="Profit Hunter Pro"
+                        className="w-7 h-7 object-contain drop-shadow-[0_2px_8px_rgba(139,92,246,0.6)]"
+                      />
                       <span className="font-extrabold text-sm text-white uppercase tracking-wider">Profit Hunter Pro</span>
                     </div>
                     <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-bold text-[10px] uppercase">

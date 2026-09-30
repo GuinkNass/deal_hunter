@@ -6,12 +6,20 @@
 if (!document.getElementById('profit-hunter-float-btn')) {
   const floatBtn = document.createElement('div');
   floatBtn.id = 'profit-hunter-float-btn';
-  floatBtn.innerHTML = `
+  const logoUrl = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL)
+    ? chrome.runtime.getURL('assets/icons/icon48.png')
+    : '';
+  const defaultLogoIcon = logoUrl
+    ? `<img src="${logoUrl}" alt="Logo" style="width: 18px; height: 18px; object-fit: contain; vertical-align: middle; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));" />`
+    : `<span style="font-size: 16px;">🎯</span>`;
+  const defaultBtnInner = `
     <span style="display: inline-flex; align-items: center; gap: 8px;">
-      <span style="font-size: 16px;">🎯</span>
+      ${defaultLogoIcon}
       <span>Enviar Oferta</span>
     </span>
   `;
+
+  floatBtn.innerHTML = defaultBtnInner;
   floatBtn.style.cssText = `
     position: fixed;
     bottom: 24px;
@@ -112,12 +120,7 @@ if (!document.getElementById('profit-hunter-float-btn')) {
           floatBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
           floatBtn.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.45)';
           setTimeout(() => {
-            floatBtn.innerHTML = `
-              <span style="display: inline-flex; align-items: center; gap: 8px;">
-                <span style="font-size: 16px;">🎯</span>
-                <span>Enviar Oferta</span>
-              </span>
-            `;
+            floatBtn.innerHTML = defaultBtnInner;
             floatBtn.style.background = 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)';
             floatBtn.style.boxShadow = '0 8px 24px rgba(79, 70, 229, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3)';
           }, 3000);
@@ -132,12 +135,7 @@ if (!document.getElementById('profit-hunter-float-btn')) {
           floatBtn.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
           alert(`Profit Hunter Pro: ${errMsg}`);
           setTimeout(() => {
-            floatBtn.innerHTML = `
-              <span style="display: inline-flex; align-items: center; gap: 8px;">
-                <span style="font-size: 16px;">🎯</span>
-                <span>Enviar Oferta</span>
-              </span>
-            `;
+            floatBtn.innerHTML = defaultBtnInner;
             floatBtn.style.background = 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)';
           }, 3000);
         }

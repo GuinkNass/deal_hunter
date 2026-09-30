@@ -110,8 +110,12 @@ export default function PaginaSucesso() {
             {/* Extensão 2: Profit Hunter Pro (Bônus) */}
             <div className="p-5 rounded-2xl bg-gradient-to-r from-[#18122c] to-[#120f22] border border-violet-500/40 text-left space-y-3 shadow-lg">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-violet-300">
-                  <Sparkles className="w-4 h-4 text-[#d4ff32]" />
+                <div className="flex items-center gap-2.5 text-xs font-bold uppercase tracking-wider text-violet-300">
+                  <img
+                    src="/images/profit-hunter-logo.png"
+                    alt="Profit Hunter Pro"
+                    className="w-5 h-5 object-contain drop-shadow-[0_1px_4px_rgba(139,92,246,0.6)]"
+                  />
                   <span>2. Bônus: Profit Hunter Pro (.ZIP)</span>
                 </div>
                 <span className="text-[10px] font-bold text-violet-300 bg-violet-950/80 border border-violet-500/30 px-2 py-0.5 rounded-full">
