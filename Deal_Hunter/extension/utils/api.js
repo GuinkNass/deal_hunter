@@ -14,6 +14,14 @@ async function getConfig() {
     cleanUrl = DEFAULT_CLOUD_URL;
   }
 
+  // Em produção, se o storage tiver o endereço local antigo (localhost / 127.0.0.1),
+  // migra automaticamente para a URL oficial da nuvem no Render.
+  if (typeof CONFIG !== 'undefined' && CONFIG.ENVIRONMENT === 'production') {
+    if (cleanUrl.includes('127.0.0.1') || cleanUrl.includes('localhost')) {
+      cleanUrl = CONFIG.PRODUCTION_API_URL;
+    }
+  }
+
   // Normaliza localhost para 127.0.0.1 se estiver usando dev local
   if (cleanUrl.includes('://localhost')) {
     cleanUrl = cleanUrl.replace('://localhost', '://127.0.0.1');
