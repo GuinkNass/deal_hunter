@@ -398,6 +398,21 @@ function getCatalog() {
     },
   ];
 
+  try {
+    const { getDynamicCatalogStores } = require('../sites');
+    const dynamicStores = getDynamicCatalogStores();
+    for (const ds of dynamicStores) {
+      const idx = STORES.findIndex((s) => s.domain === ds.domain || s.id === ds.id);
+      if (idx !== -1) {
+        STORES[idx] = { ...STORES[idx], ...ds };
+      } else {
+        STORES.push(ds);
+      }
+    }
+  } catch (err) {
+    console.warn(`[Catalog] Aviso ao carregar lojas dinâmicas da pasta sites/: ${err.message}`);
+  }
+
   return { STORES, utilidadesDir };
 }
 

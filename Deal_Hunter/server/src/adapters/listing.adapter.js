@@ -235,6 +235,31 @@ function cardSelectors(domain) {
     '.product-item',
     '.product-card',
   ];
+  if (domain.includes('kabum.')) return [
+    'article[class*="productCard"]',
+    '[class*="productCard"]',
+    'a[href*="/produto/"]',
+    '.productCard',
+  ];
+  if (domain.includes('pichau.')) return [
+    '[class*="MuiCard"]',
+    '[class*="product-card"]',
+    'a[href*="/tela-"]',
+    'a[href*="/ventoinha-"]',
+    'a[href*="/kit-"]',
+    '.product-card',
+  ];
+  if (domain.includes('lojasrenner.')) return [
+    '[class*="product_item"]',
+    '[class*="product-card"]',
+    'a[href*="/p/"]',
+  ];
+  if (domain.includes('shein.')) return [
+    '[class*="product-card"]',
+    '[class*="product-item"]',
+    'a[href*="-p-"]',
+    '.c-goodsitem',
+  ];
   return [
     '[itemtype*="schema.org/Product"]', 'li.product', '.product-item', '.product-card',
     '[data-testid="product-card"]',
@@ -275,6 +300,26 @@ function currentPriceSelectors(domain) {
     '.price .amount',
     '.price',
   ];
+  if (domain.includes('kabum.')) return [
+    '[class*="priceText"]',
+    '[class*="finalPrice"]',
+    '[class*="price"]',
+  ];
+  if (domain.includes('pichau.')) return [
+    '[class*="price_vista"]',
+    '[class*="price_final"]',
+    '[class*="price"]',
+  ];
+  if (domain.includes('lojasrenner.')) return [
+    '[class*="price_sale"]',
+    '[class*="best-price"]',
+    '[class*="price"]',
+  ];
+  if (domain.includes('shein.')) return [
+    '[class*="sale-price"]',
+    '[class*="current-price"]',
+    '[class*="price"]',
+  ];
   return ['[itemprop="price"]', '[data-testid="price-value"]', '.price ins', '.sale-price', '.price'];
 }
 
@@ -298,6 +343,26 @@ function originalPriceSelectors(domain) {
     '[data-testid="product-card-price"] [class*="grid-area:original"]',
     '[data-testid="product-card-price"] del',
     '[class*="originalPrice"]',
+    'del',
+  ];
+  if (domain.includes('kabum.')) return [
+    '[class*="oldPrice"]',
+    'del',
+    's',
+  ];
+  if (domain.includes('pichau.')) return [
+    '[class*="price_antigo"]',
+    'del',
+    's',
+  ];
+  if (domain.includes('lojasrenner.')) return [
+    '[class*="price_regular"]',
+    'del',
+    's',
+  ];
+  if (domain.includes('shein.')) return [
+    '[class*="del-price"]',
+    '[class*="original-price"]',
     'del',
   ];
   if (domain.includes('eletroclub.')) return [
