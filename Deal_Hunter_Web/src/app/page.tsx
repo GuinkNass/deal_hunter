@@ -57,16 +57,16 @@ export default function LandingPage() {
   // Vídeo de tutorial de instalação e demonstração oficial
   const demoVideoEmbedUrl = 'https://www.youtube.com/embed/xGPWD7slMN0';
 
-  // Lojas monitoradas oficialmente com logos de alta resolução da pasta raiz
+  // Lojas monitoradas oficialmente com os novos logos 3D transparentes
   const monitoredStores = [
-    { name: 'Amazon Brasil', slug: 'amazon', logo: '/images/stores/amazon.png', tag: 'Ofertas Diárias' },
-    { name: 'KaBuM!', slug: 'kabum', logo: '/images/stores/kabum.png', tag: 'Hardware & Tech' },
-    { name: 'Shopee Brasil', slug: 'shopee', logo: '/images/stores/shopee.png', tag: 'Descontos Relâmpago' },
-    { name: 'Magazine Luiza', slug: 'magalu', logo: '/images/stores/magalu.png', tag: 'Super Liquidação' },
-    { name: 'Pichau', slug: 'pichau', logo: '/images/stores/pichau.png', tag: 'Gamer & Setup' },
-    { name: 'Lojas Renner', slug: 'renner', logo: '/images/stores/renner.png', tag: 'Moda & Estilo' },
-    { name: 'Shein Brasil', slug: 'shein', logo: '/images/stores/shein.png', tag: 'Promoções Globais' },
-    { name: 'Eletroclub', slug: 'eletroclub', logo: '/images/stores/eletroclub.png', tag: 'Preços VIP de Clube' },
+    { name: 'Amazon Brasil', slug: 'amazon', logo: '/images/novo-logos/amazon.png' },
+    { name: 'KaBuM!', slug: 'kabum', logo: '/images/novo-logos/kabum.png' },
+    { name: 'Shopee Brasil', slug: 'shopee', logo: '/images/novo-logos/shopee.png' },
+    { name: 'Magazine Luiza', slug: 'magalu', logo: '/images/novo-logos/magalu.png' },
+    { name: 'Pichau', slug: 'pichau', logo: '/images/novo-logos/pichau.png' },
+    { name: 'Lojas Renner', slug: 'renner', logo: '/images/novo-logos/renner.png' },
+    { name: 'Shein Brasil', slug: 'shein', logo: '/images/novo-logos/shein.png' },
+    { name: 'Eletroclub', slug: 'eletroclub', logo: '/images/novo-logos/eletroclub.png' },
   ];
 
   async function handleGoogleLogin() {
@@ -297,29 +297,20 @@ export default function LandingPage() {
         <div className="absolute left-0 top-0 bottom-0 w-24 sm:w-44 bg-gradient-to-r from-[#070a12] via-[#070a12]/90 to-transparent z-10 pointer-events-none" />
         <div className="absolute right-0 top-0 bottom-0 w-24 sm:w-44 bg-gradient-to-l from-[#070a12] via-[#070a12]/90 to-transparent z-10 pointer-events-none" />
 
-        {/* Trilho de animação contínua */}
-        <div className="flex animate-marquee gap-5 sm:gap-7 items-center">
-          {[...monitoredStores, ...monitoredStores, ...monitoredStores].map((store, idx) => (
+        {/* Trilho de animação contínua com logos sem moldura */}
+        <div className="flex animate-marquee gap-10 sm:gap-14 md:gap-16 items-center py-2">
+          {[...monitoredStores, ...monitoredStores, ...monitoredStores, ...monitoredStores].map((store, idx) => (
             <div
               key={`${store.slug}-${idx}`}
-              className="flex items-center gap-3.5 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.07] hover:border-violet-500/40 transition-all duration-300 flex-shrink-0 group shadow-lg shadow-black/30 cursor-default"
+              className="flex-shrink-0 flex items-center justify-center transition-transform duration-300 hover:scale-110 cursor-default px-2"
+              title={store.name}
             >
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white p-1.5 flex items-center justify-center flex-shrink-0 shadow-sm transition-transform group-hover:scale-105">
-                <img
-                  src={store.logo}
-                  alt={`Logo ${store.name}`}
-                  className="w-full h-full object-contain"
-                  loading="lazy"
-                />
-              </div>
-              <div className="text-left">
-                <p className="text-xs sm:text-sm font-extrabold text-white group-hover:text-violet-300 transition-colors whitespace-nowrap">
-                  {store.name}
-                </p>
-                <p className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
-                  {store.tag}
-                </p>
-              </div>
+              <img
+                src={store.logo}
+                alt={`Logo ${store.name}`}
+                className="h-10 sm:h-12 md:h-14 w-auto max-w-[140px] sm:max-w-[170px] md:max-w-[200px] object-contain select-none pointer-events-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
+                loading="lazy"
+              />
             </div>
           ))}
         </div>

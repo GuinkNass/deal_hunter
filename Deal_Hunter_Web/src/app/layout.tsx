@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://www.dealhunterpro.com.br'),
   title: 'Deal Hunter Pro — O Monitor de Ofertas e Bugs de Preço nº 1',
   description:
     'Monitore Amazon Brasil, Magazine Luiza e Eletroclub 24/7 direto do seu navegador e receba alertas imediatos de superdescontos no Telegram. Teste 7 dias grátis.',
