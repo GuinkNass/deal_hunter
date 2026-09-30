@@ -16,6 +16,8 @@ import {
   Store,
   Sliders,
   Laptop,
+  Globe,
+  Wifi,
   ChevronDown,
   ChevronUp,
   Lock,
@@ -75,7 +77,12 @@ export default function LandingPage() {
     {
       question: 'Como instalar a extensão a partir do arquivo .ZIP no Chrome ou Edge?',
       answer:
-        'A instalação leva menos de 1 minuto: 1) Baixe o arquivo .ZIP clicando no botão de download; 2) Descompacte o arquivo no seu computador; 3) No Chrome ou Edge, acesse chrome://extensions e ative o "Modo do Desenvolvedor" no canto superior direito; 4) Clique em "Carregar sem compactação" e selecione a pasta "Extensao". Pronto!',
+        'A instalação leva menos de 1 minuto: 1) Baixe o arquivo .ZIP clicando no botão de download; 2) Descompacte a pasta no seu computador; 3) No Chrome ou Edge, acesse chrome://extensions e ative o "Modo do Desenvolvedor" no canto superior direito; 4) Clique em "Carregar compactada" (ou sem compactação) e selecione a pasta da extensão; 5) Faça login direto com sua conta da nuvem na extensão. Pronto!',
+    },
+    {
+      question: 'Quais são os requisitos mínimos e compatibilidade do Deal Hunter Pro?',
+      answer:
+        'O Deal Hunter Pro é compatível com qualquer computador com Windows, macOS ou Linux que possua o Google Chrome ou navegadores Chromium (Microsoft Edge, Brave, Opera, etc.) com conexão à internet. Como o processamento pesado de busca e monitoramento roda 100% na nuvem, ele não sobrecarrega a memória nem o processador do seu computador.',
     },
     {
       question: 'Como funciona o período de teste grátis de 7 dias?',
@@ -90,7 +97,7 @@ export default function LandingPage() {
     {
       question: 'Preciso deixar o computador ligado para o Deal Hunter monitorar?',
       answer:
-        'Sim! Diferente de serviços compartilhados na nuvem que sofrem com bloqueios de IP constantes, o Deal Hunter roda como um motor local e extensão no seu navegador. Isso garante velocidade máxima, privacidade absoluta e zero risco de ser bloqueado pelas lojas.',
+        'Não! O motor de busca e análise do Deal Hunter Pro roda 100% na nuvem. Você não precisa executar scripts nem deixar o computador sobrecarregado. Basta ter a extensão instalada no navegador e conectada à sua conta para receber alertas instantâneos no Telegram.',
     },
     {
       question: 'Quais lojas são monitoradas atualmente?',
@@ -103,9 +110,9 @@ export default function LandingPage() {
         'Com certeza! Não há período de fidelidade ou contrato de permanência. Você gerencia sua assinatura de forma 100% autônoma pelo portal de clientes Stripe com cancelamento instantâneo a qualquer momento.',
     },
     {
-      question: 'Como recebo as atualizações da extensão?',
+      question: 'Como falar com o suporte em caso de dúvidas?',
       answer:
-        'Todas as atualizações de catálogo de categorias, novas regras de desconto e correções de layout das lojas são disponibilizadas diretamente no portal de membros e sincronizadas com a sua extensão.',
+        'Nosso time de suporte está disponível para tirar qualquer dúvida técnica ou comercial. Basta enviar um e-mail diretamente para: guilherme.r.nascimentoml@gmail.com.',
     },
   ];
 
@@ -276,10 +283,10 @@ export default function LandingPage() {
                     <span className="text-slate-500 group-hover:text-violet-400 transition-colors">01</span>
                   </div>
                   <h3 className="text-lg font-black uppercase tracking-tight text-white">
-                    Varredura 24h no Piloto Automático
+                    Varredura 24h na Nuvem
                   </h3>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    Zero proxies caros e zero configurações complexas. O motor local trabalha em segundo plano com total discrição e velocidade máxima.
+                    Zero proxies caros e zero scripts locais. A inteligência na nuvem monitora ofertas 24h com total discrição e velocidade, sem sobrecarregar seu computador.
                   </p>
                 </div>
                 <div className="pt-6">
@@ -557,7 +564,7 @@ export default function LandingPage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 6. GUIA PASSO A PASSO ("COMO USAR EM 3 PASSOS")                           */}
+      {/* 6. GUIA PASSO A PASSO ("COMO USAR EM 3 PASSOS SIMPLES")                   */}
       {/* ========================================================================= */}
       <section id="como-funciona" className="py-16 sm:py-24 bg-[#0a0d15]/60 border-y border-white/[0.06] relative">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -570,7 +577,7 @@ export default function LandingPage() {
               Como Começar em Menos de 1 Minuto
             </p>
             <p className="text-sm text-slate-400 max-w-xl mx-auto">
-              Sem configurações complexas ou necessidade de programar. Tudo vem pronto para rodar.
+              100% na nuvem: sem scripts ou terminais complexos. Tudo pronto para rodar.
             </p>
           </div>
 
@@ -583,10 +590,10 @@ export default function LandingPage() {
                   1
                 </div>
                 <h3 className="text-lg font-black uppercase tracking-tight text-white mb-2">
-                  Baixe e Extraia o Pacote
+                  Baixe e Extraia a Pasta
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
-                  Clique no botão de download para baixar o arquivo <strong>.ZIP</strong> com a extensão e o motor local pré-configurados. Basta descompactar em qualquer pasta.
+                  Baixe o arquivo <strong>.ZIP</strong> da extensão atualizada diretamente aqui na landing page e extraia a pasta em qualquer local no seu computador.
                 </p>
               </div>
               <div className="pt-2">
@@ -609,20 +616,17 @@ export default function LandingPage() {
                   2
                 </div>
                 <h3 className="text-lg font-black uppercase tracking-tight text-white mb-2">
-                  Ative com 7 Dias Grátis
+                  Carregue no Chrome
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
-                  Inicie o arquivo <strong>2-Ativar-Backend.bat</strong> e ative sua conta pelo painel web. Você ganha 7 dias de acesso completo sem compromisso.
+                  Acesse <code>chrome://extensions/</code>, ative a opção <strong>Modo do desenvolvedor</strong> no canto superior e clique em <strong>Carregar compactada</strong> selecionando a pasta da extensão.
                 </p>
               </div>
               <div className="pt-2">
-                <a
-                  href="#planos"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-bold text-white transition-colors uppercase tracking-wider"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-                  <span>Ativar teste de 7 dias</span>
-                </a>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#d4ff32]/10 border border-[#d4ff32]/20 text-[11px] font-bold text-[#d4ff32] uppercase tracking-wider">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Sem instalação complexa</span>
+                </span>
               </div>
             </div>
 
@@ -633,16 +637,104 @@ export default function LandingPage() {
                   3
                 </div>
                 <h3 className="text-lg font-black uppercase tracking-tight text-white mb-2">
-                  Fixe no Chrome &amp; Lucre
+                  Faça Login na Nuvem
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
-                  Abra a extensão no Chrome, selecione as lojas e categorias de interesse e receba as oportunidades mais quentes direto no Telegram.
+                  Abra a extensão, faça login direto com a sua conta da nuvem e pronto: os alertas de bugs e superdescontos já começam a cair em tempo real no seu Telegram.
                 </p>
               </div>
               <div className="pt-2">
                 <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-bold text-emerald-400 uppercase tracking-wider">
                   <Check className="w-3.5 h-3.5" />
                   <span>Alertas no Automático</span>
+                </span>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 6.1 REQUISITOS MÍNIMOS & COMPATIBILIDADE                                  */}
+      {/* ========================================================================= */}
+      <section id="requisitos" className="py-16 sm:py-20 relative bg-[#070a12] border-b border-white/[0.06]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          
+          <div className="text-center space-y-3 mb-12">
+            <h2 className="text-xs font-black text-cyan-400 uppercase tracking-widest">
+              Leve, Rápido &amp; Universal
+            </h2>
+            <p className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-white">
+              Requisitos Mínimos e Compatibilidade
+            </p>
+            <p className="text-sm text-slate-400 max-w-xl mx-auto">
+              Como o processamento pesado roda 100% na nuvem, o Deal Hunter Pro não consome os recursos da sua máquina.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* Navegador */}
+            <div className="p-7 rounded-[2rem] bg-[#0c101d] border border-white/[0.08] hover:border-cyan-500/40 transition-all flex flex-col justify-between group">
+              <div>
+                <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+                  <Globe className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-black uppercase tracking-tight text-white mb-2">
+                  Navegadores Compatíveis
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                  Compatível com <strong>Google Chrome</strong> e qualquer navegador baseado em <strong>Chromium</strong> (Microsoft Edge, Brave, Opera, Vivaldi, etc.).
+                </p>
+              </div>
+              <div className="pt-6">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-[11px] font-bold text-cyan-300 uppercase tracking-wider">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Base Chromium</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Sistema Operacional */}
+            <div className="p-7 rounded-[2rem] bg-[#0c101d] border border-white/[0.08] hover:border-violet-500/40 transition-all flex flex-col justify-between group">
+              <div>
+                <div className="w-12 h-12 rounded-2xl bg-violet-600/15 border border-violet-500/30 text-violet-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+                  <Laptop className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-black uppercase tracking-tight text-white mb-2">
+                  Sistemas Operacionais
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                  Funciona perfeitamente em <strong>Windows</strong>, <strong>macOS</strong> e <strong>Linux</strong>. Sem exigência de processamento local pesado, pois o motor roda na nuvem.
+                </p>
+              </div>
+              <div className="pt-6">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-[11px] font-bold text-violet-300 uppercase tracking-wider">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Processamento na Nuvem</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Conexão */}
+            <div className="p-7 rounded-[2rem] bg-[#0c101d] border border-white/[0.08] hover:border-[#d4ff32]/40 transition-all flex flex-col justify-between group">
+              <div>
+                <div className="w-12 h-12 rounded-2xl bg-[#d4ff32]/15 border border-[#d4ff32]/30 text-[#d4ff32] flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
+                  <Wifi className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-black uppercase tracking-tight text-white mb-2">
+                  Conexão com a Internet
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                  Requer apenas <strong>internet ativa</strong> para sincronização de alertas e envio de notificações em tempo real diretamente para o seu Telegram.
+                </p>
+              </div>
+              <div className="pt-6">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#d4ff32]/10 border border-[#d4ff32]/20 text-[11px] font-bold text-[#d4ff32] uppercase tracking-wider">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Alertas em Tempo Real</span>
                 </span>
               </div>
             </div>
@@ -1025,6 +1117,23 @@ export default function LandingPage() {
             })}
           </div>
 
+          {/* Caixa de Suporte Direto */}
+          <div className="mt-12 text-center p-6 sm:p-8 rounded-[2rem] bg-gradient-to-r from-violet-950/30 via-[#0c101d] to-indigo-950/30 border border-white/[0.08]">
+            <p className="text-white font-black text-base uppercase tracking-tight mb-1">
+              Ainda tem dúvidas ou precisa de ajuda técnica?
+            </p>
+            <p className="text-slate-400 text-xs sm:text-sm max-w-md mx-auto mb-5">
+              Nosso time responde rapidamente. Fale com a gente direto por e-mail:
+            </p>
+            <a
+              href="mailto:guilherme.r.nascimentoml@gmail.com?subject=Suporte%20Deal%20Hunter%20Pro"
+              className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-violet-600/30 transition-all hover:scale-105 active:scale-95"
+            >
+              <MessageCircle className="w-4 h-4 text-emerald-400" />
+              <span>Falar com o Suporte (guilherme.r.nascimentoml@gmail.com)</span>
+            </a>
+          </div>
+
         </div>
       </section>
 
@@ -1051,6 +1160,9 @@ export default function LandingPage() {
               <a href="#como-funciona" className="hover:text-white transition-colors">
                 Como Funciona
               </a>
+              <a href="#requisitos" className="hover:text-white transition-colors">
+                Requisitos
+              </a>
               <a href="#recursos" className="hover:text-white transition-colors">
                 Recursos
               </a>
@@ -1065,7 +1177,7 @@ export default function LandingPage() {
             {/* Botão de Suporte */}
             <div>
               <a
-                href="mailto:suporte@dealhunterpro.com.br"
+                href="mailto:guilherme.r.nascimentoml@gmail.com?subject=Suporte%20Deal%20Hunter%20Pro"
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-300 text-xs transition-colors"
               >
                 <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />

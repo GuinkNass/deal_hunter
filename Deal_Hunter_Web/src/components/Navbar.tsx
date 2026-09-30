@@ -95,9 +95,12 @@ export default function Navbar() {
         </Link>
 
         {/* Links de Navegação Desktop */}
-        <nav className="hidden md:flex items-center gap-7 text-xs font-semibold uppercase tracking-wider text-gray-300">
+        <nav className="hidden md:flex items-center gap-6 text-xs font-semibold uppercase tracking-wider text-gray-300">
           <a href="#como-funciona" className="hover:text-white transition-colors">
             Como Funciona
+          </a>
+          <a href="#requisitos" className="hover:text-white transition-colors">
+            Requisitos
           </a>
           <a href="#recursos" className="hover:text-white transition-colors">
             Recursos
@@ -107,6 +110,12 @@ export default function Navbar() {
           </a>
           <a href="#faq" className="hover:text-white transition-colors">
             FAQ
+          </a>
+          <a
+            href="mailto:guilherme.r.nascimentoml@gmail.com?subject=Suporte%20Deal%20Hunter%20Pro"
+            className="hover:text-white text-emerald-400 transition-colors flex items-center gap-1 normal-case"
+          >
+            Suporte
           </a>
         </nav>
 
@@ -229,6 +238,13 @@ export default function Navbar() {
               Como Funciona
             </a>
             <a
+              href="#requisitos"
+              onClick={() => setMobileMenuOpen(false)}
+              className="py-1 hover:text-white"
+            >
+              Requisitos
+            </a>
+            <a
               href="#recursos"
               onClick={() => setMobileMenuOpen(false)}
               className="py-1 hover:text-white"
@@ -248,6 +264,13 @@ export default function Navbar() {
               className="py-1 hover:text-white"
             >
               FAQ
+            </a>
+            <a
+              href="mailto:guilherme.r.nascimentoml@gmail.com?subject=Suporte%20Deal%20Hunter%20Pro"
+              onClick={() => setMobileMenuOpen(false)}
+              className="py-1 text-emerald-400 hover:text-white"
+            >
+              Suporte Técnico
             </a>
           </div>
 
