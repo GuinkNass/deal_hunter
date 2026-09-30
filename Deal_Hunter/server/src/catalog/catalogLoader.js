@@ -413,6 +413,31 @@ function getCatalog() {
     console.warn(`[Catalog] Aviso ao carregar lojas dinâmicas da pasta sites/: ${err.message}`);
   }
 
+  // Fallback seguro via defaultCatalog.json caso alguma loja não tenha sido localizada
+  try {
+    const fallbackPath = path.join(__dirname, 'defaultCatalog.json');
+    if (fs.existsSync(fallbackPath)) {
+      const fallbackStores = JSON.parse(fs.readFileSync(fallbackPath, 'utf8'));
+      for (const fsStore of fallbackStores) {
+        const idx = STORES.findIndex((s) => s.domain === fsStore.domain || s.id === fsStore.id);
+        if (idx === -1) {
+          STORES.push({
+            id: fsStore.id,
+            domain: fsStore.domain,
+            name: fsStore.name,
+            url: fsStore.url,
+            requiresLogin: fsStore.requiresLogin,
+            loginUrl: fsStore.loginUrl,
+            categories: (fsStore.categories || []).map((c) => [c.id, c.name, c.url]),
+            loadedFrom: 'defaultCatalog.json',
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn(`[Catalog] Aviso ao carregar defaultCatalog.json: ${err.message}`);
+  }
+
   return { STORES, utilidadesDir };
 }
 

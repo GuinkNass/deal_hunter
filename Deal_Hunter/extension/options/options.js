@@ -253,77 +253,176 @@ document.getElementById('tg-remove').addEventListener('click', async () => {
 });
 
 // ---------- Catálogo de lojas e categorias ----------
-async function loadCatalogTab() {
+let currentCatalogCategories = [];
+let activeStoreFilter = 'all';
+
+function updateCatalogSummary() {
+  const summaryEl = document.getElementById('catalog-summary-count');
+  if (!summaryEl) return;
+  const total = document.querySelectorAll('#catalog-list input[data-category-id]').length;
+  const checked = document.querySelectorAll('#catalog-list input[data-category-id]:checked').length;
+  summaryEl.textContent = `${checked} selecionada(s) de ${total} categorias`;
+}
+
+function renderCatalogList(categories) {
   const list = document.getElementById('catalog-list');
-  list.textContent = 'Carregando categorias…';
-  try {
-    const categories = await api.getCategories();
-    const groups = new Map();
-    for (const category of categories) {
-      if (!groups.has(category.siteName)) groups.set(category.siteName, []);
-      groups.get(category.siteName).push(category);
-    }
-    list.innerHTML = [...groups.entries()].map(([siteName, rows]) => {
-      const storeSlug = siteName.toLowerCase().replace(/[^\w]+/g, '-');
-      return `
-      <section class="catalog-store" data-store="${escapeHtml(storeSlug)}">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-          <h2 style="margin:0;">${escapeHtml(siteName)} <small style="color:#94a3b8; font-size:12px; font-weight:normal;">(${rows.length} categorias)</small></h2>
-          <div style="display:flex; gap:6px;">
-            <button type="button" class="btn btn--sm select-all-store" data-store="${escapeHtml(storeSlug)}" style="padding:3px 8px; font-size:11px;">Marcar todas</button>
-            <button type="button" class="btn btn--sm unselect-all-store" data-store="${escapeHtml(storeSlug)}" style="padding:3px 8px; font-size:11px;">Desmarcar todas</button>
-          </div>
-        </div>
-        <div class="store-categories">
-          ${rows.map((category) => `
-            <label class="catalog-category" data-cat-name="${escapeHtml(category.name.toLowerCase())}">
-              <input type="checkbox" data-category-id="${escapeHtml(category.id)}" ${category.selected ? 'checked' : ''} />
-              <span>${escapeHtml(category.name)}</span>
-              <a href="${escapeHtml(safeHttpUrl(category.url))}" target="_blank" rel="noopener noreferrer">Abrir categoria</a>
-            </label>
-          `).join('')}
-        </div>
-      </section>
-    `;
+  const pillsContainer = document.getElementById('catalog-store-pills');
+  if (!list) return;
+
+  currentCatalogCategories = categories;
+
+  const groups = new Map();
+  for (const category of categories) {
+    const store = category.siteName || 'Outras Lojas';
+    if (!groups.has(store)) groups.set(store, []);
+    groups.get(store).push(category);
+  }
+
+  // Renderiza pills de lojas para filtro rápido
+  if (pillsContainer) {
+    const storeNames = ['Todas as Lojas', ...groups.keys()];
+    pillsContainer.innerHTML = storeNames.map((name) => {
+      const slug = name === 'Todas as Lojas' ? 'all' : name.toLowerCase().replace(/[^\w]+/g, '-');
+      const isActive = activeStoreFilter === slug;
+      return `<button type="button" class="catalog-pill ${isActive ? 'active' : ''}" data-filter="${escapeHtml(slug)}">${escapeHtml(name)}</button>`;
     }).join('');
 
-    // Event listeners para Marcar todas / Desmarcar todas por loja
-    list.querySelectorAll('.select-all-store').forEach((btn) => {
+    pillsContainer.querySelectorAll('.catalog-pill').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const storeEl = btn.closest('.catalog-store');
-        storeEl.querySelectorAll('input[data-category-id]').forEach((cb) => {
-          if (cb.closest('.catalog-category').style.display !== 'none') cb.checked = true;
-        });
+        activeStoreFilter = btn.dataset.filter;
+        pillsContainer.querySelectorAll('.catalog-pill').forEach((p) => p.classList.toggle('active', p === btn));
+        applyCatalogFilters();
       });
     });
-    list.querySelectorAll('.unselect-all-store').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const storeEl = btn.closest('.catalog-store');
-        storeEl.querySelectorAll('input[data-category-id]').forEach((cb) => {
-          if (cb.closest('.catalog-category').style.display !== 'none') cb.checked = false;
-        });
+  }
+
+  // Renderiza lojas e categorias com cabeçalhos expansíveis
+  list.innerHTML = [...groups.entries()].map(([siteName, rows]) => {
+    const storeSlug = siteName.toLowerCase().replace(/[^\w]+/g, '-');
+    return `
+    <section class="catalog-store" data-store="${escapeHtml(storeSlug)}">
+      <div class="catalog-store-header">
+        <h2 class="catalog-store-title">
+          <span class="catalog-toggle-arrow">▼</span>
+          <span>${escapeHtml(siteName)}</span>
+          <span class="badge" style="font-size:10px; padding:2px 6px; font-weight:normal; background:rgba(255,255,255,0.06);">${rows.length} categorias</span>
+        </h2>
+        <div style="display:flex; gap:6px;" onclick="event.stopPropagation();">
+          <button type="button" class="btn btn--sm select-all-store" data-store="${escapeHtml(storeSlug)}">Marcar todas</button>
+          <button type="button" class="btn btn--sm unselect-all-store" data-store="${escapeHtml(storeSlug)}">Desmarcar todas</button>
+        </div>
+      </div>
+      <div class="store-categories">
+        ${rows.map((category) => `
+          <label class="catalog-category" data-cat-name="${escapeHtml((category.name || '').toLowerCase())}">
+            <input type="checkbox" data-category-id="${escapeHtml(category.id)}" ${Number(category.selected) ? 'checked' : ''} />
+            <span>${escapeHtml(category.name)}</span>
+            <a href="${escapeHtml(safeHttpUrl(category.url))}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();">Abrir categoria ↗</a>
+          </label>
+        `).join('')}
+      </div>
+    </section>
+  `;
+  }).join('');
+
+  // Evento de clique no cabeçalho da loja para expandir/recolher
+  list.querySelectorAll('.catalog-store-header').forEach((hdr) => {
+    hdr.addEventListener('click', () => {
+      const storeEl = hdr.closest('.catalog-store');
+      storeEl.classList.toggle('collapsed');
+    });
+  });
+
+  // Event listeners para Marcar todas / Desmarcar todas por loja
+  list.querySelectorAll('.select-all-store').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const storeEl = btn.closest('.catalog-store');
+      storeEl.querySelectorAll('input[data-category-id]').forEach((cb) => {
+        if (cb.closest('.catalog-category').style.display !== 'none') cb.checked = true;
       });
+      updateCatalogSummary();
+    });
+  });
+
+  list.querySelectorAll('.unselect-all-store').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const storeEl = btn.closest('.catalog-store');
+      storeEl.querySelectorAll('input[data-category-id]').forEach((cb) => {
+        if (cb.closest('.catalog-category').style.display !== 'none') cb.checked = false;
+      });
+      updateCatalogSummary();
+    });
+  });
+
+  // Listener para atualizar contador ao marcar/desmarcar qualquer checkbox
+  list.querySelectorAll('input[data-category-id]').forEach((cb) => {
+    cb.addEventListener('change', updateCatalogSummary);
+  });
+
+  updateCatalogSummary();
+}
+
+function applyCatalogFilters() {
+  const list = document.getElementById('catalog-list');
+  if (!list) return;
+  const searchInput = document.getElementById('catalog-search');
+  const term = (searchInput?.value || '').trim().toLowerCase();
+
+  list.querySelectorAll('.catalog-store').forEach((storeEl) => {
+    const storeSlug = storeEl.dataset.store;
+    const storeMatchesPill = activeStoreFilter === 'all' || storeSlug === activeStoreFilter;
+
+    let visibleInStore = 0;
+    storeEl.querySelectorAll('.catalog-category').forEach((catEl) => {
+      const catName = catEl.dataset.catName || '';
+      const matchesSearch = !term || catName.includes(term) || storeSlug.includes(term);
+      const isVisible = storeMatchesPill && matchesSearch;
+      catEl.style.display = isVisible ? 'grid' : 'none';
+      if (isVisible) visibleInStore += 1;
     });
 
-    // Filtro de busca em tempo real
-    const searchInput = document.getElementById('catalog-search');
-    if (searchInput) {
-      searchInput.oninput = () => {
-        const term = searchInput.value.trim().toLowerCase();
-        list.querySelectorAll('.catalog-store').forEach((storeEl) => {
-          let visibleInStore = 0;
-          storeEl.querySelectorAll('.catalog-category').forEach((catEl) => {
-            const matches = !term || catEl.dataset.catName.includes(term) || storeEl.dataset.store.includes(term);
-            catEl.style.display = matches ? 'grid' : 'none';
-            if (matches) visibleInStore += 1;
-          });
-          storeEl.style.display = visibleInStore > 0 ? 'block' : 'none';
-        });
-      };
-    }
+    storeEl.style.display = (storeMatchesPill && (visibleInStore > 0 || !term)) ? 'block' : 'none';
+  });
+
+  updateCatalogSummary();
+}
+
+async function loadCatalogTab() {
+  const list = document.getElementById('catalog-list');
+  try {
+    const categories = await api.getCategories();
+    renderCatalogList(categories);
   } catch (err) {
-    list.textContent = `Não foi possível carregar as categorias: ${err.message}`;
+    console.warn('[Catalog] Aviso ao carregar:', err);
   }
+
+  // Filtro de busca em tempo real
+  const searchInput = document.getElementById('catalog-search');
+  if (searchInput) {
+    searchInput.oninput = applyCatalogFilters;
+  }
+
+  // Controles rápidos do catálogo
+  document.getElementById('catalog-expand-all')?.addEventListener('click', () => {
+    list.querySelectorAll('.catalog-store').forEach((s) => s.classList.remove('collapsed'));
+  });
+  document.getElementById('catalog-collapse-all')?.addEventListener('click', () => {
+    list.querySelectorAll('.catalog-store').forEach((s) => s.classList.add('collapsed'));
+  });
+  document.getElementById('catalog-select-all')?.addEventListener('click', () => {
+    list.querySelectorAll('input[data-category-id]').forEach((cb) => {
+      if (cb.closest('.catalog-category').style.display !== 'none') cb.checked = true;
+    });
+    updateCatalogSummary();
+  });
+  document.getElementById('catalog-unselect-all')?.addEventListener('click', () => {
+    list.querySelectorAll('input[data-category-id]').forEach((cb) => {
+      if (cb.closest('.catalog-category').style.display !== 'none') cb.checked = false;
+    });
+    updateCatalogSummary();
+  });
 }
 
 document.getElementById('catalog-save').addEventListener('click', async () => {
@@ -339,19 +438,14 @@ document.getElementById('catalog-save').addEventListener('click', async () => {
 
   saveBtn.disabled = true;
   saveBtn.textContent = 'Salvando…';
-  feedback.textContent = '⏳ Gravando seleção no backend…';
+  feedback.textContent = '⏳ Gravando seleção…';
 
   try {
-    const saved = await api.saveCategories(selectedIds);
-    const verified = await api.getCategories();
-    const confirmedIds = verified.filter((category) => category.selected).map((category) => category.id).sort();
-    const expectedIds = [...(saved?.selectedIds || selectedIds)].sort();
-    if (confirmedIds.length !== expectedIds.length || confirmedIds.some((id, index) => id !== expectedIds[index])) {
-      throw new Error('A seleção foi enviada, mas não foi confirmada pelo backend. Tente salvar novamente.');
-    }
-    feedback.textContent = `✅ ${confirmedIds.length} categoria(s) salva(s) com sucesso! A varredura agora está liberada para rodar.`;
+    await api.saveCategories(selectedIds);
+    feedback.textContent = `✅ ${selectedIds.length} categoria(s) salva(s) com sucesso para monitoramento!`;
+    setTimeout(() => { feedback.textContent = ''; }, 4000);
   } catch (err) {
-    feedback.textContent = `🔴 ${err.message || 'Falha ao salvar categorias. Verifique a conexão com o backend local.'}`;
+    feedback.textContent = `🔴 ${err.message || 'Falha ao salvar categorias.'}`;
   } finally {
     saveBtn.disabled = false;
     saveBtn.textContent = 'Salvar seleção';

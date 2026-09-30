@@ -80,10 +80,56 @@ h2 { font-size: 15px; margin: 0 0 8px; }
 .row input { flex: 1; }
 
 .hint { font-size: 12px; color: #94a3b8; margin-left: 8px; }
-.catalog-store { border-top: 1px solid #1f2937; padding: 14px 0; }
-.catalog-category { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 8px; padding: 7px 4px; font-size: 13px; }
-.catalog-category a { color: #38bdf8; font-size: 11px; }
-.catalog-category input { accent-color: #0284c7; }
+.btn--sm { padding: 4px 9px; font-size: 11px; border-radius: 6px; }
+
+.catalog-pills { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 14px 0; }
+.catalog-pill {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.catalog-pill:hover { background: #1e293b; color: #f1f5f9; }
+.catalog-pill.active { background: #0284c7; border-color: #0284c7; color: #fff; font-weight: 600; }
+
+.catalog-store { border-top: 1px solid #1f2937; padding: 10px 0; }
+.catalog-store-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(255, 255, 255, 0.02);
+  transition: background 0.15s ease;
+}
+.catalog-store-header:hover { background: rgba(255, 255, 255, 0.05); }
+.catalog-store-title { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 600; }
+.catalog-toggle-arrow { font-size: 10px; color: #94a3b8; transition: transform 0.2s ease; display: inline-block; }
+.catalog-store.collapsed .catalog-toggle-arrow { transform: rotate(-90deg); }
+.catalog-store.collapsed .store-categories { display: none; }
+
+.store-categories { margin-top: 6px; }
+.catalog-category {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.catalog-category:hover { background: rgba(255, 255, 255, 0.04); }
+.catalog-category a { color: #38bdf8; font-size: 11px; text-decoration: none; }
+.catalog-category a:hover { text-decoration: underline; }
+.catalog-category input { accent-color: #0284c7; cursor: pointer; }
 
 .status-line { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 13px; }
 .dot { width: 9px; height: 9px; border-radius: 50%; }

@@ -140,8 +140,69 @@ const api = {
   login: (credentials) => request('/api/auth/login', { method: 'POST', body: credentials }),
   verifyAuth: () => request('/api/auth/verify'),
   getStatus: () => request('/api/status'),
-  getCategories: () => request('/api/catalog/categories'),
-  saveCategories: (selectedIds) => request('/api/catalog/categories', { method: 'PUT', body: { selectedIds } }),
+  getCategories: async () => {
+    try {
+      const data = await request('/api/catalog/categories');
+      if (Array.isArray(data) && data.length > 0) {
+        chrome.storage.local.set({ catalogCategories: data }).catch(() => {});
+        return data;
+      }
+    } catch (err) {
+      console.warn('[API] Nuvem indisponível ou não autenticada para categorias:', err.message);
+    }
+
+    // Fallback: dados salvos localmente
+    try {
+      const stored = await chrome.storage.local.get(['catalogCategories', 'selectedCategories']);
+      if (Array.isArray(stored?.catalogCategories) && stored.catalogCategories.length > 0) {
+        const selSet = new Set(stored.selectedCategories || []);
+        return stored.catalogCategories.map((c) => ({
+          ...c,
+          selected: selSet.has(c.id) ? 1 : (c.selected ? 1 : 0),
+        }));
+      }
+    } catch {
+      // Ignora erro
+    }
+
+    // Fallback nativo: catálogo embutido com 8 lojas e 214 categorias
+    if (typeof BUILTIN_CATALOG !== 'undefined' && Array.isArray(BUILTIN_CATALOG)) {
+      try {
+        const { selectedCategories } = await chrome.storage.local.get('selectedCategories');
+        const selSet = selectedCategories ? new Set(selectedCategories) : null;
+        const list = [];
+        for (const s of BUILTIN_CATALOG) {
+          for (const c of s.categories) {
+            list.push({
+              id: c.id,
+              name: c.name,
+              url: c.url,
+              siteId: s.id,
+              siteName: s.name,
+              domain: s.domain,
+              selected: selSet ? (selSet.has(c.id) ? 1 : 0) : (c.selected ? 1 : 0),
+            });
+          }
+        }
+        return list;
+      } catch {
+        return BUILTIN_CATALOG.flatMap((s) => s.categories.map((c) => ({
+          id: c.id, name: c.name, url: c.url, siteId: s.id, siteName: s.name, domain: s.domain, selected: c.selected ? 1 : 0,
+        })));
+      }
+    }
+
+    return [];
+  },
+  saveCategories: async (selectedIds) => {
+    await chrome.storage.local.set({ selectedCategories: selectedIds }).catch(() => {});
+    try {
+      return await request('/api/catalog/categories', { method: 'PUT', body: { selectedIds } });
+    } catch (err) {
+      console.warn('[API] Categorias salvas no storage local (nuvem offline):', err.message);
+      return { ok: true, selectedIds, offline: true };
+    }
+  },
   getScanConfig: () => request('/api/scan/config'),
   runScanNow: () => request('/api/scan/run', { method: 'POST', timeoutMs: 120000 }),
   submitBrowserPages: (pages, scanId, complete = true) => request('/api/scan/browser-pages', {

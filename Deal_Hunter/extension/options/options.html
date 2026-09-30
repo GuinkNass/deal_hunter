@@ -121,9 +121,19 @@
           <div class="field" style="margin: 12px 0 8px 0;">
             <input type="text" id="catalog-search" placeholder="🔍 Filtrar categorias por nome ou loja..." />
           </div>
+          <div id="catalog-store-pills" class="catalog-pills"></div>
+          <div class="row" style="margin-bottom: 12px; gap: 8px;">
+            <button type="button" id="catalog-expand-all" class="btn btn--sm">Expandir todas</button>
+            <button type="button" id="catalog-collapse-all" class="btn btn--sm">Recolher todas</button>
+            <button type="button" id="catalog-select-all" class="btn btn--sm">Marcar todas</button>
+            <button type="button" id="catalog-unselect-all" class="btn btn--sm">Desmarcar todas</button>
+            <span id="catalog-summary-count" class="hint" style="margin-left: auto;"></span>
+          </div>
           <div id="catalog-list" class="catalog-list">Carregando categorias…</div>
-          <button id="catalog-save" class="btn btn--primary">Salvar seleção</button>
-          <span id="catalog-feedback" class="hint"></span>
+          <div class="row" style="margin-top: 16px;">
+            <button id="catalog-save" class="btn btn--primary">Salvar seleção</button>
+            <span id="catalog-feedback" class="hint"></span>
+          </div>
         </div>
       </section>
 
@@ -223,6 +233,7 @@
     </main>
   </div>
 
+  <script src="../catalog/defaultCatalog.js"></script>
   <script src="../config.js"></script>
   <script src="../utils/api.js"></script>
   <script src="options.js"></script>
