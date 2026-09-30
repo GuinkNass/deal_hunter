@@ -72,7 +72,7 @@ export default function Navbar() {
     user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
 
   return (
-    <header className="sticky top-0 z-40 w-full backdrop-blur-2xl bg-[#080b14]/85 border-b border-white/[0.08] transition-all">
+    <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-[#080b14]/50 border-b border-white/[0.08] transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         
         {/* Logo & Marca */}

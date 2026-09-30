@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import { createClient } from '@/lib/supabase/client';
@@ -39,6 +39,15 @@ export default function LandingPage() {
   const [videoPlaying, setVideoPlaying] = useState(false);
   const [downloadToast, setDownloadToast] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.defaultMuted = true;
+      videoRef.current.muted = true;
+      videoRef.current.play().catch(() => {});
+    }
+  }, []);
 
   // Links de pagamento e download
   const downloadZipUrl = '/downloads/deal-hunter-pro.zip';
@@ -158,30 +167,35 @@ export default function LandingPage() {
       <div className="fixed bottom-10 -right-40 w-[600px] h-[600px] bg-purple-600/10 blur-[170px] pointer-events-none -z-10" />
 
       {/* ========================================================================= */}
-      {/* 1. NAVBAR                                                                 */}
+      {/* 1 & 2. TOPO COMPLETO (NAVBAR + HERO COM VÍDEO FULL SCREEN DE FUNDO)       */}
       {/* ========================================================================= */}
-      <Navbar />
-
-      {/* ========================================================================= */}
-      {/* 2. HERO SECTION                                                           */}
-      {/* ========================================================================= */}
-      <section className="relative pt-12 pb-16 sm:pt-20 sm:pb-24 overflow-hidden">
-        {/* Vídeo WebM de Fundo Dinâmico no Topo (Ampliado, Proporcional sem distorção) */}
+      <div className="relative min-h-screen flex flex-col justify-between overflow-hidden">
+        {/* Vídeo WebM de Fundo Dinâmico Cobrindo Toda a Altura e Largura da Tela Superior */}
         <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none -z-10">
           <video
+            ref={videoRef}
             autoPlay
             loop
             muted
             playsInline
-            className="w-full h-full object-cover object-center opacity-35 scale-105"
-            src="/video/hero-background.webm"
-          />
-          {/* Overlays de contraste e vinheta para legibilidade do texto e transição suave */}
-          <div className="absolute inset-0 bg-gradient-to-b from-[#070a12]/80 via-[#070a12]/60 to-[#070a12]" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#070a12]/90 via-transparent to-[#070a12]/90" />
+            preload="auto"
+            className="w-full h-full object-cover object-center scale-100"
+          >
+            <source src="/video/novo.webm" type="video/webm" />
+            <source src="/video/hero-background.webm" type="video/webm" />
+          </video>
+          {/* Overlay suave para excelente legibilidade mantendo o vídeo bem nítido e visível */}
+          <div className="absolute inset-0 bg-black/40" />
+          {/* Transição em degradê suave no rodapé para fundir perfeitamente com a próxima seção */}
+          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#070a12] via-[#070a12]/80 to-transparent" />
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8 relative z-10">
+        {/* 1. NAVBAR */}
+        <Navbar />
+
+        {/* 2. HERO SECTION */}
+        <section className="relative flex-1 flex flex-col justify-center items-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8 text-center">
+          <div className="max-w-6xl mx-auto space-y-8 relative z-10 w-full">
           
           {/* Badge de Destaque Superior */}
           <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-violet-950/50 border border-violet-500/30 text-violet-300 text-xs font-bold tracking-widest uppercase backdrop-blur-md animate-in fade-in duration-700 shadow-sm">
@@ -266,6 +280,7 @@ export default function LandingPage() {
 
         </div>
       </section>
+      </div>
 
       {/* ========================================================================= */}
       {/* 2.5 CARROSSEL DE LOGOS EM LOOP INFINITO (GRANDES LOJAS MONITORADAS)        */}
