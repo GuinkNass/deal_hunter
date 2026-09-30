@@ -16,7 +16,7 @@
         <button class="nav-item" data-tab="scan">⏱️ Agendamento</button>
         <button class="nav-item" data-tab="filters">🎛️ Filtros de alerta</button>
         <button class="nav-item" data-tab="history">📜 Histórico</button>
-        <button class="nav-item" data-tab="pairing">🔑 Pareamento</button>
+        <button class="nav-item" data-tab="pairing">☁️ Conexão Nuvem</button>
       </nav>
     </aside>
 
@@ -27,17 +27,27 @@
         <h1>Configuração inicial</h1>
 
         <div class="card">
-          <h2>Passo 1 — Pareie a extensão com o backend</h2>
+          <h2>Passo 1 — Autenticação Automática na Nuvem</h2>
           <p class="muted">
-            Ao rodar <code>2-Ativar-Backend.bat</code>, um token é exibido no
-            console e salvo em <code>server/data/extension-token.txt</code>. Cole-o abaixo.
+            O Deal Hunter Pro roda 100% na nuvem. A extensão detecta sua sessão e valida a licença de forma automatizada via nuvem, sem necessidade de colar tokens ou rodar scripts no computador.
           </p>
-          <div class="field">
-            <label>Token de pareamento</label>
-            <input id="ob-token" type="text" placeholder="cole o token aqui" />
+          <div class="cloud-status-card" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 14px; margin: 12px 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span>Status do Servidor (Render):</span>
+              <span id="cloud-server-status" class="badge badge--warn">Verificando…</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span>Sua Conta / Licença Pro:</span>
+              <span id="cloud-license-status" class="badge badge--warn">Verificando…</span>
+            </div>
+            <div id="cloud-user-details" style="font-size: 12px; color: #94a3b8; margin-top: 8px;"></div>
           </div>
-          <button id="ob-save-token" class="btn btn--primary">Salvar token</button>
-          <span id="ob-token-status" class="hint"></span>
+          <div class="row">
+            <button id="ob-login-btn" class="btn btn--primary">Fazer Login na Nuvem</button>
+            <button id="ob-sync-btn" class="btn">Atualizar Status</button>
+            <button id="ob-logout-btn" class="btn btn--danger hidden">Sair da Conta</button>
+          </div>
+          <span id="ob-auth-feedback" class="hint"></span>
         </div>
 
         <div class="card">

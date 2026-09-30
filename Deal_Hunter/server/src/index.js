@@ -19,27 +19,15 @@ async function bootstrap() {
 
   const app = express();
 
-  // Configuração avançada de CORS: aceita extensões de navegador (Chrome, Edge, Firefox), localhost e domínios do app
-  app.use(cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (
-        origin.startsWith('chrome-extension://') ||
-        origin.startsWith('moz-extension://') ||
-        origin.startsWith('extension://') ||
-        origin.includes('localhost') ||
-        origin.includes('127.0.0.1') ||
-        origin.includes('vercel.app') ||
-        origin.includes('onrender.com')
-      ) {
-        return callback(null, true);
-      }
-      return callback(null, true);
-    },
+  // Configuração universal de CORS: aceita extensões do Chrome/Edge/Firefox, localhost e Vercel sem falhas de preflight
+  const corsMiddleware = cors({
+    origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-deal-hunter-token'],
-  }));
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-deal-hunter-token', 'Accept'],
+  });
+  app.use(corsMiddleware);
+  app.options('*', corsMiddleware);
 
   app.use(express.json({ limit: '15mb' }));
 

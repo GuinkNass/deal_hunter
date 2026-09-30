@@ -26,6 +26,8 @@ router.get('/', async (req, res) => {
 
     res.json({
       active: true,
+      authenticated: Boolean(req.isAuthenticated),
+      user: req.user ? { email: req.user.email, sub: req.user.sub } : null,
       telegramConnected: telegram.configured,
       scanConfigured: selectedCategories > 0,
       selectedCategories,

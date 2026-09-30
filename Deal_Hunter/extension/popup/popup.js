@@ -144,4 +144,11 @@ document.getElementById('btn-scan-now').addEventListener('click', async (e) => {
   }
 });
 
+// Atualiza a interface instantaneamente assim que a sessão for salva na nuvem
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes.auth_token || changes.licenseStatus || changes.baseUrl) {
+    loadDashboard();
+  }
+});
+
 loadDashboard();

@@ -5,6 +5,7 @@ const navItems = document.querySelectorAll('.nav-item');
 function showTab(name) {
   tabs.forEach((t) => t.classList.toggle('hidden', t.id !== `tab-${name}`));
   navItems.forEach((n) => n.classList.toggle('active', n.dataset.tab === name));
+  if (name === 'onboarding') loadOnboardingTab();
   if (name === 'history') loadHistory();
   if (name === 'telegram') loadTelegramTab();
   if (name === 'catalog') loadCatalogTab();
@@ -22,14 +23,93 @@ navItems.forEach((btn) => {
 
 const initialTab = location.hash.replace('#', '') || 'onboarding';
 showTab(initialTab);
+if (initialTab === 'onboarding') loadOnboardingTab();
 
-// ---------- Onboarding ----------
-document.getElementById('ob-save-token').addEventListener('click', async () => {
-  const token = document.getElementById('ob-token').value.trim();
-  const status = document.getElementById('ob-token-status');
-  if (!token) { status.textContent = 'Informe o token.'; return; }
-  await api.setApiToken(token);
-  status.textContent = '✅ Token salvo.';
+// ---------- Onboarding / Autenticação Automática na Nuvem ----------
+async function loadOnboardingTab() {
+  const serverBadge = document.getElementById('cloud-server-status');
+  const licenseBadge = document.getElementById('cloud-license-status');
+  const userDetails = document.getElementById('cloud-user-details');
+  const loginBtn = document.getElementById('ob-login-btn');
+  const logoutBtn = document.getElementById('ob-logout-btn');
+
+  // 1. Testa conectividade com a API na nuvem (Render)
+  serverBadge.textContent = 'Testando…';
+  serverBadge.className = 'badge badge--warn';
+
+  try {
+    const health = await api.checkHealth().catch(() => api.ping());
+    if (health) {
+      serverBadge.textContent = 'ONLINE (NUVEM)';
+      serverBadge.className = 'badge badge--success';
+    }
+  } catch (err) {
+    serverBadge.textContent = 'CONECTANDO / HIBERNADO';
+    serverBadge.className = 'badge badge--warn';
+  }
+
+  // 2. Verifica a sessão local salva no chrome.storage
+  try {
+    const { auth_token, auth_user, licenseStatus } = await chrome.storage.local.get([
+      'auth_token',
+      'auth_user',
+      'licenseStatus',
+    ]);
+
+    const isAuth = Boolean(auth_token && (licenseStatus?.authorized || auth_user));
+    if (isAuth) {
+      const email = licenseStatus?.email || auth_user?.email || 'Licença Ativa';
+      const plan = (licenseStatus?.plan || auth_user?.plan || 'pro').toUpperCase();
+      licenseBadge.textContent = `${plan} ATIVO`;
+      licenseBadge.className = 'badge badge--success';
+      userDetails.textContent = `Logado como: ${email}`;
+      loginBtn.classList.add('hidden');
+      logoutBtn.classList.remove('hidden');
+    } else {
+      licenseBadge.textContent = 'LOGIN NECESSÁRIO';
+      licenseBadge.className = 'badge badge--warn';
+      userDetails.textContent = 'Nenhuma sessão conectada. Clique abaixo para fazer login.';
+      loginBtn.classList.remove('hidden');
+      logoutBtn.classList.add('hidden');
+    }
+  } catch {
+    licenseBadge.textContent = 'DESCONECTADO';
+    licenseBadge.className = 'badge badge--danger';
+  }
+}
+
+document.getElementById('ob-login-btn')?.addEventListener('click', () => {
+  chrome.runtime.sendMessage({ type: 'DEAL_HUNTER_OPEN_LOGIN' });
+});
+
+document.getElementById('ob-sync-btn')?.addEventListener('click', async () => {
+  const feedback = document.getElementById('ob-auth-feedback');
+  feedback.textContent = 'Sincronizando com a nuvem…';
+  try {
+    await new Promise((resolve) => {
+      chrome.runtime.sendMessage({ type: 'DEAL_HUNTER_REFRESH_LICENSE' }, resolve);
+    });
+    await loadOnboardingTab();
+    feedback.textContent = '✅ Status atualizado.';
+  } catch (e) {
+    feedback.textContent = `Status: ${e.message}`;
+  }
+  setTimeout(() => { feedback.textContent = ''; }, 3000);
+});
+
+document.getElementById('ob-logout-btn')?.addEventListener('click', async () => {
+  if (confirm('Deseja realmente desconectar sua conta?')) {
+    chrome.runtime.sendMessage({ type: 'DEAL_HUNTER_LOGOUT' }, () => {
+      loadOnboardingTab();
+    });
+  }
+});
+
+// Atualiza a tela de opções instantaneamente se o usuário fizer login na aba web
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes.auth_token || changes.licenseStatus) {
+    loadOnboardingTab();
+  }
 });
 
 document.getElementById('ob-test-telegram').addEventListener('click', async () => {

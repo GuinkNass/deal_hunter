@@ -31,9 +31,9 @@ async function getConfig() {
     cleanUrl = `https://${cleanUrl}`;
   }
 
-  // O token pode vir do login web (auth_token) ou do pareamento manual (apiToken)
-  const token = (typeof apiToken === 'string' && apiToken.trim())
-    || (typeof auth_token === 'string' && auth_token.trim())
+  // O token pode vir do login web na nuvem (auth_token JWT) ou de configuração manual (apiToken)
+  const token = (typeof auth_token === 'string' && auth_token.trim())
+    || (typeof apiToken === 'string' && apiToken.trim())
     || null;
 
   return { baseUrl: cleanUrl, apiToken: token };
@@ -49,34 +49,56 @@ async function setBaseUrl(url) {
 
 async function ping() {
   const { baseUrl } = await getConfig();
-  const response = await fetch(`${baseUrl}/api/status/ping`, {
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!response.ok) throw new Error(`API na nuvem respondeu com HTTP ${response.status}`);
-  return response.json();
+  try {
+    const response = await fetch(`${baseUrl}/api/status/ping`, {
+      signal: AbortSignal.timeout(35000),
+    });
+    if (!response.ok) throw new Error(`API na nuvem respondeu com HTTP ${response.status}`);
+    return response.json();
+  } catch (err) {
+    if (err.name === 'TimeoutError' || (err.message && err.message.includes('fetch'))) {
+      throw new Error('Servidor na nuvem iniciando ou indisponível. Aguarde alguns instantes...');
+    }
+    throw err;
+  }
 }
 
 async function checkHealth() {
   const { baseUrl } = await getConfig();
-  const response = await fetch(`${baseUrl}/health`, {
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!response.ok) throw new Error(`Health check falhou: HTTP ${response.status}`);
-  return response.json();
+  try {
+    const response = await fetch(`${baseUrl}/health`, {
+      signal: AbortSignal.timeout(35000),
+    });
+    if (!response.ok) throw new Error(`Health check falhou: HTTP ${response.status}`);
+    return response.json();
+  } catch (err) {
+    if (err.name === 'TimeoutError' || (err.message && err.message.includes('fetch'))) {
+      throw new Error('Servidor na nuvem iniciando ou indisponível.');
+    }
+    throw err;
+  }
 }
 
 async function request(path, { method = 'GET', body, timeoutMs = 60000 } = {}) {
   const { baseUrl, apiToken } = await getConfig();
-  const response = await fetch(`${baseUrl}${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(apiToken ? { Authorization: `Bearer ${apiToken}` } : {}),
-      ...(apiToken ? { 'x-deal-hunter-token': apiToken } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(timeoutMs),
-  });
+  let response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiToken ? { Authorization: `Bearer ${apiToken}` } : {}),
+        ...(apiToken ? { 'x-deal-hunter-token': apiToken } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (err) {
+    if (err.name === 'TimeoutError' || (err.message && err.message.includes('fetch'))) {
+      throw new Error('Não foi possível conectar ao servidor na nuvem (Render). Aguarde alguns segundos enquanto o serviço desperta.');
+    }
+    throw err;
+  }
 
   if (response.status === 401) {
     throw new Error('Sessão expirada ou não autenticado. Faça login no popup da extensão.');

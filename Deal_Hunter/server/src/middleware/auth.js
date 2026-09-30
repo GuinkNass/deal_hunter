@@ -11,6 +11,7 @@ const TOKEN_FILE = path.join(path.dirname(path.resolve(config.databasePath)), 'e
 // Rotas públicas que não necessitam de cabeçalho de autenticação
 const PUBLIC_PATHS = new Set([
   '/status/ping',
+  '/status',
   '/auth/login',
   '/health',
 ]);
@@ -28,7 +29,7 @@ function ensureToken() {
   try {
     fs.writeFileSync(TOKEN_FILE, token, 'utf-8');
   } catch {
-    // Não crítico (pode ser sistema de arquivos somente-leitura em container)
+    // Não crítico
   }
   return token;
 }
@@ -37,30 +38,71 @@ function getActiveToken() {
   return config.apiToken || ensureToken();
 }
 
+/**
+ * Valida se a string fornecida é um token JWT bem-formado (ex: Supabase Auth da Vercel).
+ */
+function parseAndValidateJWT(tokenStr) {
+  if (!tokenStr || typeof tokenStr !== 'string') return null;
+  const parts = tokenStr.split('.');
+  if (parts.length !== 3) return null;
+
+  try {
+    const payloadJson = Buffer.from(parts[1], 'base64url').toString('utf-8');
+    const payload = JSON.parse(payloadJson);
+
+    // Valida expiração se existir o campo 'exp'
+    if (payload.exp && typeof payload.exp === 'number') {
+      const nowSec = Math.floor(Date.now() / 1000);
+      if (nowSec > payload.exp) {
+        logger.warn('Token JWT recebido está expirado.');
+        return null;
+      }
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
 function authMiddleware(req, res, next) {
-  // Preflight CORS OPTIONS deve passar sem autenticação
+  // Preflight CORS OPTIONS sempre passa imediatamente
   if (req.method === 'OPTIONS') {
     return next();
   }
 
-  // Rotas públicas
-  if (PUBLIC_PATHS.has(req.path)) {
-    return next();
-  }
-
-  const token = getActiveToken();
+  const serverToken = getActiveToken();
   const header = req.headers.authorization || '';
   const rawProvided = header.startsWith('Bearer ') ? header.slice(7) : req.headers['x-deal-hunter-token'];
   const provided = typeof rawProvided === 'string' ? rawProvided.trim() : '';
 
-  // Se o servidor tiver bypass ativo (apenas dev) ou token bater
-  if (provided && (provided === token || provided === config.apiToken)) {
+  // 1. Verifica token de API configurado (estilo mestre/ambiente)
+  let isAuthorized = Boolean(provided && (provided === serverToken || (config.apiToken && provided === config.apiToken)));
+
+  // 2. Se for um JWT do Supabase/Vercel da extensão do usuário
+  if (!isAuthorized && provided) {
+    const jwtPayload = parseAndValidateJWT(provided);
+    if (jwtPayload) {
+      req.user = jwtPayload;
+      isAuthorized = true;
+    }
+  }
+
+  req.isAuthenticated = isAuthorized;
+
+  // Se a rota for pública, permite a passagem mesmo sem token
+  if (PUBLIC_PATHS.has(req.path)) {
+    return next();
+  }
+
+  if (isAuthorized) {
     return next();
   }
 
   return res.status(401).json({
-    error: 'Token inválido ou ausente. Conecte sua extensão através do popup ou nas configurações.',
+    error: 'Token inválido ou ausente. Faça login na extensão para conectar à nuvem.',
+    authenticated: false,
   });
 }
 
-module.exports = { authMiddleware, ensureToken, getActiveToken, TOKEN_FILE };
+module.exports = { authMiddleware, ensureToken, getActiveToken, parseAndValidateJWT, TOKEN_FILE };
