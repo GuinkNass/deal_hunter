@@ -105,6 +105,9 @@ export default function Navbar() {
           <a href="#recursos" className="hover:text-white transition-colors">
             Recursos
           </a>
+          <a href="#bonus" className="hover:text-[#d4ff32] text-violet-300 font-bold transition-colors">
+            Bônus
+          </a>
           <a href="#planos" className="hover:text-white transition-colors">
             Planos
           </a>
@@ -250,6 +253,13 @@ export default function Navbar() {
               className="py-1 hover:text-white"
             >
               Recursos
+            </a>
+            <a
+              href="#bonus"
+              onClick={() => setMobileMenuOpen(false)}
+              className="py-1 text-violet-300 hover:text-white"
+            >
+              Bônus Exclusivo
             </a>
             <a
               href="#planos"

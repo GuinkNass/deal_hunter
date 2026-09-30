@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Profit Hunter Pro</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app__header">
+      <div class="brand">
+        <span class="brand-icon">🎯</span>
+        <span>Profit Hunter</span>
+        <span class="badge badge--bonus">BÔNUS PRO</span>
+      </div>
+      <button id="btn-settings" class="icon-btn" title="Configurações & Telegram">⚙️</button>
+    </header>
+
+    <!-- Barra de Autenticação / Licença Ativa -->
+    <div id="auth-status-bar" class="auth-bar hidden">
+      <div class="auth-bar__info">
+        <span id="auth-badge" class="badge badge--success">Pro Ativo</span>
+        <span id="auth-email" class="auth-bar__email">usuario@email.com</span>
+      </div>
+      <button id="btn-logout" class="auth-bar__btn" title="Desconectar conta">Sair</button>
+    </div>
+
+    <!-- Banner de Login Necessário -->
+    <div id="login-prompt-bar" class="banner banner--login hidden">
+      <div class="banner__text">
+        🔒 <strong>Bônus Exclusivo Deal Hunter Pro</strong>
+        <p>Faça login com sua conta da plataforma para liberar esta extensão gratuitamente (inclui os 7 dias de teste).</p>
+      </div>
+      <button id="btn-open-login" class="btn btn--primary btn--small">Fazer Login na Nuvem</button>
+    </div>
+
+    <!-- Painel de Ações Principais -->
+    <section id="panel-capture" class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Capturador de Ofertas</span>
+        <span id="telegram-indicator" class="status-indicator">Verificando Telegram…</span>
+      </div>
+      <p class="muted">
+        Navegue até qualquer produto no Mercado Livre, Amazon, Shopee ou Magalu e clique abaixo para enviar direto ao Telegram:
+      </p>
+      <button id="captureBtn" class="btn btn--action">
+        <span class="btn-icon">⚡</span>
+        <span id="captureBtnText">Capturar Produto da Tela</span>
+      </button>
+    </section>
+
+    <!-- Painel de Histórico de Ofertas -->
+    <section class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Histórico Recente</span>
+        <button id="clearHistoryBtn" class="btn-link">Limpar</button>
+      </div>
+      <div id="historyList" class="history-list">
+        <div class="empty-state">Nenhuma oferta capturada ainda.</div>
+      </div>
+    </section>
+
+    <footer class="app__footer">
+      <span>Bônus 100% Incluso no Deal Hunter Pro</span>
+    </footer>
+  </div>
+
+  <script src="../config.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

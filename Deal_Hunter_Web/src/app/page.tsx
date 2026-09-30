@@ -30,6 +30,7 @@ import {
   Smartphone,
   Clock,
   Compass,
+  Target,
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -41,6 +42,7 @@ export default function LandingPage() {
 
   // Links de pagamento e download
   const downloadZipUrl = '/downloads/deal-hunter-pro.zip';
+  const downloadProfitHunterZipUrl = '/downloads/profit-hunter-pro.zip';
   const infinitePayPixUrl = 'https://checkout.infinitepay.io/deal-hunter-pro-br/AoJYT9KaSj';
   const stripeCardUrl = '/login';
   const checkoutUrl = '/login';
@@ -108,6 +110,11 @@ export default function LandingPage() {
       question: 'Posso cancelar a qualquer momento?',
       answer:
         'Com certeza! Não há período de fidelidade ou contrato de permanência. Você gerencia sua assinatura de forma 100% autônoma pelo portal de clientes Stripe com cancelamento instantâneo a qualquer momento.',
+    },
+    {
+      question: 'Como funciona o bônus do Profit Hunter Pro?',
+      answer:
+        'O Profit Hunter Pro é uma segunda extensão profissional inclusa gratuitamente no seu plano (ou durante os 7 dias de teste grátis). Enquanto o Deal Hunter monitora centenas de categorias em massa na nuvem, o Profit Hunter é a sua ferramenta cirúrgica para capturar ofertas diretamente na tela com 1 clique (via botão flutuante inteligente em qualquer loja) e despachar para o Telegram. O login é 100% unificado: sua conta ativa ambas as extensões!',
     },
     {
       question: 'Como falar com o suporte em caso de dúvidas?',
@@ -836,6 +843,132 @@ export default function LandingPage() {
       </section>
 
       {/* ========================================================================= */}
+      {/* 7.1 BÔNUS EXCLUSIVO: PROFIT HUNTER PRO (CAPTURA NA TELA)                  */}
+      {/* ========================================================================= */}
+      <section id="bonus" className="py-16 sm:py-24 relative overflow-hidden bg-gradient-to-b from-[#070a12] via-[#0e1220] to-[#0a0d15] border-t border-white/[0.06]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          
+          {/* Ambient Glow */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-violet-600/20 blur-[140px] pointer-events-none" />
+
+          <div className="relative rounded-[2.5rem] bg-gradient-to-br from-[#0e1322] via-[#0b0f1a] to-[#070a12] border-2 border-violet-500/30 p-6 sm:p-12 shadow-2xl shadow-violet-950/40">
+            
+            {/* Top Badges */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet-500/20 border border-violet-500/40 text-violet-300 text-xs font-black uppercase tracking-wider">
+                <Gift className="w-4 h-4 text-[#d4ff32]" />
+                <span>Bônus Exclusivo Incluso Grátis</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Liberado com o Deal Hunter Pro</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              
+              {/* Coluna Texto */}
+              <div className="lg:col-span-7 space-y-5">
+                <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white leading-tight">
+                  Conheça o <br />
+                  <span className="bg-gradient-to-r from-violet-400 via-indigo-300 to-cyan-300 bg-clip-text text-transparent">
+                    Profit Hunter Pro
+                  </span>
+                </h2>
+                <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
+                  Uma <strong>segunda extensão completa</strong> para você caçar ofertas de forma cirúrgica. Enquanto o Deal Hunter monitora centenas de categorias em massa na nuvem, o Profit Hunter injeta um <strong>botão flutuante inteligente</strong> em qualquer loja (Mercado Livre, Shopee, Amazon, Magalu) para você capturar produtos direto da tela com 1 clique.
+                </p>
+
+                {/* Grid de 4 recursos do bônus */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+                  <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                    <Target className="w-5 h-5 text-[#d4ff32] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Botão Flutuante</h4>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Aparece sutilmente na página do produto para disparo imediato.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                    <Zap className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Captura em 1 Segundo</h4>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Lê título, preço com desconto e link pronto para o Telegram.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                    <BellRing className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Telegram Imediato</h4>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Envia direto para seu canal, grupo VIP ou chat pessoal.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                    <Sparkles className="w-5 h-5 text-violet-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Login 100% Unificado</h4>
+                      <p className="text-[11px] text-slate-400 mt-0.5">A mesma conta do Deal Hunter ativa ambas as extensões.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CTAs do Bônus */}
+                <div className="flex flex-col sm:flex-row items-center gap-3.5 pt-4">
+                  <a
+                    href={downloadProfitHunterZipUrl}
+                    download="Profit_Hunter_Cliente.zip"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-full bg-violet-600 hover:bg-violet-500 text-white font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-violet-600/30 transition-all hover:-translate-y-0.5"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Baixar Bônus: Profit Hunter (.ZIP)</span>
+                  </a>
+                  <Link
+                    href="/login"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.15] text-white font-bold text-xs sm:text-sm uppercase tracking-wider transition-all"
+                  >
+                    <Sparkles className="w-4 h-4 text-[#d4ff32]" />
+                    <span>Ativar 7 Dias Grátis com Bônus</span>
+                  </Link>
+                </div>
+              </div>
+
+              {/* Coluna Visual do Card / Mockup */}
+              <div className="lg:col-span-5">
+                <div className="relative rounded-2xl bg-[#070a12] border border-white/10 p-6 shadow-2xl space-y-4">
+                  <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">🎯</span>
+                      <span className="font-extrabold text-sm text-white uppercase tracking-wider">Profit Hunter Pro</span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-bold text-[10px] uppercase">
+                      Incluso Grátis
+                    </span>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.05] space-y-2">
+                    <div className="text-[11px] text-slate-400 uppercase font-bold tracking-wider">Exemplo de Disparo no Telegram</div>
+                    <div className="p-3 rounded-lg bg-[#0b0f19] border border-white/[0.06] text-xs font-mono space-y-1">
+                      <div className="text-cyan-300 font-bold">🎯 Profit Hunter Pro — Nova Oferta!</div>
+                      <div className="text-slate-300">📦 Produto: Smart TV 55" 4K UHD</div>
+                      <div className="text-emerald-400 font-bold">💰 Preço: R$ 1.899,00 (42% OFF)</div>
+                      <div className="text-violet-400">🔗 Link: mercadolivre.com.br/sec/...</div>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-violet-950/20 border border-violet-500/30 text-xs text-slate-300 flex items-center gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-[#d4ff32] flex-shrink-0" />
+                    <span>Valor avulso: <s className="text-slate-500">R$ 97/ano</s> · <strong>Grátis</strong> para membros Pro.</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
       {/* 8. TABELA DE PREÇOS & PLANOS (PRICING)                                     */}
       {/* ========================================================================= */}
       <section id="planos" className="py-16 sm:py-24 bg-[#0a0d15]/80 border-y border-white/[0.06] relative">
@@ -936,8 +1069,12 @@ export default function LandingPage() {
                       <span>Sem necessidade de cadastrar cartão de crédito</span>
                     </li>
                     <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-[#d4ff32] flex-shrink-0" />
+                      <span><strong>BÔNUS INCLUSO:</strong> Extensão Profit Hunter Pro (Captura na Tela)</span>
+                    </li>
+                    <li className="flex items-center gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                      <span>Suporte técnico prioritário via WhatsApp</span>
+                      <span>Suporte técnico prioritário via e-mail e WhatsApp</span>
                     </li>
                   </ul>
                 </div>
@@ -1024,6 +1161,10 @@ export default function LandingPage() {
                     <li className="flex items-center gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                       <span>Extensão oficial compatível com Google Chrome e Edge</span>
+                    </li>
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-[#d4ff32] flex-shrink-0" />
+                      <span><strong>BÔNUS INCLUSO:</strong> Extensão Profit Hunter Pro (Captura na Tela)</span>
                     </li>
                     <li className="flex items-center gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />

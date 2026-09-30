@@ -3,7 +3,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-const ADMIN_EMAIL = 'guilherme.r.nascimento@live.com';
+const ADMIN_EMAILS = [
+  'guilherme.r.nascimento@live.com',
+  'guilherme.r.nascimentoml@gmail.com',
+];
 
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -88,8 +91,9 @@ async function handleVerification(req: NextRequest) {
   // Se o perfil ainda não existe, tenta criar para persistir a data de primeiro acesso
   if (!profile) {
     try {
-      const initialRole = userEmail === ADMIN_EMAIL ? 'admin' : 'user';
-      const initialStatus = userEmail === ADMIN_EMAIL ? 'active' : 'inactive';
+      const isAdmin = ADMIN_EMAILS.includes(userEmail);
+      const initialRole = isAdmin ? 'admin' : 'user';
+      const initialStatus = isAdmin ? 'active' : 'inactive';
       const nowIso = new Date().toISOString();
       const { data: newProfile } = await supabase
         .from('profiles')
@@ -112,9 +116,9 @@ async function handleVerification(req: NextRequest) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://dealhunterpro.com.br';
   const checkoutUrl = `${siteUrl}/login?checkout=required`;
 
-  // 3. REGRA DE OURO: Conta Administrador Master (guilherme.r.nascimento@live.com)
-  // Possui acesso permanente e ilimitado, independente de pagamentos
-  if (userEmail === ADMIN_EMAIL || profile?.role === 'admin') {
+  // 3. REGRA DE OURO: Contas Administrador Master
+  // Possuem acesso permanente e ilimitado, independente de pagamentos
+  if (ADMIN_EMAILS.includes(userEmail) || profile?.role === 'admin') {
     return NextResponse.json(
       {
         authorized: true,

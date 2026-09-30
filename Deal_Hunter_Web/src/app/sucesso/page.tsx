@@ -79,38 +79,58 @@ export default function PaginaSucesso() {
             )}
           </div>
 
-          {/* Botão de Download Principal em Destaque */}
-          <div className="p-5 rounded-2xl bg-gradient-to-r from-[#141b2b] to-[#111726] border border-orange-500/30 text-left space-y-3 shadow-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-orange-400">
-                <Laptop className="w-4 h-4" />
-                <span>Arquivo da Extensão (.ZIP)</span>
+          {/* Downloads das Extensões em Destaque */}
+          <div className="space-y-4">
+            {/* Extensão 1: Deal Hunter Pro */}
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-[#141b2b] to-[#111726] border border-orange-500/30 text-left space-y-3 shadow-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-orange-400">
+                  <Laptop className="w-4 h-4" />
+                  <span>1. Deal Hunter Pro (.ZIP)</span>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                  Varredura em Nuvem
+                </span>
               </div>
-              <span className="text-[10px] font-bold text-gray-400 bg-gray-800 px-2 py-0.5 rounded-full">
-                Versão 2.9 · Chrome &amp; Edge
-              </span>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                O motor central que varre Amazon, Magalu e Eletroclub continuamente na nuvem disparando no Telegram:
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+                <a
+                  href="/downloads/deal-hunter-pro.zip"
+                  download="Deal_Hunter_Cliente.zip"
+                  className="flex-1 inline-flex items-center justify-center gap-2.5 py-3 px-5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs sm:text-sm shadow-lg shadow-orange-500/25 active:scale-[0.98] transition-all"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Baixar Deal Hunter (.ZIP)</span>
+                </a>
+              </div>
             </div>
-            <p className="text-xs text-gray-300 leading-relaxed">
-              Caso ainda não tenha instalado no seu navegador, baixe o pacote pronto com todas as dependências pré-instaladas:
-            </p>
-            <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
-              <a
-                href="/downloads/deal-hunter-pro.zip"
-                download="Deal_Hunter_Cliente.zip"
-                className="flex-1 inline-flex items-center justify-center gap-2.5 py-3 px-5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs sm:text-sm shadow-lg shadow-orange-500/25 active:scale-[0.98] transition-all"
-              >
-                <Download className="w-4 h-4" />
-                <span>Descarregar Extensão (.ZIP)</span>
-              </a>
-              <button
-                type="button"
-                onClick={copyDownloadLink}
-                className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-gray-800/80 hover:bg-gray-700/80 text-gray-300 text-xs font-medium border border-gray-700 transition-colors"
-                title="Copiar link de download"
-              >
-                {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                <span>{copied ? 'Link copiado!' : 'Copiar link'}</span>
-              </button>
+
+            {/* Extensão 2: Profit Hunter Pro (Bônus) */}
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-[#18122c] to-[#120f22] border border-violet-500/40 text-left space-y-3 shadow-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-violet-300">
+                  <Sparkles className="w-4 h-4 text-[#d4ff32]" />
+                  <span>2. Bônus: Profit Hunter Pro (.ZIP)</span>
+                </div>
+                <span className="text-[10px] font-bold text-violet-300 bg-violet-950/80 border border-violet-500/30 px-2 py-0.5 rounded-full">
+                  Captura na Tela
+                </span>
+              </div>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Injeta um botão flutuante inteligente em qualquer e-commerce para capturar produtos da tela com 1 clique:
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+                <a
+                  href="/downloads/profit-hunter-pro.zip"
+                  download="Profit_Hunter_Cliente.zip"
+                  className="flex-1 inline-flex items-center justify-center gap-2.5 py-3 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-violet-600/25 active:scale-[0.98] transition-all"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Baixar Bônus: Profit Hunter (.ZIP)</span>
+                </a>
+              </div>
             </div>
           </div>
 

@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "Profit Hunter Pro",
+  "version": "2.3.0",
+  "description": "Monitor de ofertas e capturador profissional para Telegram. Bônus incluso no Deal Hunter Pro.",
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  },
+  "permissions": [
+    "storage",
+    "alarms",
+    "activeTab",
+    "notifications",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": "assets/icons/icon48.png"
+  },
+  "background": {
+    "service_worker": "src/background/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/content/content.js"
+      ]
+    },
+    {
+      "matches": [
+        "https://*.dealhunterpro.com.br/*",
+        "https://dealhunterpro.com.br/*",
+        "https://*.vercel.app/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "src/content/auth-sync.js"
+      ]
+    }
+  ],
+  "options_ui": {
+    "page": "src/options/options.html",
+    "open_in_tab": true
+  }
+}
