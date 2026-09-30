@@ -49,6 +49,18 @@ export default function LandingPage() {
   // Vídeo de tutorial e demonstração oficial
   const demoVideoEmbedUrl = 'https://www.youtube.com/embed/52BbMllmT18?autoplay=1';
 
+  // Lojas monitoradas oficialmente com logos de alta resolução da pasta raiz
+  const monitoredStores = [
+    { name: 'Amazon Brasil', slug: 'amazon', logo: '/images/stores/amazon.png', tag: 'Ofertas Diárias' },
+    { name: 'KaBuM!', slug: 'kabum', logo: '/images/stores/kabum.png', tag: 'Hardware & Tech' },
+    { name: 'Shopee Brasil', slug: 'shopee', logo: '/images/stores/shopee.png', tag: 'Descontos Relâmpago' },
+    { name: 'Magazine Luiza', slug: 'magalu', logo: '/images/stores/magalu.png', tag: 'Super Liquidação' },
+    { name: 'Pichau', slug: 'pichau', logo: '/images/stores/pichau.png', tag: 'Gamer & Setup' },
+    { name: 'Lojas Renner', slug: 'renner', logo: '/images/stores/renner.png', tag: 'Moda & Estilo' },
+    { name: 'Shein Brasil', slug: 'shein', logo: '/images/stores/shein.png', tag: 'Promoções Globais' },
+    { name: 'Eletroclub', slug: 'eletroclub', logo: '/images/stores/eletroclub.png', tag: 'Preços VIP de Clube' },
+  ];
+
   async function handleGoogleLogin() {
     setGoogleLoading(true);
     try {
@@ -171,8 +183,8 @@ export default function LandingPage() {
           </h1>
 
           {/* Sub-headline */}
-          <p className="max-w-2xl mx-auto text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
-            O <strong className="text-white">Deal Hunter Pro</strong> monitora continuamente <strong className="text-white">Amazon Brasil, Magazine Luiza e Eletroclub</strong> diretamente no seu navegador, alertando seu Telegram no segundo exato em que o preço despenca.
+          <p className="max-w-3xl mx-auto text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+            O <strong className="text-white">Deal Hunter Pro</strong> monitora continuamente <strong className="text-white">Amazon Brasil, KaBuM!, Pichau, Shopee, Magalu, Renner, Shein e Eletroclub</strong> diretamente no seu navegador, alertando seu Telegram no segundo exato em que o preço despenca.
           </p>
 
           {/* CTAs Principais da Hero */}
@@ -237,6 +249,49 @@ export default function LandingPage() {
             </span>
           </div>
 
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 2.5 CARROSSEL DE LOGOS EM LOOP INFINITO (GRANDES LOJAS MONITORADAS)        */}
+      {/* ========================================================================= */}
+      <section className="relative py-8 sm:py-10 border-y border-white/[0.06] bg-[#090d18]/70 overflow-hidden">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-5 text-center">
+          <p className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.25em] text-violet-400 flex items-center justify-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#d4ff32] animate-ping" />
+            Lojas e Marketplaces Integrados em Tempo Real
+          </p>
+        </div>
+
+        {/* Efeito de fade nas bordas esquerda e direita para transição suave */}
+        <div className="absolute left-0 top-0 bottom-0 w-24 sm:w-44 bg-gradient-to-r from-[#070a12] via-[#070a12]/90 to-transparent z-10 pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 w-24 sm:w-44 bg-gradient-to-l from-[#070a12] via-[#070a12]/90 to-transparent z-10 pointer-events-none" />
+
+        {/* Trilho de animação contínua */}
+        <div className="flex animate-marquee gap-5 sm:gap-7 items-center">
+          {[...monitoredStores, ...monitoredStores, ...monitoredStores].map((store, idx) => (
+            <div
+              key={`${store.slug}-${idx}`}
+              className="flex items-center gap-3.5 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.07] hover:border-violet-500/40 transition-all duration-300 flex-shrink-0 group shadow-lg shadow-black/30 cursor-default"
+            >
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white p-1.5 flex items-center justify-center flex-shrink-0 shadow-sm transition-transform group-hover:scale-105">
+                <img
+                  src={store.logo}
+                  alt={`Logo ${store.name}`}
+                  className="w-full h-full object-contain"
+                  loading="lazy"
+                />
+              </div>
+              <div className="text-left">
+                <p className="text-xs sm:text-sm font-extrabold text-white group-hover:text-violet-300 transition-colors whitespace-nowrap">
+                  {store.name}
+                </p>
+                <p className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
+                  {store.tag}
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 

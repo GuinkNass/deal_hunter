@@ -283,6 +283,19 @@ document.getElementById('tg-remove').addEventListener('click', async () => {
 let currentCatalogCategories = [];
 let activeStoreFilter = 'all';
 
+function getStoreLogoPath(siteName) {
+  const norm = (siteName || '').toLowerCase().trim();
+  if (norm.includes('amazon')) return '../icons/stores/amazon.png';
+  if (norm.includes('kabum')) return '../icons/stores/kabum.png';
+  if (norm.includes('shein')) return '../icons/stores/shein.png';
+  if (norm.includes('pichau')) return '../icons/stores/pichau.png';
+  if (norm.includes('shopee')) return '../icons/stores/shopee.png';
+  if (norm.includes('renner')) return '../icons/stores/renner.png';
+  if (norm.includes('magalu') || norm.includes('magazine')) return '../icons/stores/magalu.png';
+  if (norm.includes('eletroclub')) return '../icons/stores/eletroclub.png';
+  return null;
+}
+
 function updateCatalogSummary() {
   const summaryEl = document.getElementById('catalog-summary-count');
   if (!summaryEl) return;
@@ -311,7 +324,9 @@ function renderCatalogList(categories) {
     pillsContainer.innerHTML = storeNames.map((name) => {
       const slug = name === 'Todas as Lojas' ? 'all' : name.toLowerCase().replace(/[^\w]+/g, '-');
       const isActive = activeStoreFilter === slug;
-      return `<button type="button" class="catalog-pill ${isActive ? 'active' : ''}" data-filter="${escapeHtml(slug)}">${escapeHtml(name)}</button>`;
+      const logo = getStoreLogoPath(name);
+      const logoHtml = logo ? `<img src="${logo}" class="catalog-pill-logo" alt="" />` : '';
+      return `<button type="button" class="catalog-pill ${isActive ? 'active' : ''}" data-filter="${escapeHtml(slug)}">${logoHtml}<span>${escapeHtml(name)}</span></button>`;
     }).join('');
 
     pillsContainer.querySelectorAll?.('.catalog-pill')?.forEach((btn) => {
@@ -326,11 +341,16 @@ function renderCatalogList(categories) {
   // Renderiza lojas e categorias com cabeçalhos expansíveis
   list.innerHTML = [...groups.entries()].map(([siteName, rows]) => {
     const storeSlug = siteName.toLowerCase().replace(/[^\w]+/g, '-');
+    const storeLogo = getStoreLogoPath(siteName);
+    const logoHtml = storeLogo
+      ? `<img src="${storeLogo}" class="catalog-store-logo" alt="${escapeHtml(siteName)}" onerror="this.style.display='none'" />`
+      : '';
     return `
     <section class="catalog-store" data-store="${escapeHtml(storeSlug)}">
       <div class="catalog-store-header">
         <h2 class="catalog-store-title">
           <span class="catalog-toggle-arrow">▼</span>
+          ${logoHtml}
           <span>${escapeHtml(siteName)}</span>
           <span class="badge" style="font-size:10px; padding:2px 6px; font-weight:normal; background:rgba(255,255,255,0.06);">${rows.length} categorias</span>
         </h2>
@@ -606,16 +626,20 @@ async function loadHistory(q) {
       body.innerHTML = '<tr><td colspan="6" class="muted">Nenhum registro ainda.</td></tr>';
       return;
     }
-    body.innerHTML = rows.map((r) => `
+    body.innerHTML = rows.map((r) => {
+      const storeLogo = getStoreLogoPath(r.site_name);
+      const storeLogoHtml = storeLogo ? `<img src="${storeLogo}" class="history-store-logo" alt="" /> ` : '';
+      return `
       <tr>
         <td>${new Date(r.sent_at + 'Z').toLocaleString('pt-BR')}</td>
-        <td><small>${escapeHtml(r.site_name || '')}</small><br /><a href="${escapeHtml(safeHttpUrl(r.product_url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.product_title)}</a></td>
+        <td><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;">${storeLogoHtml}<small style="font-weight:600;">${escapeHtml(r.site_name || '')}</small></div><a href="${escapeHtml(safeHttpUrl(r.product_url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.product_title)}</a></td>
         <td>${r.current_price ? formatBRL(r.current_price) : '—'}</td>
         <td>${r.discount_percent != null ? r.discount_percent + '%' : '—'}</td>
         <td>${r.score ?? '—'}</td>
         <td>${r.sent ? 'Enviado' : 'Pendente de envio'}</td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
   } catch {
     body.innerHTML = '<tr><td colspan="6" class="muted">Backend offline.</td></tr>';
   }

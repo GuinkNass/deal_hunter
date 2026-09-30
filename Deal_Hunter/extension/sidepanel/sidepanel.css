@@ -90,6 +90,7 @@ h2 { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: -.02em; text-
 .image-placeholder { color: #687789; font-size: 25px; }
 .offer-info { min-width: 0; }
 .offer-store { display: flex; justify-content: space-between; gap: 6px; align-items: center; color: #94a3b8; font-size: 9px; font-weight: 600; text-transform: uppercase; }
+.offer-store-logo { width: 14px; height: 14px; object-fit: contain; background: #ffffff; padding: 1px; border-radius: 3px; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
 .discount { padding: 3px 6px; border-radius: 6px; color: #000000; background: #d4ff32; font-weight: 800; white-space: nowrap; }
 .offer-title { display: -webkit-box; overflow: hidden; min-height: 34px; margin: 8px 0; color: #f1f5f9; font-size: 12px; font-weight: 600; line-height: 1.4; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .offer-price { font-size: 16px; font-weight: 800; letter-spacing: -.025em; color: #ffffff; }

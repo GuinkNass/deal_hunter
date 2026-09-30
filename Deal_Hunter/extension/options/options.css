@@ -92,9 +92,21 @@ h2 { font-size: 15px; margin: 0 0 8px; }
   color: #94a3b8;
   cursor: pointer;
   transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .catalog-pill:hover { background: #1e293b; color: #f1f5f9; }
 .catalog-pill.active { background: #0284c7; border-color: #0284c7; color: #fff; font-weight: 600; }
+.catalog-pill-logo {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  background: #ffffff;
+  padding: 1px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
 
 .catalog-store { border-top: 1px solid #1f2937; padding: 10px 0; }
 .catalog-store-header {
@@ -110,6 +122,28 @@ h2 { font-size: 15px; margin: 0 0 8px; }
 }
 .catalog-store-header:hover { background: rgba(255, 255, 255, 0.05); }
 .catalog-store-title { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 600; }
+.catalog-store-logo {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  background: #ffffff;
+  padding: 2px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+}
+.history-store-logo {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  background: #ffffff;
+  padding: 1px;
+  border-radius: 3px;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
 .catalog-toggle-arrow { font-size: 10px; color: #94a3b8; transition: transform 0.2s ease; display: inline-block; }
 .catalog-store.collapsed .catalog-toggle-arrow { transform: rotate(-90deg); }
 .catalog-store.collapsed .store-categories { display: none; }

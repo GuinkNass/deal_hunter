@@ -78,7 +78,7 @@
     }
   ],
   "web_accessible_resources": [{
-    "resources": ["sidepanel/assets/alert.gif", "config.js"],
+    "resources": ["sidepanel/assets/alert.gif", "config.js", "icons/stores/*"],
     "matches": [
       "*://*.amazon.com.br/*",
       "*://*.magazineluiza.com.br/*",

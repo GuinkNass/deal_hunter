@@ -179,6 +179,20 @@ setInterval(async () => {
   }
 }, 15000);
 
+function getStoreLogoUrl(siteName) {
+  const norm = (siteName || '').toLowerCase().trim();
+  let file = null;
+  if (norm.includes('amazon')) file = 'amazon.png';
+  else if (norm.includes('kabum')) file = 'kabum.png';
+  else if (norm.includes('shein')) file = 'shein.png';
+  else if (norm.includes('pichau')) file = 'pichau.png';
+  else if (norm.includes('shopee')) file = 'shopee.png';
+  else if (norm.includes('renner')) file = 'renner.png';
+  else if (norm.includes('magalu') || norm.includes('magazine')) file = 'magalu.png';
+  else if (norm.includes('eletroclub')) file = 'eletroclub.png';
+  return file ? chrome.runtime.getURL(`icons/stores/${file}`) : null;
+}
+
 function renderOffers(rows) {
   const target = document.getElementById('offer-list');
   if (!rows.length) {
@@ -201,8 +215,12 @@ function renderOffers(rows) {
     const price = money(row.current_price);
     const reference = money(row.site_original_price);
     const date = row.sent_at ? new Date(`${row.sent_at.replace(' ', 'T')}Z`).toLocaleDateString('pt-BR') : '';
+    const storeLogo = getStoreLogoUrl(row.site_name);
+    const storeLogoHtml = storeLogo
+      ? `<img src="${storeLogo}" class="offer-store-logo" alt="" />`
+      : '';
     return `<article class="offer-card"><a class="offer-link" href="${escapeHtml(href || '#')}" ${href ? 'target="_blank" rel="noopener noreferrer"' : ''}>
-      <div class="offer-image">${imgHtml}</div><div class="offer-info"><div class="offer-store"><span>${escapeHtml(row.site_name || 'Loja')}</span><span class="discount">${badge}</span></div>
+      <div class="offer-image">${imgHtml}</div><div class="offer-info"><div class="offer-store"><span style="display:inline-flex;align-items:center;gap:5px;">${storeLogoHtml}${escapeHtml(row.site_name || 'Loja')}</span><span class="discount">${badge}</span></div>
       <div class="offer-title">${title}</div><div class="offer-price">${price}</div>
       <div class="offer-reference">${suspiciousReference ? 'Preço de referência descartado por inconsistência' : row.site_original_price ? `De ${reference}` : 'Referência calculada pelo histórico'}</div>
       <div class="offer-meta"><span>${row.sent ? 'Enviado ao Telegram' : 'Não enviado'}</span><span>${escapeHtml(date)}</span></div></div></a></article>`;
