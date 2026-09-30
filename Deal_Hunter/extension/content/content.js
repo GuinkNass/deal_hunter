@@ -747,15 +747,18 @@
     let idleRounds = 0;
     let lastCardCount = 0;
     let rounds = 0;
-    for (; rounds < MAX_SCROLL_ROUNDS; rounds += 1) {
+    const isBackground = typeof document !== 'undefined' && document.hidden;
+    const maxRounds = isBackground ? 3 : MAX_SCROLL_ROUNDS;
+    const scrollWait = isBackground ? 150 : 450;
+    for (; rounds < maxRounds; rounds += 1) {
       const heightBefore = document.documentElement.scrollHeight;
       const currentCardCount = document.querySelectorAll(PAGE_SELECTORS.join(', ')).length;
 
-      window.scrollBy(0, Math.max(350, Math.floor(window.innerHeight * 0.75)));
+      window.scrollBy(0, Math.max(450, Math.floor(window.innerHeight * 0.85)));
       window.dispatchEvent(new Event('scroll'));
       window.dispatchEvent(new Event('resize'));
 
-      await wait(450);
+      await wait(scrollWait);
 
       const heightAfter = document.documentElement.scrollHeight;
       const newCardCount = document.querySelectorAll(PAGE_SELECTORS.join(', ')).length;
@@ -767,12 +770,12 @@
         idleRounds += 1;
       }
       lastCardCount = newCardCount;
-      if (idleRounds >= 3) break;
+      if (idleRounds >= 2) break;
     }
-    const limitReached = rounds >= MAX_SCROLL_ROUNDS;
+    const limitReached = rounds >= maxRounds;
     window.scrollTo(0, 0);
     window.dispatchEvent(new Event('scroll'));
-    await wait(250);
+    await wait(isBackground ? 100 : 250);
     return { scrollRounds: rounds, scrollLimitReached: limitReached };
   }
 
@@ -956,9 +959,11 @@
               },
             }, () => void chrome.runtime.lastError);
 
-            // Time de milissegundos entre um produto e outro:
-            // Permite carregar com calma e exibir no painel em tempo real de forma fluida
-            await wait(120);
+            // Se a tela estiver em primeiro plano, cadencia suavemente para exibição fluida no painel.
+            // Se estiver em segundo plano ou minimizada, envia em velocidade instantânea sem pausas desnecessárias!
+            if (!document.hidden) {
+              await wait(50);
+            }
           }
         }
       }

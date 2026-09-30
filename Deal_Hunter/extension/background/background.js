@@ -325,11 +325,28 @@ function updateTab(tabId, url) {
   });
 }
 
+let scanKeepAliveInterval = null;
+function startScanKeepAlive() {
+  stopScanKeepAlive();
+  // Mantém o service worker do Chrome MV3 100% acordado mesmo com navegador minimizado ou sem foco
+  scanKeepAliveInterval = setInterval(() => {
+    chrome.runtime.getPlatformInfo().catch(() => {});
+  }, 15000);
+}
+
+function stopScanKeepAlive() {
+  if (scanKeepAliveInterval) {
+    clearInterval(scanKeepAliveInterval);
+    scanKeepAliveInterval = null;
+  }
+}
+
 async function navigateTabAndWait(tabId, url) {
   const previous = await getTab(tabId);
-  if (previous.windowId) {
-    chrome.windows.update(previous.windowId, { focused: true }).catch(() => {});
-  }
+  // Protege a aba contra auto-descarte de memória do Chrome em segundo plano
+  try {
+    await chrome.tabs.update(tabId, { autoDiscardable: false, active: true });
+  } catch {}
   if (previous.url === url && previous.status === 'complete') return;
   const completed = waitForTabComplete(tabId, url, previous.url);
   await updateTab(tabId, url);
@@ -514,11 +531,13 @@ async function runBrowserScanCycle(control) {
 
   const scanId = crypto.randomUUID();
   control.scanId = scanId;
-  // Cria janela em primeiro plano e focada, evitando estrangulamento de timers (throttling) do Chrome
+  startScanKeepAlive();
+
+  // Cria janela em segundo plano sem roubar o foco ativo do usuário
   const scanWindow = await chrome.windows.create({
     url: 'about:blank',
     type: 'normal',
-    focused: true,
+    focused: false,
     width: 1200,
     height: 800,
     left: 80,
@@ -535,7 +554,7 @@ async function runBrowserScanCycle(control) {
   }
 
   try {
-    await chrome.tabs.update(initialTab.id, { autoDiscardable: false });
+    await chrome.tabs.update(initialTab.id, { autoDiscardable: false, active: true });
   } catch {}
 
   let pageCount = 0;
@@ -560,29 +579,34 @@ async function runBrowserScanCycle(control) {
         break;
       }
       try {
-        await chrome.tabs.update(currentTabId, { autoDiscardable: false });
+        await chrome.tabs.update(currentTabId, { autoDiscardable: false, active: true });
       } catch {}
 
-      scanProgressContext = { tabId: currentTabId, siteName: category.siteName, categoryName: category.name, manual: control.manual };
-      publishScanProgress({ scanning: true, manual: control.manual, siteName: category.siteName, categoryName: category.name, status: 'Abrindo categoria', product: null });
-      const categoryPages = await capturePage(category, Math.max(1, Number(config.pages) || 1), currentTabId, control.manual);
-      const chunk = categoryPages.slice(0, MAX_BROWSER_PAGES_PER_SCAN - pageCount);
-      pageCount += chunk.length;
-      const partial = await api.submitBrowserPages(chunk, scanId, false);
-      result = partial.status === 'running' ? partial : { ...result, ...partial };
-      if (control.cancelled) break;
-      const productCount = chunk.reduce((sum, page) => sum + Number(page.productsFound || page.products?.length || 0), 0);
-      publishScanProgress({ scanning: true, manual: control.manual, siteName: category.siteName, categoryName: category.name,
-        status: `${productCount} produto(s) enviados para análise`, product: chunk.flatMap((page) => page.products || [])[0] || null });
-      for (const offer of partial.offers || []) {
-        publishScanProgress({ scanning: true, manual: control.manual, siteName: offer.siteName, categoryName: offer.categoryName,
-          status: 'Oferta encontrada!', product: { name: offer.name, price: offer.price, imageUrl: offer.imageUrl }, offerAlert: offer });
-        chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
-          const activeTabId = tabs?.[0]?.id;
-          if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: 'DEAL_HUNTER_SHOW_OFFER_ALERT', offer }, () => void chrome.runtime.lastError);
-        });
+      try {
+        scanProgressContext = { tabId: currentTabId, siteName: category.siteName, categoryName: category.name, manual: control.manual };
+        publishScanProgress({ scanning: true, manual: control.manual, siteName: category.siteName, categoryName: category.name, status: 'Abrindo categoria', product: null });
+        const categoryPages = await capturePage(category, Math.max(1, Number(config.pages) || 1), currentTabId, control.manual);
+        const chunk = categoryPages.slice(0, MAX_BROWSER_PAGES_PER_SCAN - pageCount);
+        pageCount += chunk.length;
+        const partial = await api.submitBrowserPages(chunk, scanId, false);
+        result = partial.status === 'running' ? partial : { ...result, ...partial };
+        if (control.cancelled) break;
+        const productCount = chunk.reduce((sum, page) => sum + Number(page.productsFound || page.products?.length || 0), 0);
+        publishScanProgress({ scanning: true, manual: control.manual, siteName: category.siteName, categoryName: category.name,
+          status: `${productCount} produto(s) enviados para análise`, product: chunk.flatMap((page) => page.products || [])[0] || null });
+        for (const offer of partial.offers || []) {
+          publishScanProgress({ scanning: true, manual: control.manual, siteName: offer.siteName, categoryName: offer.categoryName,
+            status: 'Oferta encontrada!', product: { name: offer.name, price: offer.price, imageUrl: offer.imageUrl }, offerAlert: offer });
+          chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+            const activeTabId = tabs?.[0]?.id;
+            if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: 'DEAL_HUNTER_SHOW_OFFER_ALERT', offer }, () => void chrome.runtime.lastError);
+          });
+        }
+      } catch (catErr) {
+        console.warn(`[Deal Hunter] Erro ao processar categoria ${category.name}, continuando para as demais:`, catErr.message);
+      } finally {
+        scanProgressContext = null;
       }
-      scanProgressContext = null;
       if (control.cancelled) break;
     }
     const finalResult = await api.submitBrowserPages([], scanId, true);
@@ -603,6 +627,7 @@ async function runBrowserScanCycle(control) {
     publishScanProgress({ scanning: false, siteName: '', categoryName: '', status: `Falha na varredura: ${error.message}`, product: null });
     throw error;
   } finally {
+    stopScanKeepAlive();
     scanProgressContext = null;
     if (scanWindow?.id) {
       try {

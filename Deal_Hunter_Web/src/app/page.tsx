@@ -169,9 +169,9 @@ export default function LandingPage() {
       {/* ========================================================================= */}
       {/* 1 & 2. TOPO COMPLETO (NAVBAR + HERO COM VÍDEO FULL SCREEN DE FUNDO)       */}
       {/* ========================================================================= */}
-      <div className="relative min-h-screen flex flex-col justify-between overflow-hidden">
+      <div className="relative min-h-screen flex flex-col justify-between overflow-hidden isolate">
         {/* Vídeo WebM de Fundo Dinâmico Cobrindo Toda a Altura e Largura da Tela Superior */}
-        <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none -z-10">
+        <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
           <video
             ref={videoRef}
             autoPlay
@@ -179,22 +179,23 @@ export default function LandingPage() {
             muted
             playsInline
             preload="auto"
+            src="/video/novo.webm"
             className="w-full h-full object-cover object-center scale-100"
           >
             <source src="/video/novo.webm" type="video/webm" />
             <source src="/video/hero-background.webm" type="video/webm" />
           </video>
           {/* Overlay suave para excelente legibilidade mantendo o vídeo bem nítido e visível */}
-          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute inset-0 bg-black/35 z-[1]" />
           {/* Transição em degradê suave no rodapé para fundir perfeitamente com a próxima seção */}
-          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#070a12] via-[#070a12]/80 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#070a12] via-[#070a12]/80 to-transparent z-[2]" />
         </div>
 
         {/* 1. NAVBAR */}
         <Navbar />
 
         {/* 2. HERO SECTION */}
-        <section className="relative flex-1 flex flex-col justify-center items-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8 text-center">
+        <section className="relative z-10 flex-1 flex flex-col justify-center items-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8 text-center">
           <div className="max-w-6xl mx-auto space-y-8 relative z-10 w-full">
           
           {/* Badge de Destaque Superior */}
