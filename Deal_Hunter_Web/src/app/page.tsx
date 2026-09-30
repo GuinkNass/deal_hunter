@@ -36,7 +36,6 @@ import {
 export default function LandingPage() {
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
-  const [videoPlaying, setVideoPlaying] = useState(false);
   const [downloadToast, setDownloadToast] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -55,8 +54,8 @@ export default function LandingPage() {
   const infinitePayPixUrl = 'https://checkout.infinitepay.io/deal-hunter-pro-br/AoJYT9KaSj';
   const stripeCardUrl = '/login';
   const checkoutUrl = '/login';
-  // Vídeo de tutorial e demonstração oficial
-  const demoVideoEmbedUrl = 'https://www.youtube.com/embed/52BbMllmT18?autoplay=1';
+  // Vídeo de tutorial de instalação e demonstração oficial
+  const demoVideoEmbedUrl = 'https://www.youtube.com/embed/xGPWD7slMN0';
 
   // Lojas monitoradas oficialmente com logos de alta resolução da pasta raiz
   const monitoredStores = [
@@ -455,87 +454,77 @@ export default function LandingPage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 4. SEÇÃO DE VÍDEO / DEMONSTRAÇÃO PRÁTICA (DESABILITADA TEMPORARIAMENTE)     */}
+      {/* 4. SEÇÃO DE VÍDEO / INSTRUÇÕES DE INSTALAÇÃO PASSO A PASSO                */}
       {/* ========================================================================= */}
-      {false && (
-        <section id="demonstracao" className="py-16 sm:py-24 relative">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center space-y-3 mb-10">
-              <h2 className="text-xs font-black text-[#d4ff32] uppercase tracking-widest">
-                Demonstração ao Vivo
-              </h2>
-              <p className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white">
-                Veja o Deal Hunter Pro em Ação
-              </p>
-              <p className="text-sm text-slate-300 max-w-xl mx-auto">
-                Assista como a extensão varre dezenas de categorias por minuto e despacha alertas com link direto para o Telegram.
-              </p>
+      <section id="tutorial-instalacao" className="py-16 sm:py-24 relative scroll-mt-20">
+        <span id="demonstracao" className="sr-only" />
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center space-y-3 mb-10">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-violet-950/60 border border-violet-500/30 text-violet-300 text-xs font-bold uppercase tracking-widest backdrop-blur-md">
+              <Play className="w-3.5 h-3.5 text-[#d4ff32] fill-[#d4ff32]" />
+              <span>Instrução Rápida em Vídeo</span>
+            </div>
+            <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white">
+              Como Instalar e Ativar a Extensão
+            </h2>
+            <p className="text-sm text-slate-300 max-w-xl mx-auto">
+              Assista ao passo a passo de instalação no Google Chrome ou Edge e veja como ativar o robô em menos de 2 minutos.
+            </p>
+          </div>
+
+          <div className="relative rounded-[2.5rem] bg-[#0c101d] border border-white/[0.08] shadow-2xl shadow-black/80 overflow-hidden group">
+            {/* Topbar simulando janela do navegador */}
+            <div className="px-5 py-3.5 bg-[#090d18] border-b border-white/[0.06] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-rose-500/80 inline-block" />
+                <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block" />
+                <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block" />
+              </div>
+              <div className="flex-1 max-w-md mx-auto hidden sm:flex items-center justify-center gap-2 px-4 py-1 rounded-full bg-[#111728] border border-white/[0.06] text-[11px] text-slate-400 font-mono">
+                <Lock className="w-3 h-3 text-emerald-400" />
+                <span>dealhunterpro.com.br/tutorial-instalacao</span>
+              </div>
+              <div className="text-[11px] text-violet-400 font-bold uppercase tracking-wider">Tutorial Oficial</div>
             </div>
 
-            <div className="relative rounded-[2.5rem] bg-[#0c101d] border border-white/[0.08] shadow-2xl shadow-black/80 overflow-hidden group">
-              <div className="px-5 py-3.5 bg-[#090d18] border-b border-white/[0.06] flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full bg-rose-500/80 inline-block" />
-                  <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block" />
-                  <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block" />
-                </div>
-                <div className="flex-1 max-w-md mx-auto hidden sm:flex items-center justify-center gap-2 px-4 py-1 rounded-full bg-[#111728] border border-white/[0.06] text-[11px] text-slate-400 font-mono">
-                  <Lock className="w-3 h-3 text-emerald-400" />
-                  <span>dealhunterpro.com.br/scan-engine</span>
-                </div>
-                <div className="text-[11px] text-violet-400 font-bold uppercase tracking-wider">Extensão Ativa</div>
-              </div>
+            {/* Container do Vídeo: Mostra a capa do vídeo no player oficial sem tela azul */}
+            <div
+              className="relative aspect-video w-full bg-black flex items-center justify-center overflow-hidden"
+              style={{
+                backgroundImage: 'url(https://img.youtube.com/vi/xGPWD7slMN0/hqdefault.jpg)',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+            >
+              <iframe
+                src="https://www.youtube.com/embed/xGPWD7slMN0?rel=0"
+                title="Vídeo Tutorial de Instalação - Deal Hunter Pro"
+                className="w-full h-full border-0 relative z-10"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                loading="lazy"
+              />
+            </div>
 
-              <div className="relative aspect-video w-full bg-[#070a12] flex items-center justify-center overflow-hidden">
-                {videoPlaying ? (
-                  <iframe
-                    src={demoVideoEmbedUrl}
-                    title="Tutorial Deal Hunter Pro"
-                    className="w-full h-full border-0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                ) : (
-                  <div className="relative w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-[#0c101d] via-[#090d18] to-[#070a12]">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.18)_0,transparent_70%)] pointer-events-none" />
-                    <button
-                      onClick={() => setVideoPlaying(true)}
-                      className="relative z-10 w-20 h-20 rounded-full bg-[#f97316] hover:bg-[#ea580c] text-white flex items-center justify-center shadow-2xl shadow-orange-500/40 hover:scale-105 active:scale-95 transition-all group-hover:shadow-orange-500/60"
-                      aria-label="Assistir vídeo de demonstração"
-                    >
-                      <Play className="w-8 h-8 fill-white translate-x-0.5" />
-                    </button>
-                    <div className="relative z-10 mt-6 space-y-1">
-                      <p className="text-sm sm:text-base font-black uppercase tracking-wider text-white">
-                        Clique para assistir ao tutorial completo (2 min)
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        Veja a instalação, configuração do Telegram e a captura de ofertas ao vivo
-                      </p>
-                    </div>
-                  </div>
-                )}
+            {/* Rodapé do player */}
+            <div className="p-4 sm:p-5 bg-[#090d18] border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-300">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                <span>Instalação simples via arquivo .ZIP sem necessidade de conhecimento técnico.</span>
               </div>
-
-              <div className="p-4 sm:p-5 bg-[#090d18] border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-300">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span>Varreduras automáticas em segundo plano com notificações em &lt; 3 segundos.</span>
-                </div>
-                <a
-                  href={downloadZipUrl}
-                  download="Deal_Hunter_Cliente.zip"
-                  onClick={triggerDownload}
-                  className="text-[#d4ff32] hover:underline font-bold flex items-center gap-1.5 transition-colors uppercase tracking-wider text-[11px]"
-                >
-                  <span>Baixar para testar agora</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </a>
-              </div>
+              <a
+                href={downloadZipUrl}
+                download="Deal_Hunter_Cliente.zip"
+                onClick={triggerDownload}
+                className="text-[#d4ff32] hover:underline font-bold flex items-center gap-1.5 transition-colors uppercase tracking-wider text-[11px]"
+              >
+                <span>Baixar .ZIP da Extensão</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </a>
             </div>
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
       {/* ========================================================================= */}
       {/* 5. SPOTLIGHT MOBILIDADE & TELEGRAM (PROPAGANDA1.JPG)                       */}
