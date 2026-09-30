@@ -436,7 +436,6 @@ export default function LandingPage() {
           </div>
         </section>
       )}
-      </section>
 
       {/* ========================================================================= */}
       {/* 5. SPOTLIGHT MOBILIDADE & TELEGRAM (PROPAGANDA1.JPG)                       */}
