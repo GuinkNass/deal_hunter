@@ -1,5 +1,5 @@
 // ---------- Controle de Acesso Restrito / Desenvolvedor ----------
-const DEV_ADMIN_EMAIL = 'guilherme.r.nascimentoml@gmail.com';
+const DEV_ADMIN_TARGET_EMAIL = typeof DEV_ADMIN_EMAIL !== 'undefined' ? DEV_ADMIN_EMAIL : 'guilherme.r.nascimentoml@gmail.com';
 
 async function getLoggedUserEmail() {
   try {
@@ -15,7 +15,7 @@ async function getLoggedUserEmail() {
 
 async function checkDevAdminAccess() {
   const email = await getLoggedUserEmail();
-  const isDevAdmin = email === DEV_ADMIN_EMAIL;
+  const isDevAdmin = email === DEV_ADMIN_TARGET_EMAIL;
   const navPairingBtn = document.getElementById('nav-item-pairing');
   const tabPairing = document.getElementById('tab-pairing');
 
@@ -70,9 +70,15 @@ async function showTab(name) {
 
 navItems.forEach((btn) => {
   btn.addEventListener('click', () => {
-    location.hash = btn.dataset.tab;
-    showTab(btn.dataset.tab);
+    const tabName = btn.dataset.tab;
+    location.hash = tabName;
+    showTab(tabName);
   });
+});
+
+window.addEventListener('hashchange', () => {
+  const currentTab = location.hash.replace('#', '') || 'onboarding';
+  showTab(currentTab);
 });
 
 checkDevAdminAccess().then(() => {
@@ -91,47 +97,68 @@ async function loadOnboardingTab() {
   const logoutBtn = document.getElementById('ob-logout-btn');
 
   // 1. Testa conectividade com a API na nuvem (Render)
-  serverBadge.textContent = 'Testando…';
-  serverBadge.className = 'badge badge--warn';
-
-  try {
-    const health = await api.checkHealth().catch(() => api.ping());
-    if (health) {
-      serverBadge.textContent = 'ONLINE (NUVEM)';
-      serverBadge.className = 'badge badge--success';
-    }
-  } catch (err) {
-    serverBadge.textContent = 'CONECTANDO / HIBERNADO';
+  if (serverBadge) {
+    serverBadge.textContent = 'Testando…';
     serverBadge.className = 'badge badge--warn';
+
+    try {
+      const health = await api.checkHealth().catch(() => api.ping());
+      if (health) {
+        serverBadge.textContent = 'ONLINE (NUVEM)';
+        serverBadge.className = 'badge badge--success';
+      } else {
+        serverBadge.textContent = 'CONECTANDO / HIBERNADO';
+        serverBadge.className = 'badge badge--warn';
+      }
+    } catch (err) {
+      serverBadge.textContent = 'CONECTANDO / HIBERNADO';
+      serverBadge.className = 'badge badge--warn';
+    }
   }
 
-  // 2. Verifica a sessão local salva no chrome.storage
-  try {
-    const { auth_token, auth_user, licenseStatus } = await chrome.storage.local.get([
-      'auth_token',
-      'auth_user',
-      'licenseStatus',
-    ]);
+  // 2. Verifica a sessão local salva e via background service worker
+  if (licenseBadge) {
+    try {
+      let runtimeLicense = null;
+      try {
+        runtimeLicense = await new Promise((resolve) => {
+          chrome.runtime.sendMessage({ type: 'DEAL_HUNTER_GET_LICENSE' }, (resp) => {
+            if (chrome.runtime.lastError) resolve(null);
+            else resolve(resp?.license || null);
+          });
+        });
+      } catch {
+        // Ignora e usa fallback do storage
+      }
 
-    const isAuth = Boolean(auth_token && (licenseStatus?.authorized || auth_user));
-    if (isAuth) {
-      const email = licenseStatus?.email || auth_user?.email || 'Licença Ativa';
-      const plan = (licenseStatus?.plan || auth_user?.plan || 'pro').toUpperCase();
-      licenseBadge.textContent = `${plan} ATIVO`;
-      licenseBadge.className = 'badge badge--success';
-      userDetails.textContent = `Logado como: ${email}`;
-      loginBtn.classList.add('hidden');
-      logoutBtn.classList.remove('hidden');
-    } else {
-      licenseBadge.textContent = 'LOGIN NECESSÁRIO';
-      licenseBadge.className = 'badge badge--warn';
-      userDetails.textContent = 'Nenhuma sessão conectada. Clique abaixo para fazer login.';
-      loginBtn.classList.remove('hidden');
-      logoutBtn.classList.add('hidden');
+      const { auth_token, auth_user, licenseStatus } = await chrome.storage.local.get([
+        'auth_token',
+        'auth_user',
+        'licenseStatus',
+      ]);
+
+      const activeLic = runtimeLicense || licenseStatus;
+      const isAuth = Boolean(activeLic?.authorized || activeLic?.role === 'admin' || auth_token || auth_user);
+
+      if (isAuth) {
+        const email = activeLic?.email || auth_user?.email || 'Licença Ativa';
+        const role = activeLic?.role === 'admin' ? 'ADMIN' : (activeLic?.plan || auth_user?.plan || 'PRO').toUpperCase();
+        licenseBadge.textContent = `${role} ATIVO`;
+        licenseBadge.className = 'badge badge--success';
+        if (userDetails) userDetails.textContent = `Logado como: ${email}`;
+        loginBtn?.classList.add('hidden');
+        logoutBtn?.classList.remove('hidden');
+      } else {
+        licenseBadge.textContent = 'LOGIN NECESSÁRIO';
+        licenseBadge.className = 'badge badge--warn';
+        if (userDetails) userDetails.textContent = 'Nenhuma sessão conectada. Clique abaixo para fazer login.';
+        loginBtn?.classList.remove('hidden');
+        logoutBtn?.classList.add('hidden');
+      }
+    } catch {
+      licenseBadge.textContent = 'DESCONECTADO';
+      licenseBadge.className = 'badge badge--danger';
     }
-  } catch {
-    licenseBadge.textContent = 'DESCONECTADO';
-    licenseBadge.className = 'badge badge--danger';
   }
 }
 
@@ -287,10 +314,10 @@ function renderCatalogList(categories) {
       return `<button type="button" class="catalog-pill ${isActive ? 'active' : ''}" data-filter="${escapeHtml(slug)}">${escapeHtml(name)}</button>`;
     }).join('');
 
-    pillsContainer.querySelectorAll('.catalog-pill').forEach((btn) => {
+    pillsContainer.querySelectorAll?.('.catalog-pill')?.forEach((btn) => {
       btn.addEventListener('click', () => {
         activeStoreFilter = btn.dataset.filter;
-        pillsContainer.querySelectorAll('.catalog-pill').forEach((p) => p.classList.toggle('active', p === btn));
+        pillsContainer.querySelectorAll?.('.catalog-pill')?.forEach((p) => p.classList.toggle('active', p === btn));
         applyCatalogFilters();
       });
     });
@@ -326,30 +353,30 @@ function renderCatalogList(categories) {
   }).join('');
 
   // Evento de clique no cabeçalho da loja para expandir/recolher
-  list.querySelectorAll('.catalog-store-header').forEach((hdr) => {
+  list.querySelectorAll?.('.catalog-store-header')?.forEach((hdr) => {
     hdr.addEventListener('click', () => {
       const storeEl = hdr.closest('.catalog-store');
-      storeEl.classList.toggle('collapsed');
+      storeEl?.classList.toggle('collapsed');
     });
   });
 
   // Event listeners para Marcar todas / Desmarcar todas por loja
-  list.querySelectorAll('.select-all-store').forEach((btn) => {
+  list.querySelectorAll?.('.select-all-store')?.forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const storeEl = btn.closest('.catalog-store');
-      storeEl.querySelectorAll('input[data-category-id]').forEach((cb) => {
+      storeEl?.querySelectorAll('input[data-category-id]').forEach((cb) => {
         if (cb.closest('.catalog-category').style.display !== 'none') cb.checked = true;
       });
       updateCatalogSummary();
     });
   });
 
-  list.querySelectorAll('.unselect-all-store').forEach((btn) => {
+  list.querySelectorAll?.('.unselect-all-store')?.forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const storeEl = btn.closest('.catalog-store');
-      storeEl.querySelectorAll('input[data-category-id]').forEach((cb) => {
+      storeEl?.querySelectorAll('input[data-category-id]').forEach((cb) => {
         if (cb.closest('.catalog-category').style.display !== 'none') cb.checked = false;
       });
       updateCatalogSummary();
@@ -357,7 +384,7 @@ function renderCatalogList(categories) {
   });
 
   // Listener para atualizar contador ao marcar/desmarcar qualquer checkbox
-  list.querySelectorAll('input[data-category-id]').forEach((cb) => {
+  list.querySelectorAll?.('input[data-category-id]')?.forEach((cb) => {
     cb.addEventListener('change', updateCatalogSummary);
   });
 
@@ -370,12 +397,12 @@ function applyCatalogFilters() {
   const searchInput = document.getElementById('catalog-search');
   const term = (searchInput?.value || '').trim().toLowerCase();
 
-  list.querySelectorAll('.catalog-store').forEach((storeEl) => {
+  list.querySelectorAll?.('.catalog-store')?.forEach((storeEl) => {
     const storeSlug = storeEl.dataset.store;
     const storeMatchesPill = activeStoreFilter === 'all' || storeSlug === activeStoreFilter;
 
     let visibleInStore = 0;
-    storeEl.querySelectorAll('.catalog-category').forEach((catEl) => {
+    storeEl.querySelectorAll?.('.catalog-category')?.forEach((catEl) => {
       const catName = catEl.dataset.catName || '';
       const matchesSearch = !term || catName.includes(term) || storeSlug.includes(term);
       const isVisible = storeMatchesPill && matchesSearch;
@@ -406,19 +433,19 @@ async function loadCatalogTab() {
 
   // Controles rápidos do catálogo
   document.getElementById('catalog-expand-all')?.addEventListener('click', () => {
-    list.querySelectorAll('.catalog-store').forEach((s) => s.classList.remove('collapsed'));
+    list?.querySelectorAll?.('.catalog-store')?.forEach((s) => s.classList.remove('collapsed'));
   });
   document.getElementById('catalog-collapse-all')?.addEventListener('click', () => {
-    list.querySelectorAll('.catalog-store').forEach((s) => s.classList.add('collapsed'));
+    list?.querySelectorAll?.('.catalog-store')?.forEach((s) => s.classList.add('collapsed'));
   });
   document.getElementById('catalog-select-all')?.addEventListener('click', () => {
-    list.querySelectorAll('input[data-category-id]').forEach((cb) => {
+    list?.querySelectorAll?.('input[data-category-id]')?.forEach((cb) => {
       if (cb.closest('.catalog-category').style.display !== 'none') cb.checked = true;
     });
     updateCatalogSummary();
   });
   document.getElementById('catalog-unselect-all')?.addEventListener('click', () => {
-    list.querySelectorAll('input[data-category-id]').forEach((cb) => {
+    list?.querySelectorAll?.('input[data-category-id]')?.forEach((cb) => {
       if (cb.closest('.catalog-category').style.display !== 'none') cb.checked = false;
     });
     updateCatalogSummary();
