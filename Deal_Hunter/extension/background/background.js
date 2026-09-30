@@ -1,8 +1,10 @@
-importScripts('../utils/api.js');
+importScripts('../config.js', '../utils/api.js');
 
 const SYNC_ALARM = 'deal-hunter-status-badge';
 const LICENSE_ALARM = 'deal-hunter-license-alarm';
-const DEFAULT_WEB_URL = 'https://deal-hunter-guilhermernascimento-9353s-projects.vercel.app';
+const DEFAULT_WEB_URL = typeof CONFIG !== 'undefined'
+  ? CONFIG.WEB_AUTH_URL
+  : 'https://deal-hunter-guilhermernascimento-9353s-projects.vercel.app';
 const MAX_BROWSER_PAGES_PER_SCAN = 300;
 const BROWSER_PAGE_TIMEOUT_MS = 30000;
 let currentBrowserScan = null;
@@ -11,7 +13,7 @@ let scanProgressContext = null;
 
 async function getWebAuthUrl() {
   const { webAuthUrl } = await chrome.storage.local.get('webAuthUrl');
-  return webAuthUrl || DEFAULT_WEB_URL;
+  return webAuthUrl || (typeof CONFIG !== 'undefined' ? CONFIG.WEB_AUTH_URL : DEFAULT_WEB_URL);
 }
 
 async function verifyLicenseStatus() {
@@ -77,6 +79,7 @@ chrome.runtime.onMessageExternal.addListener((message, _sender, sendResponse) =>
         const isAuth = !!(license?.authorized || user?.authorized);
         await chrome.storage.local.set({
           auth_token: token,
+          apiToken: token,
           auth_user: user,
           licenseStatus: {
             authorized: isAuth,
@@ -644,6 +647,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         const isAuth = !!(license?.authorized || user?.authorized);
         await chrome.storage.local.set({
           auth_token: token,
+          apiToken: token,
           auth_user: user,
           licenseStatus: {
             authorized: isAuth,
@@ -670,8 +674,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     verifyLicenseStatus().then((license) => sendResponse({ ok: true, license }));
     return true;
   }
+  if (message?.type === 'DEAL_HUNTER_OPEN_LOGIN') {
+    const loginUrl = typeof CONFIG !== 'undefined' ? CONFIG.getLoginUrl() : `${DEFAULT_WEB_URL}/login`;
+    chrome.tabs.create({ url: loginUrl }, (tab) => {
+      sendResponse({ ok: !chrome.runtime.lastError, tabId: tab?.id });
+    });
+    return true;
+  }
   if (message?.type === 'DEAL_HUNTER_LOGOUT') {
-    chrome.storage.local.remove(['auth_token', 'auth_user', 'licenseStatus']).then(() => {
+    chrome.storage.local.remove(['auth_token', 'apiToken', 'auth_user', 'licenseStatus']).then(() => {
       sendResponse({ ok: true });
     });
     return true;

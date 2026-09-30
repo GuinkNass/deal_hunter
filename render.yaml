@@ -1,0 +1,33 @@
+# Configuração Blueprint para Deploy 100% em Nuvem no Render
+# Documentação: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: deal-hunter-server
+    env: node
+    plan: free
+    rootDir: Deal_Hunter/server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.13.0
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: deal-hunter-db
+          property: connectionString
+      - key: API_TOKEN
+        generateValue: true # Gera um token seguro de 32 bytes automaticamente no Render
+      - key: WEB_AUTH_URL
+        value: https://deal-hunter-guilhermernascimento-9353s-projects.vercel.app
+
+databases:
+  - name: deal-hunter-db
+    plan: free
+    databaseName: dealhunter
+    user: dealhunter

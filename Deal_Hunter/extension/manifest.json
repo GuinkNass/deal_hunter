@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Deal Hunter — Monitor de Ofertas",
-  "version": "2.9.0",
-  "description": "Monitora categorias da Amazon Brasil, Magalu e Eletroclub e envia alertas de preço ao Telegram.",
+  "name": "Deal Hunter Pro — Monitor de Ofertas",
+  "version": "3.0.0",
+  "description": "Monitora categorias da Amazon Brasil, Magalu e Eletroclub com inteligência de preços 100% na nuvem e alertas no Telegram.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -25,15 +25,17 @@
   "permissions": ["storage", "alarms", "sidePanel", "scripting", "tabs"],
   "externally_connectable": {
     "matches": [
+      "https://*.onrender.com/*",
       "https://*.vercel.app/*",
       "http://localhost:3000/*",
       "http://127.0.0.1:3000/*"
     ]
   },
   "host_permissions": [
+    "https://*.onrender.com/*",
+    "https://*.vercel.app/*",
     "http://127.0.0.1:3000/*",
     "http://localhost:3000/*",
-    "https://*.vercel.app/*",
     "*://*.amazon.com.br/*",
     "*://*.magazineluiza.com.br/*",
     "*://*.eletroclub.com.br/*",
@@ -52,6 +54,7 @@
     },
     {
       "matches": [
+        "https://*.onrender.com/*",
         "https://*.vercel.app/*",
         "http://localhost:3000/*",
         "http://127.0.0.1:3000/*"
@@ -61,7 +64,7 @@
     }
   ],
   "web_accessible_resources": [{
-    "resources": ["sidepanel/assets/alert.gif"],
+    "resources": ["sidepanel/assets/alert.gif", "config.js"],
     "matches": [
       "*://*.amazon.com.br/*",
       "*://*.magazineluiza.com.br/*",

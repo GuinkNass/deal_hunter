@@ -173,29 +173,33 @@
         </table>
       </section>
 
-      <!-- PAIRING -->
+      <!-- PAIRING / CONEXAO NUVEM -->
       <section id="tab-pairing" class="tab hidden">
-        <h1>Conexão com o Deal Hunter</h1>
+        <h1>Conexão com a Nuvem (Render)</h1>
         <div class="card">
           <p class="muted">
-            Ao iniciar o Deal Hunter no seu computador, um código de ativação é gerado. Cole-o abaixo para sincronizar o sistema.
+            O backend do Deal Hunter Pro agora roda 100% na nuvem. A extensão se comunica exclusivamente com a API remota, dispensando scripts locais.
           </p>
           <div class="field">
-            <label>Token de Ativação</label>
-            <input id="pair-token" type="text" placeholder="Cole aqui o token de ativação" />
+            <label>URL da API em Nuvem (Render)</label>
+            <input id="pair-base-url" type="text" placeholder="https://deal-hunter-server.onrender.com" />
           </div>
-          <button id="pair-save" class="btn btn--primary">Salvar e Ativar</button>
+          <div class="field">
+            <label>Token de Acesso / Pareamento (Opcional se logado na Web)</label>
+            <input id="pair-token" type="text" placeholder="Token de autenticação da nuvem" />
+          </div>
+          <div class="row" style="margin-top: 10px;">
+            <button id="pair-save" class="btn btn--primary">Salvar Conexão</button>
+            <button id="pair-reset-cloud" class="btn">Restaurar Padrão Nuvem</button>
+            <button id="pair-reset-local" class="btn">Modo Local (Dev)</button>
+          </div>
           <span id="pair-feedback" class="hint"></span>
 
           <details style="margin-top: 24px; font-size: 11px; opacity: 0.6; cursor: pointer;">
-            <summary>Configurações avançadas de conexão</summary>
+            <summary>Configurações avançadas</summary>
             <div style="margin-top: 14px; display: grid; gap: 12px;">
               <div class="field">
-                <label>URL interna do backend</label>
-                <input id="pair-base-url" type="text" placeholder="http://127.0.0.1:3000" />
-              </div>
-              <div class="field">
-                <label>URL do servidor de licenças</label>
+                <label>URL do portal de autenticação e licenças</label>
                 <input id="web-auth-url" type="text" placeholder="https://deal-hunter-guilhermernascimento-9353s-projects.vercel.app" />
               </div>
             </div>
@@ -206,6 +210,7 @@
     </main>
   </div>
 
+  <script src="../config.js"></script>
   <script src="../utils/api.js"></script>
   <script src="options.js"></script>
 </body>

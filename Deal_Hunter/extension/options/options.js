@@ -393,13 +393,13 @@ document.getElementById('history-clear').addEventListener('click', async () => {
   loadHistory();
 });
 
-// ---------- Pareamento ----------
+// ---------- Pareamento / Conexão Nuvem ----------
 async function loadPairingTab() {
   const { baseUrl, apiToken } = await api.getConfig();
   const { webAuthUrl } = await chrome.storage.local.get('webAuthUrl');
   document.getElementById('pair-base-url').value = baseUrl;
   document.getElementById('pair-token').value = apiToken || '';
-  document.getElementById('web-auth-url').value = webAuthUrl || 'https://deal-hunter-guilhermernascimento-9353s-projects.vercel.app';
+  document.getElementById('web-auth-url').value = webAuthUrl || (typeof CONFIG !== 'undefined' ? CONFIG.WEB_AUTH_URL : 'https://deal-hunter-guilhermernascimento-9353s-projects.vercel.app');
 }
 
 document.getElementById('pair-save').addEventListener('click', async () => {
@@ -411,5 +411,22 @@ document.getElementById('pair-save').addEventListener('click', async () => {
     webAuthUrl: webAuthUrl || undefined,
   });
   await api.setApiToken(token);
-  document.getElementById('pair-feedback').textContent = '✅ Salvo com sucesso.';
+  document.getElementById('pair-feedback').textContent = '✅ Conexão salva com sucesso.';
+  setTimeout(() => { document.getElementById('pair-feedback').textContent = ''; }, 3000);
+});
+
+document.getElementById('pair-reset-cloud').addEventListener('click', async () => {
+  const cloudUrl = typeof CONFIG !== 'undefined' ? CONFIG.PRODUCTION_API_URL : 'https://deal-hunter-server.onrender.com';
+  document.getElementById('pair-base-url').value = cloudUrl;
+  await chrome.storage.local.set({ baseUrl: cloudUrl });
+  document.getElementById('pair-feedback').textContent = '✅ URL padrão da nuvem (Render) restaurada.';
+  setTimeout(() => { document.getElementById('pair-feedback').textContent = ''; }, 3000);
+});
+
+document.getElementById('pair-reset-local').addEventListener('click', async () => {
+  const localUrl = typeof CONFIG !== 'undefined' ? CONFIG.LOCAL_API_URL : 'http://127.0.0.1:3000';
+  document.getElementById('pair-base-url').value = localUrl;
+  await chrome.storage.local.set({ baseUrl: localUrl });
+  document.getElementById('pair-feedback').textContent = '✅ Modo local (127.0.0.1:3000) ativado.';
+  setTimeout(() => { document.getElementById('pair-feedback').textContent = ''; }, 3000);
 });

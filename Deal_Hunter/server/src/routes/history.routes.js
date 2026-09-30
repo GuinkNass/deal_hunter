@@ -1,5 +1,6 @@
 const express = require('express');
 const { db } = require('../database/db');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 
@@ -17,19 +18,29 @@ const listStmt = db.prepare(`
 
 const deleteAllStmt = db.prepare('DELETE FROM alerts');
 
-router.get('/', (req, res) => {
-  const { q } = req.query;
-  let rows = listStmt.all();
-  if (q) {
-    const needle = String(q).toLowerCase();
-    rows = rows.filter((r) => (r.product_title || '').toLowerCase().includes(needle));
+router.get('/', async (req, res) => {
+  try {
+    const { q } = req.query;
+    let rows = await listStmt.all();
+    if (q) {
+      const needle = String(q).toLowerCase();
+      rows = rows.filter((r) => (r.product_title || '').toLowerCase().includes(needle));
+    }
+    res.json(rows);
+  } catch (err) {
+    logger.error(`Erro ao buscar histórico: ${err.message}`);
+    res.status(500).json({ error: 'Erro ao carregar histórico.' });
   }
-  res.json(rows);
 });
 
-router.delete('/', (req, res) => {
-  deleteAllStmt.run();
-  res.status(204).end();
+router.delete('/', async (req, res) => {
+  try {
+    await deleteAllStmt.run();
+    res.status(204).end();
+  } catch (err) {
+    logger.error(`Erro ao limpar histórico: ${err.message}`);
+    res.status(500).json({ error: 'Erro ao limpar histórico.' });
+  }
 });
 
 module.exports = router;

@@ -3,8 +3,13 @@ const { getScanConfig, runScan, processBrowserPages, cancelBrowserScan } = requi
 
 const router = express.Router();
 
-router.get('/config', (req, res) => {
-  res.json(getScanConfig());
+router.get('/config', async (req, res) => {
+  try {
+    const config = await getScanConfig();
+    res.json(config);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao carregar configurações de varredura.' });
+  }
 });
 
 router.post('/run', async (req, res) => {

@@ -2,6 +2,7 @@ const express = require('express');
 
 const router = express.Router();
 
+router.use('/auth', require('./auth.routes'));
 router.use('/history', require('./history.routes'));
 router.use('/telegram', require('./telegram.routes'));
 router.use('/settings', require('./settings.routes'));

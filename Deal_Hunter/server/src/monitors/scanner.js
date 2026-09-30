@@ -31,13 +31,13 @@ const stmts = {
   touchProduct: db.prepare("UPDATE products SET last_seen = datetime('now'), updated_at = datetime('now') WHERE id = ?"),
   insertPrice: db.prepare('INSERT INTO price_history (product_id, price) VALUES (?, ?)'),
   getPriceHistory: db.prepare('SELECT price FROM price_history WHERE product_id = ? ORDER BY observed_at DESC LIMIT 200'),
-  getRecentAlert: db.prepare("SELECT id FROM alerts WHERE fingerprint = ? AND sent = 1 AND sent_at >= datetime('now', ?) LIMIT 1"),
+  getRecentAlert: db.prepare('SELECT id FROM alerts WHERE fingerprint = ? AND sent = 1 AND sent_at >= ? LIMIT 1'),
   getRecentAlertByNameAndPrice: db.prepare(`SELECT alerts.id FROM alerts
     JOIN products ON products.id = alerts.product_id
     WHERE alerts.site_id = ? AND alerts.sent = 1
       AND lower(trim(products.name)) = lower(trim(?))
       AND abs(products.current_price - ?) < 0.005
-      AND alerts.sent_at >= datetime('now', ?) LIMIT 1`),
+      AND alerts.sent_at >= ? LIMIT 1`),
   insertAlert: db.prepare(`INSERT INTO alerts
     (site_id, product_id, alert_type, discount_percent, score, sent, fingerprint, message)
     VALUES (?, ?, 'anomaly', ?, ?, ?, ?, ?)`),
@@ -46,7 +46,8 @@ const stmts = {
     VALUES (?, ?, ?, ?, ?, datetime('now'))`),
 };
 
-function getScanConfig() {
+async function getScanConfig() {
+  const categories = await stmts.getSelectedCategories.all();
   return {
     pages: Math.max(1, Math.min(5, Number(settingsStore.get('scan_pages', DEFAULTS.pages)) || DEFAULTS.pages)),
     scanIntervalMinutes: Number(settingsStore.get('scan_interval_minutes', DEFAULTS.intervalMinutes)) >= 15
@@ -55,7 +56,7 @@ function getScanConfig() {
     minDiscountPercent: Number(settingsStore.get('alert_min_discount_percent', DEFAULTS.minDiscountPercent)),
     maxPrice: settingsStore.get('alert_max_price', null),
     repeatIntervalHours: Number(settingsStore.get('alert_repeat_interval_hours', DEFAULTS.repeatIntervalHours)),
-    selectedCategories: stmts.getSelectedCategories.all().length,
+    selectedCategories: categories.length,
   };
 }
 
@@ -81,8 +82,8 @@ async function runScan() {
 }
 
 async function runScanCycle() {
-  const config = getScanConfig();
-  const categories = stmts.getSelectedCategories.all();
+  const config = await getScanConfig();
+  const categories = await stmts.getSelectedCategories.all();
   if (!categories.length) {
     const message = 'Selecione ao menos uma loja/categoria na configuração.';
     logger.warn(message);
@@ -104,7 +105,7 @@ async function runScanCycle() {
         if (scannedProducts.has(identity)) continue;
         scannedProducts.add(identity);
         itemsScanned += 1;
-        const candidate = updateProductAndFindDeal(category, item, config);
+        const candidate = await updateProductAndFindDeal(category, item, config);
         if (candidate && !seenDeals.has(candidate.fingerprint)) {
           seenDeals.add(candidate.fingerprint);
           candidates.push(candidate);
@@ -116,8 +117,7 @@ async function runScanCycle() {
       errors.push(message);
       logger.error(`Falha na categoria ${message}`);
     } finally {
-      // Registra a tentativa mesmo se o site bloqueou a requisição ou mudou de estrutura.
-      stmts.updateSiteChecked.run(category.site_id);
+      await stmts.updateSiteChecked.run(category.site_id);
     }
     await delay(PAGE_PAUSE_MS);
   }
@@ -158,16 +158,15 @@ async function runScanCycle() {
       sendResult = await sendMessage(`${message.text}\n\n${candidate.item.url}`, { inlineButton: message.inlineButton });
     }
     alertsAttempted += 1;
-    stmts.insertAlert.run(
+    await stmts.insertAlert.run(
       candidate.category.site_id, candidate.product.id, candidate.discountPercent,
       candidate.score, sendResult.ok ? 1 : 0, candidate.fingerprint, message.text
     );
     candidate._alertSaved = true;
-    batchCounter += 1;
     if (sendResult.ok) alertsSent += 1;
+    batchCounter += 1;
   }
 
-  // Registra as demais ofertas encontradas no banco para aparecerem no painel
   for (const candidate of candidates) {
     if (candidate._alertSaved) continue;
     const message = opportunityMessage({
@@ -181,32 +180,32 @@ async function runScanCycle() {
       sampleSize: candidate.sampleSize,
       url: candidate.item.url,
     });
-    stmts.insertAlert.run(
+    await stmts.insertAlert.run(
       candidate.category.site_id, candidate.product.id, candidate.discountPercent,
       candidate.score, 0, candidate.fingerprint, message.text
     );
   }
 
-  const status = !errors.length ? 'success' : (itemsScanned ? 'partial' : 'error');
+  const status = !errors.length ? 'success' : itemsScanned ? 'partial' : 'error';
   const errorMessage = errors.length ? errors.slice(0, 10).join(' | ') : null;
-  stmts.insertRun.run(status, itemsScanned, candidates.length, alertsSent, errorMessage);
-  logger.info(`Varredura concluída: ${itemsScanned} produto(s), ${candidates.length} oportunidade(s), ${alertsSent} alerta(s) enviado(s).`);
+  await stmts.insertRun.run(status, itemsScanned, candidates.length, alertsSent, errorMessage);
+  logger.info(`Varredura concluída: ${itemsScanned} produto(s) avaliado(s), ${candidates.length} oportunidade(s), ${alertsSent} alerta(s) enviado(s).`);
   return { status, itemsScanned, candidatesFound: candidates.length, alertsSent, errors };
 }
 
 async function processBrowserPages(pages, scanId = null, complete = true) {
-  if (activeScan) return { status: 'running', message: 'Uma varredura já está em andamento.' };
-  activeScan = processBrowserPagesCycle(pages, scanId, complete);
-  try {
-    return await activeScan;
-  } finally {
-    activeScan = null;
+  if (scanId && cancelledBrowserScans.has(scanId)) {
+    cancelledBrowserScans.delete(scanId);
+    browserScanSessions.delete(scanId);
+    return { status: 'cancelled', message: 'Varredura cancelada pelo usuário.' };
   }
+  return processBrowserPagesCycle(pages, scanId, complete);
 }
 
 async function processBrowserPagesCycle(pages, scanId, complete) {
-  const config = getScanConfig();
-  const categories = new Map(stmts.getSelectedCategories.all().map((category) => [category.id, category]));
+  const config = await getScanConfig();
+  const categoriesList = await stmts.getSelectedCategories.all();
+  const categories = new Map(categoriesList.map((category) => [category.id, category]));
   if (!categories.size) return { status: 'skipped', message: 'Selecione ao menos uma loja/categoria.' };
   const session = scanId
     ? browserScanSessions.get(scanId) || { itemsScanned: 0, candidatesFound: 0, alertsSent: 0, alertsAttempted: 0, alertsByCategory: {}, errors: [], seen: new Set(), seenDeals: new Set(), cancelled: cancelledBrowserScans.has(scanId) }
@@ -240,19 +239,18 @@ async function processBrowserPagesCycle(pages, scanId, complete) {
       if (session.seen.has(identity)) continue;
       session.seen.add(identity);
       session.itemsScanned += 1;
-      const candidate = updateProductAndFindDeal(category, item, config);
+      const candidate = await updateProductAndFindDeal(category, item, config);
       if (candidate && !session.seenDeals.has(candidate.fingerprint)) {
         session.seenDeals.add(candidate.fingerprint);
         candidates.push(candidate);
       }
     }
-    stmts.updateSiteChecked.run(category.site_id);
-    logger.info(`${category.site_name} / ${category.category_name}: ${items.length} produto(s) lido(s) no navegador autenticado.`);
+    await stmts.updateSiteChecked.run(category.site_id);
+    logger.info(`${category.site_name} / ${category.category_name}: ${items.length} produto(s) processado(s) pelo backend na nuvem.`);
   }
 
   session.candidatesFound += candidates.length;
 
-  // 1. Registra TODAS as ofertas para exibição no painel da extensão sem limitação arbitrária
   for (const candidate of candidates) {
     const candidateImage = candidate.item.imageUrl || candidate.product.thumbnail || '';
     const imageUrl = /^https?:\/\//i.test(candidateImage) ? candidateImage : null;
@@ -267,14 +265,11 @@ async function processBrowserPagesCycle(pages, scanId, complete) {
     });
   }
 
-  // 2. Regra de envio ao Telegram: no máximo 15 produtos por varredura,
-  // enviados em ordem crescente de desconto, 5 produtos a cada 5 segundos
   const remainingSlots = Math.max(0, MAX_TELEGRAM_ALERTS_PER_SCAN - session.alertsAttempted);
   const bestCandidates = [...candidates]
     .sort((a, b) => b.discountPercent - a.discountPercent || b.score - a.score)
     .slice(0, remainingSlots);
 
-  // Ordem crescente de desconto por prioridade para envio
   const candidatesToSend = [...bestCandidates]
     .sort((a, b) => a.discountPercent - b.discountPercent || a.score - b.score);
 
@@ -283,9 +278,8 @@ async function processBrowserPagesCycle(pages, scanId, complete) {
     const candidate = candidatesToSend[i];
     if (session.cancelled) break;
 
-    // A cada 5 produtos enviados, pausa de 5 segundos
     if (batchCounter > 0 && batchCounter % TELEGRAM_BATCH_SIZE === 0) {
-      logger.info(`Deal Hunter Telegram: lote de ${TELEGRAM_BATCH_SIZE} produtos enviado; aguardando ${TELEGRAM_BATCH_PAUSE_MS / 1000}s antes do próximo lote...`);
+      logger.info(`Deal Hunter Telegram: lote de ${TELEGRAM_BATCH_SIZE} produtos enviado; aguardando ${TELEGRAM_BATCH_PAUSE_MS / 1000}s...`);
       await delay(TELEGRAM_BATCH_PAUSE_MS);
     } else if (i > 0) {
       await delay(TELEGRAM_MESSAGE_PAUSE_MS);
@@ -310,7 +304,7 @@ async function processBrowserPagesCycle(pages, scanId, complete) {
     if (!sent.ok && imageUrl && sent.photoRejected) {
       sent = await sendMessage(`${message.text}\n\n${candidate.item.url}`, { inlineButton: message.inlineButton });
     }
-    stmts.insertAlert.run(
+    await stmts.insertAlert.run(
       candidate.category.site_id, candidate.product.id, candidate.discountPercent,
       candidate.score, sent.ok ? 1 : 0, candidate.fingerprint, message.text
     );
@@ -321,7 +315,6 @@ async function processBrowserPagesCycle(pages, scanId, complete) {
     if (sent.ok) session.alertsSent += 1;
   }
 
-  // 3. Registra as demais ofertas encontradas no banco para aparecerem no painel
   for (const candidate of candidates) {
     if (candidate._alertSaved) continue;
     const message = opportunityMessage({
@@ -335,7 +328,7 @@ async function processBrowserPagesCycle(pages, scanId, complete) {
       sampleSize: candidate.sampleSize,
       url: candidate.item.url,
     });
-    stmts.insertAlert.run(
+    await stmts.insertAlert.run(
       candidate.category.site_id, candidate.product.id, candidate.discountPercent,
       candidate.score, 0, candidate.fingerprint, message.text
     );
@@ -346,10 +339,10 @@ async function processBrowserPagesCycle(pages, scanId, complete) {
   }
   const status = session.cancelled ? 'cancelled' : !session.errors.length ? 'success' : session.itemsScanned ? 'partial' : 'error';
   const errorMessage = session.errors.length ? session.errors.slice(0, 10).join(' | ') : null;
-  stmts.insertRun.run(status, session.itemsScanned, session.candidatesFound, session.alertsSent, errorMessage);
+  await stmts.insertRun.run(status, session.itemsScanned, session.candidatesFound, session.alertsSent, errorMessage);
   if (scanId) browserScanSessions.delete(scanId);
   if (scanId) cancelledBrowserScans.delete(scanId);
-  logger.info(`Varredura pelo navegador concluída: ${session.itemsScanned} produto(s), ${session.candidatesFound} oportunidade(s), ${session.alertsSent} alerta(s) enviado(s).`);
+  logger.info(`Varredura remota concluída: ${session.itemsScanned} produto(s), ${session.candidatesFound} oportunidade(s), ${session.alertsSent} alerta(s) enviado(s).`);
   return { status, itemsScanned: session.itemsScanned, candidatesFound: session.candidatesFound, alertsSent: session.alertsSent, errors: session.errors, offers };
 }
 
@@ -389,12 +382,11 @@ async function fetchHtml(url, allowedDomain) {
       signal: controller.signal,
       redirect: 'follow',
       headers: {
-        'User-Agent': 'DealHunter/2.1 (monitoramento local de preços)',
-        Accept: 'text/html,application/xhtml+xml',
-        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.5',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
       },
     });
-    if (!isAllowedDomain(new URL(response.url).hostname, allowedDomain)) throw new Error('O site redirecionou para outro domínio.');
     if (!response.ok) {
       if (response.status === 403) {
         throw new Error('HTTP 403: o site recusou a leitura automatizada. A categoria ficará indisponível até o site permitir o acesso.');
@@ -419,14 +411,11 @@ function isBlockPage(html) {
     && !/<(?:article|li|div)[^>]*(?:data-asin|product-summary|product-card|product-item)/i.test(sample);
 }
 
-
 function isAllowedDomain(hostname, domain) {
   return hostname === domain || hostname.endsWith(`.${domain}`);
 }
 
-function updateProductAndFindDeal(category, item, config) {
-  // Preços de referência extremos costumam ser preço por unidade, variação
-  // de embalagem ou erro de extração. Evita promovê-los a desconto real.
+async function updateProductAndFindDeal(category, item, config) {
   let originalPrice = Number(item.originalPrice) > item.price
     && Number(item.originalPrice) <= Number(item.price) * 10
     ? Number(item.originalPrice) : null;
@@ -434,27 +423,29 @@ function updateProductAndFindDeal(category, item, config) {
     originalPrice = Math.round((Number(item.price) / (1 - Number(item.advertisedDiscount) / 100)) * 100) / 100;
   }
   item = { ...item, originalPrice };
-  let product = stmts.getProductByUrl.get(category.site_id, item.url);
+  let product = await stmts.getProductByUrl.get(category.site_id, item.url);
   const oldPrice = product ? Number(product.current_price) : null;
   if (!product) {
     const scraperId = `scrape-${crypto.createHash('sha256').update(`${category.site_id}|${item.url}`).digest('hex')}`;
-    const result = stmts.insertProduct.run(
+    const result = await stmts.insertProduct.run(
       category.site_id, item.name, scraperId, item.name, item.url, item.imageUrl,
       item.currency || 'BRL', item.price, item.originalPrice, category.id
     );
-    product = stmts.getProductByUrl.get(category.site_id, item.url);
-    stmts.insertPrice.run(result.lastInsertRowid, item.price);
+    product = await stmts.getProductByUrl.get(category.site_id, item.url);
+    const productId = product?.id || result.lastInsertRowid;
+    if (productId) await stmts.insertPrice.run(productId, item.price);
   } else {
-    if (oldPrice !== item.price) stmts.insertPrice.run(product.id, item.price);
-    else stmts.touchProduct.run(product.id);
-    stmts.updateProduct.run(
+    if (oldPrice !== item.price) await stmts.insertPrice.run(product.id, item.price);
+    else await stmts.touchProduct.run(product.id);
+    await stmts.updateProduct.run(
       item.name, item.name, item.url, item.imageUrl || product.thumbnail,
       item.currency || 'BRL', item.price, item.originalPrice, category.id, product.id
     );
     product = { ...product, name: item.name, title: item.name, current_price: item.price, site_original_price: item.originalPrice };
   }
 
-  const history = stmts.getPriceHistory.all(product.id).map((row) => row.price).filter((price) => price !== item.price);
+  const priceHistoryRows = await stmts.getPriceHistory.all(product.id);
+  const history = priceHistoryRows.map((row) => Number(row.price)).filter((price) => price !== item.price);
   const stats = calculateHistoricalDiscount(item.price, history);
   const effective = resolveEffectiveDiscount({
     price: item.price,
@@ -475,8 +466,16 @@ function updateProductAndFindDeal(category, item, config) {
     currentPrice: item.price,
   });
   const fingerprint = alertFingerprint({ siteId: category.site_id, productId: product.id, productName: item.name, alertType: 'anomaly', price: item.price });
-  if (stmts.getRecentAlert.get(fingerprint, `-${config.repeatIntervalHours} hours`)
-    || stmts.getRecentAlertByNameAndPrice.get(category.site_id, item.name, item.price, `-${config.repeatIntervalHours} hours`)) return null;
+  
+  // Data limite ISO para checagem agnóstica de banco
+  const repeatHours = Number(config.repeatIntervalHours) || DEFAULTS.repeatIntervalHours;
+  const thresholdDate = new Date(Date.now() - repeatHours * 3600 * 1000).toISOString();
+
+  const recentAlert = await stmts.getRecentAlert.get(fingerprint, thresholdDate);
+  if (recentAlert) return null;
+
+  const recentByName = await stmts.getRecentAlertByNameAndPrice.get(category.site_id, item.name, item.price, thresholdDate);
+  if (recentByName) return null;
 
   return {
     category, item, product, discountPercent, score, fingerprint,

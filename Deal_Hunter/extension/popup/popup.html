@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Deal Hunter</title>
+  <title>Deal Hunter Pro</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
@@ -10,19 +10,33 @@
     <header class="app__header">
       <div class="brand">
         <img src="../icons/icon32.png" alt="" />
-        <span>Deal Hunter</span>
+        <span>Deal Hunter Pro</span>
       </div>
       <button id="btn-settings" class="icon-btn" title="Configurações">⚙️</button>
     </header>
 
+    <!-- Barra de Autenticação / Licença na Nuvem -->
+    <div id="auth-status-bar" class="auth-bar hidden">
+      <div class="auth-bar__info">
+        <span id="auth-badge" class="badge badge--success">Pro Ativo</span>
+        <span id="auth-email" class="auth-bar__email">usuario@email.com</span>
+      </div>
+      <button id="btn-logout" class="auth-bar__btn" title="Sair da conta">Sair</button>
+    </div>
+
+    <div id="login-prompt-bar" class="banner banner--login hidden">
+      <span>🔒 Faça login para ativar os recursos Pro na nuvem.</span>
+      <button id="btn-open-login" class="btn btn--small btn--primary">Fazer Login</button>
+    </div>
+
     <div id="offline-banner" class="banner banner--warn hidden">
-      🔴 Backend local não encontrado. Execute <code>2-Ativar-Backend.bat</code> na pasta do projeto.
+      🟡 Conectando ao servidor na nuvem (Render)... Aguarde alguns instantes enquanto o serviço desperta.
     </div>
 
     <section id="dashboard" class="panel">
       <div class="status-row">
         <span id="status-dot" class="dot dot--gray"></span>
-        <span id="status-text">Verificando status…</span>
+        <span id="status-text">Conectando à nuvem…</span>
       </div>
       <div class="status-row">
         <span id="telegram-dot" class="dot dot--gray"></span>
@@ -50,6 +64,7 @@
     <div id="toast" class="toast hidden"></div>
   </div>
 
+  <script src="../config.js"></script>
   <script src="../utils/api.js"></script>
   <script src="popup.js"></script>
 </body>
