@@ -96,22 +96,22 @@ export default function Navbar() {
 
         {/* Links de Navegação Desktop */}
         <nav className="hidden md:flex items-center gap-6 text-xs font-semibold uppercase tracking-wider text-gray-300">
-          <a href="#como-funciona" className="hover:text-white transition-colors">
+          <a href="/#como-funciona" className="hover:text-white transition-colors">
             Como Funciona
           </a>
-          <a href="#requisitos" className="hover:text-white transition-colors">
+          <a href="/#requisitos" className="hover:text-white transition-colors">
             Requisitos
           </a>
-          <a href="#recursos" className="hover:text-white transition-colors">
+          <a href="/#recursos" className="hover:text-white transition-colors">
             Recursos
           </a>
-          <a href="#bonus" className="hover:text-[#d4ff32] text-violet-300 font-bold transition-colors">
+          <a href="/#bonus" className="hover:text-[#d4ff32] text-violet-300 font-bold transition-colors">
             Bônus
           </a>
-          <a href="#planos" className="hover:text-white transition-colors">
+          <a href="/#planos" className="hover:text-white transition-colors">
             Planos
           </a>
-          <a href="#faq" className="hover:text-white transition-colors">
+          <a href="/#faq" className="hover:text-white transition-colors">
             FAQ
           </a>
           <a
@@ -165,7 +165,7 @@ export default function Navbar() {
               </button>
 
               <a
-                href="#planos"
+                href="/#planos"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-indigo-600/25 hover:shadow-indigo-600/40 hover:-translate-y-0.5 transition-all active:scale-[0.98]"
               >
                 <Sparkles className="w-3.5 h-3.5" />
@@ -209,7 +209,7 @@ export default function Navbar() {
               </Link>
 
               <a
-                href="#planos"
+                href="/#planos"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-indigo-600/30 hover:shadow-indigo-600/50 hover:-translate-y-0.5 transition-all active:scale-[0.98]"
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
@@ -234,42 +234,42 @@ export default function Navbar() {
         <div className="md:hidden bg-[#0a0d14] border-b border-gray-800 px-4 pt-3 pb-6 space-y-4 animate-in slide-in-from-top-3 duration-200">
           <div className="flex flex-col space-y-3 text-sm font-medium text-gray-300">
             <a
-              href="#como-funciona"
+              href="/#como-funciona"
               onClick={() => setMobileMenuOpen(false)}
               className="py-1 hover:text-white"
             >
               Como Funciona
             </a>
             <a
-              href="#requisitos"
+              href="/#requisitos"
               onClick={() => setMobileMenuOpen(false)}
               className="py-1 hover:text-white"
             >
               Requisitos
             </a>
             <a
-              href="#recursos"
+              href="/#recursos"
               onClick={() => setMobileMenuOpen(false)}
               className="py-1 hover:text-white"
             >
               Recursos
             </a>
             <a
-              href="#bonus"
+              href="/#bonus"
               onClick={() => setMobileMenuOpen(false)}
               className="py-1 text-violet-300 hover:text-white"
             >
               Bônus Exclusivo
             </a>
             <a
-              href="#planos"
+              href="/#planos"
               onClick={() => setMobileMenuOpen(false)}
               className="py-1 hover:text-white"
             >
               Planos
             </a>
             <a
-              href="#faq"
+              href="/#faq"
               onClick={() => setMobileMenuOpen(false)}
               className="py-1 hover:text-white"
             >

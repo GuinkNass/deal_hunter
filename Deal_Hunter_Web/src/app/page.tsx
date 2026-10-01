@@ -1412,11 +1412,11 @@ export default function LandingPage() {
               &copy; {new Date().getFullYear()} Deal Hunter Pro (dealhunterpro.com.br) — Todos os direitos reservados.
             </p>
             <div className="flex items-center gap-4">
-              <Link href="/login" className="hover:text-slate-300 transition-colors">
+              <Link href="/privacy#termos" className="hover:text-slate-300 transition-colors">
                 Termos de Uso
               </Link>
               <span>·</span>
-              <Link href="/login" className="hover:text-slate-300 transition-colors">
+              <Link href="/privacy#privacidade" className="hover:text-slate-300 transition-colors">
                 Política de Privacidade
               </Link>
             </div>
