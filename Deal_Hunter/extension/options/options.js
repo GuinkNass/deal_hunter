@@ -298,10 +298,21 @@ function getStoreLogoPath(siteName) {
 
 function updateCatalogSummary() {
   const summaryEl = document.getElementById('catalog-summary-count');
-  if (!summaryEl) return;
-  const total = document.querySelectorAll('#catalog-list input[data-category-id]').length;
+  const allCheckboxes = document.querySelectorAll('#catalog-list input[data-category-id]');
+  const total = allCheckboxes.length;
   const checked = document.querySelectorAll('#catalog-list input[data-category-id]:checked').length;
-  summaryEl.textContent = `${checked} selecionada(s) de ${total} categorias`;
+  if (summaryEl) summaryEl.textContent = `${checked} selecionada(s) de ${total} categorias`;
+
+  // Atualiza contadores individuais de cada loja
+  document.querySelectorAll?.('#catalog-list .catalog-store')?.forEach((storeEl) => {
+    const storeSlug = storeEl.dataset.store;
+    const storeTotal = storeEl.querySelectorAll('input[data-category-id]').length;
+    const storeChecked = storeEl.querySelectorAll('input[data-category-id]:checked').length;
+    const counterEl = storeEl.querySelector(`[data-store-counter="${storeSlug}"]`);
+    if (counterEl) {
+      counterEl.textContent = `${storeChecked} de ${storeTotal} ativas`;
+    }
+  });
 }
 
 function renderCatalogList(categories) {
@@ -309,10 +320,28 @@ function renderCatalogList(categories) {
   const pillsContainer = document.getElementById('catalog-store-pills');
   if (!list) return;
 
-  currentCatalogCategories = categories;
+  // Deduplicação defensiva e remoção de categorias obsoletas (ex: Access Point)
+  const seenUrls = new Set();
+  const cleanCategories = [];
+  for (const cat of categories) {
+    if (
+      (cat.name && cat.name.toLowerCase().includes('access point')) ||
+      cat.id === 'pichau-56' ||
+      (cat.url && cat.url.toLowerCase().includes('/access-point'))
+    ) {
+      continue;
+    }
+    const key = `${cat.siteName || cat.siteId || ''}:${cat.url || cat.id}`;
+    if (!seenUrls.has(key)) {
+      seenUrls.add(key);
+      cleanCategories.push(cat);
+    }
+  }
+
+  currentCatalogCategories = cleanCategories;
 
   const groups = new Map();
-  for (const category of categories) {
+  for (const category of cleanCategories) {
     const store = category.siteName || 'Outras Lojas';
     if (!groups.has(store)) groups.set(store, []);
     groups.get(store).push(category);
@@ -334,25 +363,31 @@ function renderCatalogList(categories) {
         activeStoreFilter = btn.dataset.filter;
         pillsContainer.querySelectorAll?.('.catalog-pill')?.forEach((p) => p.classList.toggle('active', p === btn));
         applyCatalogFilters();
+        if (activeStoreFilter !== 'all') {
+          const targetStore = list.querySelector(`.catalog-store[data-store="${activeStoreFilter}"]`);
+          if (targetStore) targetStore.classList.remove('collapsed');
+        }
       });
     });
   }
 
-  // Renderiza lojas e categorias com cabeçalhos expansíveis
+  // Renderiza lojas com dropdown/accordion recolhido por padrão e logos maiores
   list.innerHTML = [...groups.entries()].map(([siteName, rows]) => {
     const storeSlug = siteName.toLowerCase().replace(/[^\w]+/g, '-');
     const storeLogo = getStoreLogoPath(siteName);
     const logoHtml = storeLogo
       ? `<img src="${storeLogo}" class="catalog-store-logo" alt="${escapeHtml(siteName)}" onerror="this.style.display='none'" />`
       : '';
+    const activeCount = rows.filter((r) => Number(r.selected)).length;
+
     return `
-    <section class="catalog-store" data-store="${escapeHtml(storeSlug)}">
+    <section class="catalog-store collapsed" data-store="${escapeHtml(storeSlug)}">
       <div class="catalog-store-header">
         <h2 class="catalog-store-title">
           <span class="catalog-toggle-arrow">▼</span>
           ${logoHtml}
           <span>${escapeHtml(siteName)}</span>
-          <span class="badge" style="font-size:10px; padding:2px 6px; font-weight:normal; background:rgba(255,255,255,0.06);">${rows.length} categorias</span>
+          <span class="store-badge-count" data-store-counter="${escapeHtml(storeSlug)}">${activeCount} de ${rows.length} ativas</span>
         </h2>
         <div style="display:flex; gap:6px;" onclick="event.stopPropagation();">
           <button type="button" class="btn btn--sm select-all-store" data-store="${escapeHtml(storeSlug)}">Marcar todas</button>

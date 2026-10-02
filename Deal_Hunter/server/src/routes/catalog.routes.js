@@ -20,7 +20,24 @@ const updateKeywordFilter = db.prepare('UPDATE monitored_categories SET keyword_
 router.get('/categories', async (req, res) => {
   try {
     const rows = await listCategories.all();
-    res.json(rows);
+    // Filtro defensivo: descarta 'Access Point' e deduplica por siteId + URL
+    const seen = new Set();
+    const cleanRows = [];
+    for (const row of rows) {
+      if (
+        (row.name && row.name.toLowerCase().includes('access point')) ||
+        row.id === 'pichau-56' ||
+        (row.url && row.url.toLowerCase().includes('/access-point'))
+      ) {
+        continue;
+      }
+      const key = `${row.siteId || row.domain}:${row.url}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        cleanRows.push(row);
+      }
+    }
+    res.json(cleanRows);
   } catch (err) {
     logger.error(`Erro ao listar categorias: ${err.message}`);
     res.status(500).json({ error: 'Erro ao listar categorias.' });

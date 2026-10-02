@@ -589,33 +589,40 @@
         .replace(/^-\d+%\s*/, '')
         .replace(/\s+/g, ' ').trim().slice(0, 500);
 
-      // 2. PREÇO ATUAL SHEIN
-      const curEl = card.querySelector('[class*="final-price"], [class*="offscreen"], [class*="price__main"], [class*="sale-price"]');
-      if (curEl && !isInstallmentElement(curEl)) price = parsePrice(curEl.innerText || curEl.textContent);
-      if (!price) {
-        const textClean = (card.innerText || '').replace(INSTALLMENT_RE, '');
-        const prices = (textClean.match(MONEY_RE) || []).map(parsePrice).filter(Boolean);
-        if (prices.length) price = prices[0];
-      }
-
-      // 3. PREÇO ORIGINAL "DE" SHEIN
-      const origEl = card.querySelector('[class*="price__secondary"] del, del, s, [class*="original-price"]');
+      // 2. PREÇO ORIGINAL RISCADO "DE" SHEIN (Prioridade alta)
+      const origEl = card.querySelector('[class*="line-through"], del, s, [class*="original-price"], [class*="original"], [class*="del"], [class*="strike"], [class*="price__secondary"] del, [class*="was-price"]');
       if (origEl && !isInstallmentElement(origEl)) originalPrice = parsePrice(origEl.innerText || origEl.textContent);
 
-      // 4. DESCONTO % SHEIN
-      const discEl = card.querySelector('[class*="discount-label"], [class*="title-discount-label"], [class*="discount"]');
-      if (discEl) advertisedDiscount = parseDiscount(discEl.getAttribute('aria-label') || discEl.innerText || discEl.textContent);
-      if (!advertisedDiscount) {
-        const discMatch = (card.innerText || '').match(/[-](\d{1,2})%/i);
-        if (discMatch) advertisedDiscount = Number(discMatch[1]);
+      // 3. PREÇO ATUAL COM DESCONTO SHEIN
+      const curEl = card.querySelector('[class*="sale-price"], [class*="discount-price"], [class*="final-price"], [class*="price__main"], [class*="current-price"], [class*="special-price"], [class*="now-price"]');
+      if (curEl && !isInstallmentElement(curEl)) price = parsePrice(curEl.innerText || curEl.textContent);
+
+      // Se ainda não temos os dois preços, analisa múltiplos valores numéricos no cartão
+      if (!price || !originalPrice) {
+        const textClean = (card.innerText || '').replace(INSTALLMENT_RE, '');
+        const prices = (textClean.match(MONEY_RE) || []).map(parsePrice).filter((p) => p && p > 0);
+        const uniquePrices = [...new Set(prices)].sort((a, b) => a - b);
+        if (uniquePrices.length >= 2) {
+          price = uniquePrices[0]; // Menor preço é o promocional
+          originalPrice = uniquePrices[uniquePrices.length - 1]; // Maior preço é o original riscado
+        } else if (uniquePrices.length === 1 && !price) {
+          price = uniquePrices[0];
+        }
       }
 
-      // Bidirecional Shein
-      if (!originalPrice && advertisedDiscount && price > 0) {
-        originalPrice = Math.round((price / (1 - advertisedDiscount / 100)) * 100) / 100;
-      }
-      if (!advertisedDiscount && originalPrice && price && originalPrice > price) {
+      // 4. DESCONTO SHEIN: Deduz matematicamente do preço riscado vs atual
+      if (originalPrice && price && originalPrice > price) {
         advertisedDiscount = Math.round(((originalPrice - price) / originalPrice) * 100);
+      } else {
+        const discEl = card.querySelector('[class*="discount-label"], [class*="title-discount-label"], [class*="discount"]');
+        if (discEl) advertisedDiscount = parseDiscount(discEl.getAttribute('aria-label') || discEl.innerText || discEl.textContent);
+        if (!advertisedDiscount) {
+          const discMatch = (card.innerText || '').match(/[-](\d{1,2})%/i);
+          if (discMatch) advertisedDiscount = Number(discMatch[1]);
+        }
+        if (!originalPrice && advertisedDiscount && price > 0) {
+          originalPrice = Math.round((price / (1 - advertisedDiscount / 100)) * 100) / 100;
+        }
       }
 
     } else if (isShopee) {
@@ -659,28 +666,35 @@
       name = (nameEl?.innerText || card.querySelector('img[alt]')?.alt || '')
         .replace(/\s+/g, ' ').trim().slice(0, 500);
 
-      // 2. PREÇO ATUAL KABUM
-      const curEl = card.querySelector('[class*="priceCard"], [class*="price"], [class*="finalPrice"]');
-      if (curEl && !isInstallmentElement(curEl)) price = parsePrice(curEl.innerText || curEl.textContent);
-      if (!price) {
-        const textClean = (card.innerText || '').replace(INSTALLMENT_RE, '');
-        const prices = (textClean.match(MONEY_RE) || []).map(parsePrice).filter(Boolean);
-        if (prices.length) price = prices[0];
-      }
-
-      // 3. PREÇO ORIGINAL KABUM
-      const origEl = card.querySelector('[class*="oldPriceCard"], del, s');
+      // 2. PREÇO ORIGINAL RISCADO "DE" KABUM (ex: span.line-through R$ 454,40)
+      const origEl = card.querySelector('[class*="line-through"], [class*="oldPriceCard"], [class*="oldPrice"], del, s');
       if (origEl && !isInstallmentElement(origEl)) originalPrice = parsePrice(origEl.innerText || origEl.textContent);
 
-      // 4. DESCONTO KABUM
-      const discEl = card.querySelector('[class*="discountCard"], [class*="tagDiscount"], [class*="discount"]');
-      if (discEl) advertisedDiscount = parseDiscount(discEl.innerText || discEl.textContent);
+      // 3. PREÇO ATUAL KABUM (ex: text-base font-semibold text-gray-800 R$ 405,40)
+      const curEl = card.querySelector('[class*="finalPrice"], [class*="priceCard"], [class*="text-gray-800"][class*="font-semibold"], [class*="priceText"], [class*="price"]');
+      if (curEl && !isInstallmentElement(curEl)) price = parsePrice(curEl.innerText || curEl.textContent);
 
-      if (!originalPrice && advertisedDiscount && price > 0) {
-        originalPrice = Math.round((price / (1 - advertisedDiscount / 100)) * 100) / 100;
+      if (!price || !originalPrice) {
+        const textClean = (card.innerText || '').replace(INSTALLMENT_RE, '');
+        const prices = (textClean.match(MONEY_RE) || []).map(parsePrice).filter((p) => p && p > 0);
+        const uniquePrices = [...new Set(prices)].sort((a, b) => a - b);
+        if (uniquePrices.length >= 2) {
+          price = uniquePrices[0]; // Menor preço é o promocional PIX
+          originalPrice = uniquePrices[uniquePrices.length - 1]; // Maior preço é o valor de lista
+        } else if (uniquePrices.length === 1 && !price) {
+          price = uniquePrices[0];
+        }
       }
-      if (!advertisedDiscount && originalPrice && price && originalPrice > price) {
+
+      // 4. DESCONTO KABUM: Prioriza dedução matemática a partir do preço riscado vs preço atual
+      if (originalPrice && price && originalPrice > price) {
         advertisedDiscount = Math.round(((originalPrice - price) / originalPrice) * 100);
+      } else {
+        const discEl = card.querySelector('[class*="discountCard"], [class*="tagDiscount"], [class*="discount"], [class*="bg-green"]');
+        if (discEl) advertisedDiscount = parseDiscount(discEl.innerText || discEl.textContent);
+        if (!originalPrice && advertisedDiscount && price > 0) {
+          originalPrice = Math.round((price / (1 - advertisedDiscount / 100)) * 100) / 100;
+        }
       }
 
     } else if (isRenner) {

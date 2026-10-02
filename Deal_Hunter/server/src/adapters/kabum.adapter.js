@@ -65,10 +65,13 @@ function parseKabum(html, pageUrl) {
 
   // 1. Preço à vista / PIX
   let currentPrice = null;
-  const priceElements = $('[class*="finalPrice"], [class*="priceText"], [class*="priceCard"], h4[class*="text-"], .preco_desconto_a_vista');
+  const priceElements = $('[class*="finalPrice"], [class*="priceText"], [class*="priceCard"], h4[class*="text-"], [class*="font-semibold"], [class*="font-bold"], .preco_desconto_a_vista, [data-testid*="price"]');
   priceElements.each((_, el) => {
     if (currentPrice) return;
     if (isInstallmentElement($, el)) return;
+    // Não confunde preço riscado com preço atual
+    const cls = $(el).attr('class') || '';
+    if (/line-through|oldprice/i.test(cls) || $(el).is('del, s')) return;
     const val = parsePrice($(el).text());
     if (val > 0) currentPrice = val;
   });
@@ -78,9 +81,9 @@ function parseKabum(html, pageUrl) {
     if (matchPix) currentPrice = parsePrice(matchPix[1]);
   }
 
-  // 2. Preço original "De"
+  // 2. Preço original "De" (prioriza elemento riscado line-through)
   let originalPrice = null;
-  const oldPriceElements = $('[class*="oldPrice"], [class*="oldPriceCard"], del, s');
+  const oldPriceElements = $('[class*="line-through"], [class*="oldPrice"], [class*="oldPriceCard"], del, s');
   oldPriceElements.each((_, el) => {
     if (originalPrice) return;
     if (isInstallmentElement($, el)) return;
@@ -88,11 +91,15 @@ function parseKabum(html, pageUrl) {
     if (val > 0 && (!currentPrice || val > currentPrice)) originalPrice = val;
   });
 
-  // 3. Desconto anunciado
+  // 3. Desconto: Prioriza dedução matemática a partir do preço riscado vs atual
   let advertisedDiscount = null;
-  const discEl = $('[class*="discountBadge"], [class*="tagDiscount"], [class*="discountCard"]').first();
-  if (discEl.length) {
-    advertisedDiscount = parseDiscount(discEl.text());
+  if (originalPrice && currentPrice && originalPrice > currentPrice) {
+    advertisedDiscount = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
+  } else {
+    const discEl = $('[class*="discountBadge"], [class*="tagDiscount"], [class*="discountCard"], [class*="bg-green"]').first();
+    if (discEl.length) {
+      advertisedDiscount = parseDiscount(discEl.text());
+    }
   }
 
   // Trava anti-parcela KaBuM!
@@ -112,6 +119,7 @@ function parseKabum(html, pageUrl) {
     price: finalPrice,
     originalPrice: originalPrice && originalPrice > finalPrice ? originalPrice : null,
     advertisedDiscount,
+    discount: advertisedDiscount,
     outOfStock: isOutOfStock,
     is_available: !isOutOfStock,
     available: !isOutOfStock,

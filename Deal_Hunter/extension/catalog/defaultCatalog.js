@@ -1309,15 +1309,6 @@ const BUILTIN_CATALOG = [
         "selected": false
       },
       {
-        "id": "pichau-56",
-        "name": "Access Point",
-        "url": "https://www.pichau.com.br/redes-wireless/access-point",
-        "siteId": "pichau",
-        "siteName": "Pichau",
-        "domain": "pichau.com.br",
-        "selected": false
-      },
-      {
         "id": "pichau-57",
         "name": "Modem",
         "url": "https://www.pichau.com.br/redes-wireless/modem",

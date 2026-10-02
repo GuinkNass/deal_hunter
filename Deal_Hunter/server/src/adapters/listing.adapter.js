@@ -379,6 +379,7 @@ function originalPriceSelectors(domain) {
     'del',
   ];
   if (domain.includes('kabum.')) return [
+    '[class*="line-through"]',
     '[class*="oldPriceCard"]',
     '[class*="oldPrice"]',
     'del',
@@ -398,8 +399,11 @@ function originalPriceSelectors(domain) {
     'del',
   ];
   if (domain.includes('shein.')) return [
+    '[class*="line-through"]',
     '[class*="price__secondary"] del',
     '[class*="original-price"]',
+    '[class*="del"]',
+    '[class*="strike"]',
     'del',
     's',
   ];

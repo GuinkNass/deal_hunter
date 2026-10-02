@@ -229,6 +229,23 @@ async function initPostgresDatabase() {
     }
   } catch {}
 
+  // 5. Exclui categoria 'Access Point' e remove duplicatas de categorias por loja e URL
+  try {
+    await pgPool.query("DELETE FROM monitored_categories WHERE LOWER(name) LIKE '%access point%' OR id = 'pichau-56' OR url LIKE '%/access-point%'");
+  } catch {}
+
+  try {
+    await pgPool.query(`
+      DELETE FROM monitored_categories
+      WHERE id NOT IN (
+        SELECT id FROM (
+          SELECT id, ROW_NUMBER() OVER (PARTITION BY site_id, url ORDER BY selected DESC, id ASC) as rn
+          FROM monitored_categories
+        ) t WHERE t.rn = 1
+      )
+    `);
+  } catch {}
+
   logger.info('Banco de dados PostgreSQL (Render) inicializado com sucesso.');
 }
 
@@ -314,6 +331,11 @@ function initSqliteDatabase() {
       }
     }
   }
+
+  // Exclui categoria 'Access Point' e IDs órfãos
+  try {
+    sqliteDb.exec("DELETE FROM monitored_categories WHERE LOWER(name) LIKE '%access point%' OR id = 'pichau-56' OR url LIKE '%/access-point%'");
+  } catch {}
 
   sqliteDb.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_products_ml_item_id ON products(ml_item_id) WHERE ml_item_id IS NOT NULL AND ml_item_id <> \'\'');
   sqliteDb.exec('CREATE INDEX IF NOT EXISTS idx_products_site_url ON products(site_id, url)');
