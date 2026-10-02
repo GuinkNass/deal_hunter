@@ -119,6 +119,134 @@ function playCompletionSticker(key) {
   }, 3280);
 }
 
+// ---------- Carrossel Horizontal Dinâmico de Produtos Varridos ----------
+let carouselQueue = [];
+let activeCarouselItems = [];
+let carouselIntervalTimer = null;
+let currentScanSession = null;
+const CAROUSEL_STEP_TIME = 1600; // Ritmo controlado: 1.6s por produto
+
+function resetCarousel() {
+  clearTimeout(carouselIntervalTimer);
+  carouselIntervalTimer = null;
+  carouselQueue = [];
+  activeCarouselItems.forEach((item) => {
+    if (item.el && item.el.parentNode) item.el.remove();
+  });
+  activeCarouselItems = [];
+  const track = document.getElementById('live-carousel-track');
+  if (track) track.innerHTML = '';
+}
+
+function advanceCarousel() {
+  if (!carouselQueue.length) {
+    carouselIntervalTimer = null;
+    return;
+  }
+
+  const track = document.getElementById('live-carousel-track');
+  const container = document.getElementById('live-carousel-container');
+  if (!track || !container) return;
+
+  container.classList.remove('hidden');
+
+  const product = carouselQueue.shift();
+  if (!product || !product.name) {
+    if (carouselQueue.length) {
+      carouselIntervalTimer = setTimeout(advanceCarousel, 250);
+    } else {
+      carouselIntervalTimer = null;
+    }
+    return;
+  }
+
+  // Cria o novo card que entrará pela esquerda
+  const card = document.createElement('div');
+  card.className = 'carousel-item';
+  const imgUrl = safeUrl(product.imageUrl);
+  const imgHtml = imgUrl ? `<img src="${escapeHtml(imgUrl)}" class="carousel-item-img" alt="" onerror="this.style.display='none'" />` : '';
+  const discountHtml = product.discountPercent ? `<b>· ${product.discountPercent}% OFF</b>` : '';
+  const priceText = product.price ? money(product.price) : '';
+
+  card.innerHTML = `
+    ${imgHtml}
+    <div class="carousel-item-info">
+      <strong class="carousel-item-name" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</strong>
+      <span class="carousel-item-price">${priceText} ${discountHtml}</span>
+    </div>
+  `;
+
+  // Posição inicial: fora da tela à esquerda
+  card.style.transform = 'translateX(-120%)';
+  card.style.opacity = '0';
+  track.appendChild(card);
+
+  // Força recálculo para acionar a transição CSS
+  void card.offsetWidth;
+
+  // Slots do carrossel (deslizando da esquerda para a direita em direção ao pinguim)
+  const slots = [
+    { x: 0, opacity: '1', zIndex: 3 },
+    { x: 105, opacity: '0.85', zIndex: 2 },
+    { x: 215, opacity: '0.3', zIndex: 1 },
+    { x: 330, opacity: '0', zIndex: 0 },
+  ];
+
+  // Desloca itens já em tela para a direita
+  for (let i = activeCarouselItems.length - 1; i >= 0; i--) {
+    const item = activeCarouselItems[i];
+    item.slot += 1;
+    if (item.slot >= 3) {
+      // Ponto de término: fade-out e saída próximo ao pinguim
+      item.el.style.transform = `translateX(${slots[3].x}px)`;
+      item.el.style.opacity = slots[3].opacity;
+      item.el.style.zIndex = slots[3].zIndex;
+      setTimeout(() => {
+        if (item.el && item.el.parentNode) item.el.remove();
+      }, 700);
+      activeCarouselItems.splice(i, 1);
+    } else {
+      const cfg = slots[item.slot];
+      item.el.style.transform = `translateX(${cfg.x}px)`;
+      item.el.style.opacity = cfg.opacity;
+      item.el.style.zIndex = cfg.zIndex;
+    }
+  }
+
+  // Novo item entra no Slot 0 (esquerda)
+  card.style.transform = `translateX(${slots[0].x}px)`;
+  card.style.opacity = slots[0].opacity;
+  card.style.zIndex = slots[0].zIndex;
+  activeCarouselItems.unshift({ el: card, slot: 0 });
+
+  // Agenda próxima entrada no ritmo controlado
+  carouselIntervalTimer = setTimeout(advanceCarousel, CAROUSEL_STEP_TIME);
+}
+
+function feedCarousel(newProducts, sessionId) {
+  // Regra 4: Gestão de Novas Varreduras
+  // Se uma nova varredura ou nova categoria chegar antes do fim da fila anterior,
+  // interrompe e remove os itens antigos imediatamente
+  if (sessionId && sessionId !== currentScanSession) {
+    resetCarousel();
+    currentScanSession = sessionId;
+  }
+
+  if (!newProducts || !newProducts.length) return;
+
+  for (const prod of newProducts) {
+    if (!prod || !prod.name) continue;
+    const isDup = carouselQueue.some((q) => q.name === prod.name && q.price === prod.price);
+    if (!isDup) {
+      carouselQueue.push(prod);
+    }
+  }
+
+  if (!carouselIntervalTimer && carouselQueue.length) {
+    advanceCarousel();
+  }
+}
+
 function renderScanProgress(progress) {
   if (!progress) return;
   const video = document.getElementById('fire-video');
@@ -128,20 +256,42 @@ function renderScanProgress(progress) {
     ? (progress.status || 'Varredura em andamento') : (progress.status || 'Aguardando varredura');
   const location = [progress.siteName, progress.categoryName].filter(Boolean).join(' · ');
   document.getElementById('live-location').textContent = location || (progress.scanning ? 'Preparando as categorias…' : 'O andamento aparecerá aqui.');
-  const card = document.getElementById('live-product');
-  const product = progress.product;
-  const image = safeUrl(product?.imageUrl);
-  if (product?.name) {
-    card.classList.remove('hidden');
-    const img = document.getElementById('live-image');
-    img.src = image;
-    img.classList.toggle('hidden', !image);
-    document.getElementById('live-product-name').textContent = product.name;
-    const discountText = product.discountPercent ? ` · ${product.discountPercent}% OFF` : '';
-    document.getElementById('live-product-price').textContent = `${money(product.price)}${discountText}`;
+
+  const carouselContainer = document.getElementById('live-carousel-container');
+  const sessionId = progress.scanSessionId || (progress.scanning ? `${progress.siteName}-${progress.categoryName}` : null);
+
+  if (progress.scanning) {
+    const prodsToFeed = [];
+    if (Array.isArray(progress.products) && progress.products.length > 0) {
+      prodsToFeed.push(...progress.products);
+    } else if (progress.product) {
+      prodsToFeed.push(progress.product);
+    }
+
+    if (prodsToFeed.length > 0) {
+      feedCarousel(prodsToFeed, sessionId);
+    }
   } else {
-    card.classList.add('hidden');
+    // Gestão de parada ou encerramento
+    if (progress.status === 'Verificação interrompida') {
+      resetCarousel();
+      if (carouselContainer) carouselContainer.classList.add('hidden');
+    } else if (['Verificação concluída'].includes(progress.status)) {
+      setTimeout(() => {
+        if (!scanWasActive && carouselContainer && !carouselQueue.length) {
+          carouselContainer.classList.add('hidden');
+          resetCarousel();
+        }
+      }, 5000);
+    }
   }
+
+  // Compatibilidade defensiva para nós legados
+  const legacyCard = document.getElementById('live-product');
+  if (legacyCard) {
+    legacyCard.classList.add('hidden');
+  }
+
   if (progress.offerAlert && progress.updatedAt && Date.now() - progress.updatedAt < 15000) {
     showOfferAlert(progress.offerAlert, `${progress.updatedAt}:${progress.offerAlert.url || ''}`);
     loadPanel();

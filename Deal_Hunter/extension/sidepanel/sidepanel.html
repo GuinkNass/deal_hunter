@@ -50,7 +50,11 @@
 
       <section class="live-search" id="live-search" aria-live="polite">
         <div class="live-heading"><span class="live-pulse"></span><div class="live-copy"><strong id="live-status">Aguardando varredura</strong><p id="live-location">O andamento aparecerá aqui.</p></div><div class="live-stickers"><img id="scan-sticker" class="live-sticker hidden" alt="Animação durante a varredura" /><img id="completion-sticker" class="live-sticker hidden" alt="Animação de conclusão" /></div></div>
-        <div class="live-product hidden" id="live-product"><img id="live-image" alt="" /><div><strong id="live-product-name"></strong><span id="live-product-price"></span></div></div>
+        <!-- Carrossel Horizontal Dinâmico de Produtos Varridos -->
+        <div class="live-carousel-container hidden" id="live-carousel-container">
+          <div class="live-carousel-track" id="live-carousel-track"></div>
+        </div>
+        <div class="live-product hidden" id="live-product" style="display:none !important;"><img id="live-image" alt="" /><div><strong id="live-product-name"></strong><span id="live-product-price"></span></div></div>
       </section>
 
       <section class="section-head">

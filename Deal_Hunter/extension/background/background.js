@@ -387,6 +387,16 @@ async function capturePage(category, maxPages, tabId, manual = false) {
         scrollLimitReached: Boolean(captured.scrollLimitReached),
       });
       const firstProduct = captured.products?.[0];
+      const validProducts = (captured.products || [])
+        .filter((p) => p && p.name && (p.price || p.imageUrl))
+        .slice(0, 25)
+        .map((p) => ({
+          name: p.name,
+          price: p.price,
+          originalPrice: p.originalPrice,
+          discountPercent: p.advertisedDiscount,
+          imageUrl: p.imageUrl,
+        }));
       publishScanProgress({
         scanning: true, manual, siteName: category.siteName, categoryName: category.name,
         status: `Página ${pageNumber + 1}: ${captured.productsFound || 0} produto(s) lido(s)`,
@@ -397,6 +407,8 @@ async function capturePage(category, maxPages, tabId, manual = false) {
           discountPercent: firstProduct.advertisedDiscount,
           imageUrl: firstProduct.imageUrl,
         } : null,
+        products: validProducts,
+        scanSessionId: `${category.id}-${pageNumber}`,
       });
 
       if (captured.error || pageNumber + 1 >= maxPages) break;
@@ -601,12 +613,32 @@ async function runBrowserScanCycle(control) {
         const partial = await api.submitBrowserPages(chunk, scanId, false);
         result = partial.status === 'running' ? partial : { ...result, ...partial };
         if (control.cancelled) break;
-        const productCount = chunk.reduce((sum, page) => sum + Number(page.productsFound || page.products?.length || 0), 0);
-        publishScanProgress({ scanning: true, manual: control.manual, siteName: category.siteName, categoryName: category.name,
-          status: `${productCount} produto(s) enviados para análise`, product: chunk.flatMap((page) => page.products || [])[0] || null });
+        const allProds = chunk.flatMap((page) => page.products || [])
+          .filter((p) => p && p.name)
+          .slice(0, 25)
+          .map((p) => ({
+            name: p.name,
+            price: p.price,
+            originalPrice: p.originalPrice,
+            discountPercent: p.advertisedDiscount,
+            imageUrl: p.imageUrl,
+          }));
+        publishScanProgress({
+          scanning: true, manual: control.manual, siteName: category.siteName, categoryName: category.name,
+          status: `${productCount} produto(s) enviados para análise`,
+          product: allProds[0] || null,
+          products: allProds,
+          scanSessionId: `${category.id}-analysis`,
+        });
         for (const offer of partial.offers || []) {
-          publishScanProgress({ scanning: true, manual: control.manual, siteName: offer.siteName, categoryName: offer.categoryName,
-            status: 'Oferta encontrada!', product: { name: offer.name, price: offer.price, imageUrl: offer.imageUrl }, offerAlert: offer });
+          publishScanProgress({
+            scanning: true, manual: control.manual, siteName: offer.siteName, categoryName: offer.categoryName,
+            status: 'Oferta encontrada!',
+            product: { name: offer.name, price: offer.price, imageUrl: offer.imageUrl, discountPercent: offer.discount },
+            products: [{ name: offer.name, price: offer.price, imageUrl: offer.imageUrl, discountPercent: offer.discount }],
+            offerAlert: offer,
+            scanSessionId: `offer-${offer.id || Date.now()}`,
+          });
           chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
             const activeTabId = tabs?.[0]?.id;
             if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: 'DEAL_HUNTER_SHOW_OFFER_ALERT', offer }, () => void chrome.runtime.lastError);
