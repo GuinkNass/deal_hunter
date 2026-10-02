@@ -397,6 +397,8 @@ async function capturePage(category, maxPages, tabId, manual = false) {
           discountPercent: firstProduct.advertisedDiscount,
           imageUrl: firstProduct.imageUrl,
         } : null,
+      });
+
       if (captured.error || pageNumber + 1 >= maxPages) break;
 
       // Regra de parada: se a página atual retornar produtos esgotados, interrompe imediatamente o loop da categoria atual e passa para a próxima da fila
