@@ -153,12 +153,14 @@ const api = {
 
     // Fallback: dados salvos localmente
     try {
-      const stored = await chrome.storage.local.get(['catalogCategories', 'selectedCategories']);
+      const stored = await chrome.storage.local.get(['catalogCategories', 'selectedCategories', 'categoryKeywords']);
       if (Array.isArray(stored?.catalogCategories) && stored.catalogCategories.length > 0) {
         const selSet = new Set(stored.selectedCategories || []);
+        const kwMap = stored.categoryKeywords || {};
         return stored.catalogCategories.map((c) => ({
           ...c,
           selected: selSet.has(c.id) ? 1 : (c.selected ? 1 : 0),
+          keyword_filter: kwMap[c.id] || c.keyword_filter || '',
         }));
       }
     } catch {
@@ -168,8 +170,9 @@ const api = {
     // Fallback nativo: catálogo embutido com 8 lojas e 214 categorias
     if (typeof BUILTIN_CATALOG !== 'undefined' && Array.isArray(BUILTIN_CATALOG)) {
       try {
-        const { selectedCategories } = await chrome.storage.local.get('selectedCategories');
+        const { selectedCategories, categoryKeywords } = await chrome.storage.local.get(['selectedCategories', 'categoryKeywords']);
         const selSet = selectedCategories ? new Set(selectedCategories) : null;
+        const kwMap = categoryKeywords || {};
         const list = [];
         for (const s of BUILTIN_CATALOG) {
           for (const c of s.categories) {
@@ -181,26 +184,27 @@ const api = {
               siteName: s.name,
               domain: s.domain,
               selected: selSet ? (selSet.has(c.id) ? 1 : 0) : (c.selected ? 1 : 0),
+              keyword_filter: kwMap[c.id] || c.keyword_filter || '',
             });
           }
         }
         return list;
       } catch {
         return BUILTIN_CATALOG.flatMap((s) => s.categories.map((c) => ({
-          id: c.id, name: c.name, url: c.url, siteId: s.id, siteName: s.name, domain: s.domain, selected: c.selected ? 1 : 0,
+          id: c.id, name: c.name, url: c.url, siteId: s.id, siteName: s.name, domain: s.domain, selected: c.selected ? 1 : 0, keyword_filter: '',
         })));
       }
     }
 
     return [];
   },
-  saveCategories: async (selectedIds) => {
-    await chrome.storage.local.set({ selectedCategories: selectedIds }).catch(() => {});
+  saveCategories: async (selectedIds, keywords = {}) => {
+    await chrome.storage.local.set({ selectedCategories: selectedIds, categoryKeywords: keywords }).catch(() => {});
     try {
-      return await request('/api/catalog/categories', { method: 'PUT', body: { selectedIds } });
+      return await request('/api/catalog/categories', { method: 'PUT', body: { selectedIds, keywords } });
     } catch (err) {
       console.warn('[API] Categorias salvas no storage local (nuvem offline):', err.message);
-      return { ok: true, selectedIds, offline: true };
+      return { ok: true, selectedIds, keywords, offline: true };
     }
   },
   getScanConfig: () => request('/api/scan/config'),

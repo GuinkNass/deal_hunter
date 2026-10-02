@@ -71,7 +71,7 @@ function parseListing(html, pageUrl, domain) {
             '[data-testid="product-name"]',
             'h2', 'h3', 'h1',
             '[class*="productName"]',
-          ]) || link.attr('title') || card.find('img').first().attr('alt'))
+          ]) || link.attr('title') || card.find('img').first().attr('alt') || link.text().trim())
         : isEletroclub
         ? (textFirst(card, [
             '[class*="productBrand"]',
@@ -81,13 +81,13 @@ function parseListing(html, pageUrl, domain) {
             '[class*="product-summary"] h3',
             'h2 a', 'h2', 'h3 a', 'h3',
             '[data-testid="product-title"]',
-          ]) || link.attr('title') || card.find('img').first().attr('alt'))
+          ]) || link.attr('title') || card.find('img').first().attr('alt') || link.text().trim())
         : (textFirst(card, [
             '[data-testid="product-title"]', '[data-testid="product-name"]',
             'h2 a', 'h2', 'h3 a', 'h3', '.product-title', '.product-name',
             '[class*="productName"]', '[class*="nameContainer"]',
             '.a-size-base-plus', '.a-size-medium',
-          ]) || link.attr('title') || card.find('img').first().attr('alt'));
+          ]) || link.attr('title') || card.find('img').first().attr('alt') || link.text().trim());
 
       const current = isAmazon
         ? (amazonPriceFromParts(card) || priceFirst(card, currentPriceSelectors(domain)) || firstPrice(card.text()))
@@ -113,16 +113,28 @@ function parseListing(html, pageUrl, domain) {
         ? eletroclubDiscount(card)
         : parseDiscount(card.text());
 
+      // Trava de segurança anti-parcela universal (Magalu, KaBuM, Amazon, Shein, Shopee, etc.)
+      const cardFullText = card.text();
+      if (current && original && original > current) {
+        const ratio = Math.round(original / current);
+        if (ratio >= 2 && ratio <= 24 && (new RegExp(`\\b${ratio}\\s*x\\b`, 'i').test(cardFullText) || /x\s*de/i.test(cardFullText))) {
+          current = original;
+          advertisedDiscount = isMagalu ? (magaluDiscount(card) || null) : null;
+        }
+      }
+
       if (!original && advertisedDiscount && current > 0) {
         original = Math.round((current / (1 - advertisedDiscount / 100)) * 100) / 100;
       }
       if (!advertisedDiscount && original && current && original > current) {
         advertisedDiscount = Math.round(((original - current) / original) * 100);
       }
+      const isOutOfStock = /(?:esgotado|indispon[íi]vel|sem\s*estoque|fora\s*de\s*estoque|sold\s*out|out\s*of\s*stock|avise-me)/i.test(cardFullText)
+        || card.find('[class*="unavailable"], [class*="esgotado"], [class*="soldout"]').length > 0;
       const image = card.find('[data-testid="product-card-media"], [data-testid="image"], img').first();
       const imageUrl = image.attr('src') || image.attr('data-src') || image.attr('data-image-src')
         || image.attr('srcset')?.split(' ')[0] || null;
-      add({ name, url: href, price: current, originalPrice: original, advertisedDiscount, imageUrl });
+      add({ name, url: href, price: current, originalPrice: original, advertisedDiscount, imageUrl, outOfStock: isOutOfStock });
     });
   }
 
@@ -292,11 +304,9 @@ function currentPriceSelectors(domain) {
     '[data-testid="product-card-price-final"]',
     '[data-testid="product-card-price"] [class*="grid-area:final"] .sr-only',
     '[data-testid="product-card-price"] [class*="grid-area:final"]',
-    '[data-testid="product-card-price"]',
     '[id^="price-final-label-"]',
     '[aria-labelledby^="price-final-label-"]',
     '[itemprop="price"]',
-    '[data-testid="price-value"]',
   ];
   if (domain.includes('eletroclub.')) return [
     '[class*="spotPrice"]',
@@ -467,24 +477,55 @@ function amazonDiscount(card) {
 }
 
 function magaluPriceFromParts(card) {
+  // 1. Preço final específico no span sr-only ou id price-final-label-
   const finalSrOnly = card.find('[data-testid="product-card-price-final"] .sr-only, [data-testid="product-card-price"] [class*="grid-area:final"] .sr-only, [id^="price-final-label-"]').first().text();
   if (finalSrOnly) {
     const parsed = parsePrice(finalSrOnly);
     if (parsed > 0) return parsed;
   }
-  const finalEl = card.find('[data-testid="product-card-price-final"], [id^="price-final-label-"], [aria-labelledby^="price-final-label-"], [class*="grid-area:final"], [data-testid="product-card-price"]').first();
-  const target = finalEl.length ? finalEl : card;
-  const integer = target.find('[data-testid="price-value-integer"]').first().text().replace(/\D/g, '')
-    || card.find('[data-testid="price-value-integer"]').first().text().replace(/\D/g, '');
-  const centsEl = target.find('[data-testid="price-value-split-cents-fraction"], [data-testid="price-value-cents"]').first();
-  const cents = centsEl.length ? centsEl.text().replace(/\D/g, '').slice(0, 2).padEnd(2, '0') : '00';
-  if (integer) {
-    const parsed = parsePrice(`${integer},${cents}`);
-    if (parsed > 0) return parsed;
+
+  // 2. Preço final nos elementos inteiros e centavos
+  const finalEl = card.find('[data-testid="product-card-price-final"], [id^="price-final-label-"], [aria-labelledby^="price-final-label-"], [class*="grid-area:final"]').first();
+  if (finalEl.length) {
+    const integer = finalEl.find('[data-testid="price-value-integer"]').first().text().replace(/\D/g, '');
+    const centsEl = finalEl.find('[data-testid="price-value-split-cents-fraction"], [data-testid="price-value-cents"]').first();
+    const cents = centsEl.length ? centsEl.text().replace(/\D/g, '').slice(0, 2).padEnd(2, '0') : '00';
+    if (integer) {
+      const parsed = parsePrice(`${integer},${cents}`);
+      if (parsed > 0) return parsed;
+    }
+    const finalPrice = parsePrice(finalEl.attr('content') || finalEl.text());
+    if (finalPrice > 0) return finalPrice;
   }
-  const labelPrice = firstPrice(target.text());
-  if (labelPrice) return labelPrice;
-  return null;
+
+  // 3. Fallback para preço Pix no texto do card
+  const cardText = card.text();
+  const pixMatch = cardText.match(/R\$\s*([\d.]+,\d{2})\s*(?:no\s+Pix|à\s+vista)/i);
+  if (pixMatch) {
+    const parsedPix = parsePrice(pixMatch[1]);
+    if (parsedPix > 0) return parsedPix;
+  }
+
+  // 4. Se não há preço Pix, extrai o valor TOTAL do parcelamento (NUNCA a parcela isolada)
+  const installmentText = card.find('[data-testid*="price-installment"], [id*="price-installment"]').text() || cardText;
+  const ouTotalMatch = installmentText.match(/ou\s+R\$\s*([\d.]+,\d{2})\s+em\s+(\d+)x/i)
+    || cardText.match(/ou\s+R\$\s*([\d.]+,\d{2})\s+em\s+(\d+)x/i);
+  if (ouTotalMatch) {
+    const total = parsePrice(ouTotalMatch[1]);
+    if (total > 0) return total;
+  }
+  const installmentOnlyMatch = installmentText.match(/(?:ou\s+)?(\d+)x\s*de\s*R\$\s*([\d.]+,\d{2})/i)
+    || cardText.match(/(?:ou\s+)?(\d+)x\s*de\s*R\$\s*([\d.]+,\d{2})/i);
+  if (installmentOnlyMatch) {
+    const count = parseInt(installmentOnlyMatch[1], 10);
+    const perMonth = parsePrice(installmentOnlyMatch[2]);
+    if (count > 0 && perMonth > 0) {
+      return Math.round(count * perMonth * 100) / 100;
+    }
+  }
+
+  // 5. Fallback limpo sem pegar parcelas
+  return firstPrice(cardText);
 }
 
 function magaluOriginalPrice(card, currentPrice) {
@@ -512,11 +553,21 @@ function magaluOriginalPrice(card, currentPrice) {
     const val = parsePrice(deMatch[1]);
     if (val && val > currentPrice) return val;
   }
-  const installmentText = card.find('[data-testid="product-card-price-installment"]').text() || cardText;
-  const ouMatch = installmentText.match(/ou\s+R\$\s*([\d.,]+)/i);
+  const installmentText = card.find('[data-testid*="price-installment"], [id*="price-installment"]').text() || cardText;
+  const ouMatch = installmentText.match(/ou\s+R\$\s*([\d.]+,\d{2})/i) || cardText.match(/ou\s+R\$\s*([\d.]+,\d{2})/i);
   if (ouMatch) {
     const val = parsePrice(ouMatch[1]);
     if (val && val > currentPrice) return val;
+  }
+  const installmentOnlyMatch = installmentText.match(/(?:ou\s+)?(\d+)x\s*de\s*R\$\s*([\d.]+,\d{2})/i)
+    || cardText.match(/(?:ou\s+)?(\d+)x\s*de\s*R\$\s*([\d.]+,\d{2})/i);
+  if (installmentOnlyMatch && currentPrice) {
+    const count = parseInt(installmentOnlyMatch[1], 10);
+    const perMonth = parsePrice(installmentOnlyMatch[2]);
+    if (count > 0 && perMonth > 0) {
+      const total = Math.round(count * perMonth * 100) / 100;
+      if (total > currentPrice) return total;
+    }
   }
   return null;
 }
@@ -640,7 +691,13 @@ function priceFirst(card, selectors) {
   for (const selector of selectors) {
     const element = card.find(selector).first();
     if (!element.length) continue;
-    const raw = element.attr('content') || element.text();
+    const text = element.text() || '';
+    const parentText = element.parent().text() || '';
+    if (/(?:\b\d+\s*x\s*(?:de\s*)?|parcelas?|sem\s*juros|com\s*juros|a\s*prazo|no\s*cart[aã]o)/i.test(text) ||
+        /(?:\b\d+\s*x\s*de|parcelas?|sem\s*juros)/i.test(parentText)) {
+      continue;
+    }
+    const raw = element.attr('content') || text;
     const value = parsePrice(raw);
     if (value > 0) return value;
   }
@@ -648,7 +705,11 @@ function priceFirst(card, selectors) {
 }
 
 function firstPrice(text) {
-  const matches = String(text || '').match(/R\$\s*\d[\d.]*(?:,\d{2})?/g) || [];
+  const cleanText = String(text || '')
+    .replace(/(?:\b\d+\s*x\s*(?:de\s*)?|em\s*(?:at[ée]\s*)?\d+\s*x\s*(?:de\s*)?)\s*R\$\s*[\d.,]+/gi, '')
+    .replace(/R\$\s*[\d.,]+\s*(?:a\s*parcela|por\s*m[êe]s|sem\s*juros|com\s*juros|a\s*prazo|no\s*cart[aã]o)/gi, '')
+    .replace(/(?:parcelas?|sem\s*juros|com\s*juros|a\s*prazo)\s*(?:de\s*)?R\$\s*[\d.,]+/gi, '');
+  const matches = cleanText.match(/R\$\s*\d[\d.]*(?:,\d{2})?/g) || [];
   for (const value of matches) {
     const parsed = parsePrice(value);
     if (parsed > 0) return parsed;

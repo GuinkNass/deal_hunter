@@ -85,7 +85,25 @@
     : 'Loja';
 
   const MONEY_RE = /R\$\s*\d[\d.\u00a0 ]*(?:,\d{2})?/g;
+  const INSTALLMENT_RE = /(?:\b\d+\s*x\s*(?:de\s*)?|parcelas?|sem\s*juros|com\s*juros|a\s*prazo|no\s*cart[aã]o)/i;
   const MAX_SCROLL_ROUNDS = 20;
+
+  function isInstallmentElement(el) {
+    if (!el) return false;
+    const text = (el.innerText || el.textContent || '').trim();
+    if (INSTALLMENT_RE.test(text)) return true;
+    const parentText = (el.parentElement?.innerText || '').trim();
+    if (/(?:\b\d+\s*x\s*de|sem\s*juros|parcelas?)/i.test(parentText)) return true;
+    const className = String(el.className || '');
+    return /installment|parcela|cardPayment/i.test(className);
+  }
+
+  function isCardOutOfStock(card) {
+    if (!card) return false;
+    const text = (card.innerText || card.textContent || '').toLowerCase();
+    return /(?:produto\s*esgotado|produto\s*indispon[íi]vel|esgotado|indispon[íi]vel|sem\s*estoque|fora\s*de\s*estoque|sold\s*out|out\s*of\s*stock|avise-me\s*quando|n[ãa]o\s*dispon[íi]vel)/i.test(text)
+      || Boolean(card.querySelector?.('[class*="unavailable"], [class*="esgotado"], [class*="sold-out"], [class*="soldout"], [data-testid*="unavailable"]'));
+  }
 
   function parsePrice(value) {
     if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? value : null;
@@ -117,7 +135,7 @@
 
   function cardFor(element) {
     if (isMagalu) {
-      const container = element.closest('[data-testid="product-card-container"], li[data-testid="product-list-item"]');
+      const container = element.closest('[data-testid="product-card-container"], [data-testid="product-card-link"], li[data-testid="product-list-item"]');
       if (container) return container;
     }
     if (isPichau) {
@@ -233,7 +251,7 @@
         '[data-a-color="base"].a-price:not(.a-text-price) .a-offscreen',
         '.a-price .a-offscreen',
       ].join(', '));
-      if (curEl) price = parsePrice(curEl.textContent || curEl.innerText);
+      if (curEl && !isInstallmentElement(curEl)) price = parsePrice(curEl.textContent || curEl.innerText);
 
       if (!price) {
         const whole = card.querySelector('.a-price-whole')?.innerText?.replace(/\D/g, '');
@@ -304,14 +322,15 @@
       name = (nameElement?.innerText || link.getAttribute('title') || card.querySelector('img')?.alt || '')
         .replace(/\s+/g, ' ').trim().slice(0, 500);
 
-      // 2. PREÇO ATUAL MAGALU (Cascata de 7 níveis)
+      // 2. PREÇO ATUAL MAGALU (Com proteção anti-parcela)
+      // Primeiro tenta o preço final explícito (geralmente à vista no Pix)
       const finalSrOnly = card.querySelector([
         '[data-testid="product-card-price-final"] .sr-only',
         '[data-testid="product-card-price"] [class*="grid-area:final"] .sr-only',
         '[id^="price-final-label-"]',
         '[data-testid*="price-final"] .sr-only',
       ].join(', '));
-      if (finalSrOnly) price = parsePrice(finalSrOnly.innerText || finalSrOnly.textContent);
+      if (finalSrOnly) price = parsePrice(finalSrOnly.textContent || finalSrOnly.innerText);
 
       if (!price) {
         const finalPriceEl = card.querySelector([
@@ -319,28 +338,47 @@
           '[data-testid*="product-card-price-final"]',
           '[data-testid="product-card-price"] [class*="grid-area:final"]',
           '[class*="grid-area:final"]',
-          '[data-testid="product-card-price"]',
           '[aria-labelledby^="price-final-label-"]',
           '[data-testid*="price-final"]',
         ].join(', '));
-        const searchRoot = finalPriceEl || card;
-        const integer = searchRoot.querySelector('[data-testid="price-value-integer"]')?.innerText?.replace(/\D/g, '')
-          || card.querySelector('[data-testid="price-value-integer"]')?.innerText?.replace(/\D/g, '');
-        const centsEl = searchRoot.querySelector('[data-testid="price-value-split-cents-fraction"], [data-testid="price-value-cents"]')
-          || card.querySelector('[data-testid="price-value-split-cents-fraction"], [data-testid="price-value-cents"]');
-        const cents = centsEl ? centsEl.innerText.replace(/\D/g, '').slice(0, 2).padEnd(2, '0') : '00';
-        if (integer) price = parsePrice(`${integer},${cents}`);
-        if (!price && finalPriceEl) {
-          price = parsePrice(finalPriceEl.getAttribute('content') || finalPriceEl.innerText);
+        if (finalPriceEl) {
+          const integer = finalPriceEl.querySelector('[data-testid="price-value-integer"]')?.innerText?.replace(/\D/g, '');
+          const centsEl = finalPriceEl.querySelector('[data-testid="price-value-split-cents-fraction"], [data-testid="price-value-cents"]');
+          const cents = centsEl ? centsEl.innerText.replace(/\D/g, '').slice(0, 2).padEnd(2, '0') : '00';
+          if (integer) price = parsePrice(`${integer},${cents}`);
+          if (!price) price = parsePrice(finalPriceEl.getAttribute('content') || finalPriceEl.innerText);
         }
       }
 
       if (!price) {
-        // Fallback textual para preço no Magalu (ex: "no Pix", "à vista", ou primeiro R$)
-        const priceContainer = card.querySelector('[data-testid*="price"], [class*="price"]');
-        const priceText = priceContainer ? (priceContainer.innerText || '') : '';
-        const matchPix = priceText.match(/R\$\s*([\d.]+,\d{2})\s*(?:no\s+Pix|à\s+vista)?/i);
+        // Fallback textual para preço no Magalu exclusivamente com marcação "no Pix" ou "à vista"
+        const cardText = card.innerText || card.textContent || '';
+        const matchPix = cardText.match(/R\$\s*([\d.]+,\d{2})\s*(?:no\s+Pix|à\s+vista)/i);
         if (matchPix) price = parsePrice(matchPix[1]);
+      }
+
+      // Se não há preço Pix explícito, analisa o bloco de parcelamento para obter o valor TOTAL a prazo
+      // NUNCA o valor de uma única parcela!
+      const installmentEl = card.querySelector('[data-testid*="price-installment"], [data-testid="product-card-price-installment"], [id*="price-installment"]');
+      const installmentText = installmentEl ? (installmentEl.textContent || installmentEl.innerText || '') : '';
+
+      // Formato 1: "ou R$ 3.999,00 em 10x de R$ 399,90 sem juros" -> total a prazo é R$ 3.999,00
+      const ouTotalMatch = installmentText.match(/ou\s+R\$\s*([\d.]+,\d{2})\s+em\s+(\d+)x/i)
+        || (card.innerText || '').match(/ou\s+R\$\s*([\d.]+,\d{2})\s+em\s+(\d+)x/i);
+      // Formato 2: "10x de R$ 79,90" -> total a prazo é 10 * 79,90
+      const installmentOnlyMatch = installmentText.match(/(?:ou\s+)?(\d+)x\s*de\s*R\$\s*([\d.]+,\d{2})/i)
+        || (card.innerText || '').match(/(?:ou\s+)?(\d+)x\s*de\s*R\$\s*([\d.]+,\d{2})/i);
+
+      if (!price) {
+        if (ouTotalMatch) {
+          price = parsePrice(ouTotalMatch[1]);
+        } else if (installmentOnlyMatch) {
+          const count = parseInt(installmentOnlyMatch[1], 10);
+          const perMonth = parsePrice(installmentOnlyMatch[2]);
+          if (count > 0 && perMonth > 0) {
+            price = Math.round(count * perMonth * 100) / 100;
+          }
+        }
       }
 
       // 3. PREÇO ORIGINAL "DE" MAGALU (Cascata de 6 níveis + regex)
@@ -368,16 +406,21 @@
       }
 
       if (!originalPrice || originalPrice <= price) {
-        const installmentEl = card.querySelector('[data-testid*="price-installment"], [data-testid="product-card-price-installment"]');
-        const installmentText = installmentEl ? (installmentEl.textContent || installmentEl.innerText || '') : '';
-        const ouMatch = installmentText.match(/ou\s+R\$\s*([\d.,]+)/i) || (card.innerText || '').match(/ou\s+R\$\s*([\d.,]+)/i);
-        if (ouMatch) {
-          const parsedOu = parsePrice(ouMatch[1]);
-          if (parsedOu && parsedOu > price) originalPrice = parsedOu;
+        if (ouTotalMatch) {
+          const parsedOu = parsePrice(ouTotalMatch[1]);
+          if (parsedOu && (!price || parsedOu > price)) originalPrice = parsedOu;
+        } else if (installmentOnlyMatch && price) {
+          const count = parseInt(installmentOnlyMatch[1], 10);
+          const perMonth = parsePrice(installmentOnlyMatch[2]);
+          if (count > 0 && perMonth > 0) {
+            const installmentTotal = Math.round(count * perMonth * 100) / 100;
+            if (installmentTotal > price) originalPrice = installmentTotal;
+          }
         }
       }
 
       // 4. DESCONTO % MAGALU (Loop inteligente sobre todos os badges do card)
+      let tagDiscount = null;
       const tagCandidates = card.querySelectorAll([
         '[data-testid="product-card-price"] [class*="grid-area:discount"]',
         '[data-testid="product-card-price"] [data-testid="tag"]',
@@ -391,11 +434,27 @@
         const aria = el.getAttribute('aria-label') || '';
         const d = parseDiscount(aria) || parseDiscount(el.textContent || el.innerText);
         if (d && d > 0 && d < 100) {
-          advertisedDiscount = d;
+          tagDiscount = d;
           break;
         }
       }
-      if (!advertisedDiscount) advertisedDiscount = parseDiscount(card.innerText || card.textContent);
+      advertisedDiscount = tagDiscount || parseDiscount(card.innerText || card.textContent);
+
+      // TRAVA DE SEGURANÇA ANTI-PARCELA:
+      // Se o preço capturado foi inadvertidamente uma única parcela (ex: R$ 79,90) enquanto o original era R$ 799,00
+      // o ratio original/preço baterá com a quantidade de parcelas (ex: 10x) e a tag do site (ex: 10% ou 14%)
+      // não corresponderá a 90%. Corrige o preço e previne desconto falso!
+      if (price && originalPrice && originalPrice > price) {
+        const ratio = Math.round(originalPrice / price);
+        if (ratio >= 2 && ratio <= 24) {
+          const cardFullText = card.innerText || card.textContent || '';
+          if (new RegExp(`\\b${ratio}\\s*x\\b`, 'i').test(cardFullText)) {
+            console.warn(`[Deal Hunter Magalu Anti-Parcela] Preço capturado (R$ ${price}) correspondia a 1 parcela de ${ratio}x. Preço corrigido para integral (R$ ${originalPrice}).`);
+            price = originalPrice;
+            advertisedDiscount = tagDiscount || null;
+          }
+        }
+      }
 
       // Bidirecional Magalu
       if (!originalPrice && advertisedDiscount && price > 0) {
@@ -532,15 +591,16 @@
 
       // 2. PREÇO ATUAL SHEIN
       const curEl = card.querySelector('[class*="final-price"], [class*="offscreen"], [class*="price__main"], [class*="sale-price"]');
-      if (curEl) price = parsePrice(curEl.innerText || curEl.textContent);
+      if (curEl && !isInstallmentElement(curEl)) price = parsePrice(curEl.innerText || curEl.textContent);
       if (!price) {
-        const prices = (card.innerText || '').match(MONEY_RE) || [];
-        if (prices.length) price = parsePrice(prices[0]);
+        const textClean = (card.innerText || '').replace(INSTALLMENT_RE, '');
+        const prices = (textClean.match(MONEY_RE) || []).map(parsePrice).filter(Boolean);
+        if (prices.length) price = prices[0];
       }
 
       // 3. PREÇO ORIGINAL "DE" SHEIN
       const origEl = card.querySelector('[class*="price__secondary"] del, del, s, [class*="original-price"]');
-      if (origEl) originalPrice = parsePrice(origEl.innerText || origEl.textContent);
+      if (origEl && !isInstallmentElement(origEl)) originalPrice = parsePrice(origEl.innerText || origEl.textContent);
 
       // 4. DESCONTO % SHEIN
       const discEl = card.querySelector('[class*="discount-label"], [class*="title-discount-label"], [class*="discount"]');
@@ -566,15 +626,16 @@
 
       // 2. PREÇO ATUAL SHOPEE
       const curEl = card.querySelector('[class*="text-shopee-primary"], span.text-base, [class*="font-medium"], [class*="price"]');
-      if (curEl) price = parsePrice(curEl.innerText || curEl.textContent);
+      if (curEl && !isInstallmentElement(curEl)) price = parsePrice(curEl.innerText || curEl.textContent);
       if (!price) {
-        const prices = (card.innerText || '').match(MONEY_RE) || [];
-        if (prices.length) price = parsePrice(prices[0]);
+        const textClean = (card.innerText || '').replace(INSTALLMENT_RE, '');
+        const prices = (textClean.match(MONEY_RE) || []).map(parsePrice).filter(Boolean);
+        if (prices.length) price = prices[0];
       }
 
       // 3. PREÇO ORIGINAL SHOPEE
       const origEl = card.querySelector('del, s, [class*="text-xs"][class*="line-through"], [class*="line-through"]');
-      if (origEl) originalPrice = parsePrice(origEl.innerText || origEl.textContent);
+      if (origEl && !isInstallmentElement(origEl)) originalPrice = parsePrice(origEl.innerText || origEl.textContent);
 
       // 4. DESCONTO % SHOPEE
       const discEl = card.querySelector('[class*="discount"], [class*="text-xs"][class*="text-shopee-primary"]');
@@ -600,11 +661,16 @@
 
       // 2. PREÇO ATUAL KABUM
       const curEl = card.querySelector('[class*="priceCard"], [class*="price"], [class*="finalPrice"]');
-      if (curEl) price = parsePrice(curEl.innerText || curEl.textContent);
+      if (curEl && !isInstallmentElement(curEl)) price = parsePrice(curEl.innerText || curEl.textContent);
+      if (!price) {
+        const textClean = (card.innerText || '').replace(INSTALLMENT_RE, '');
+        const prices = (textClean.match(MONEY_RE) || []).map(parsePrice).filter(Boolean);
+        if (prices.length) price = prices[0];
+      }
 
       // 3. PREÇO ORIGINAL KABUM
       const origEl = card.querySelector('[class*="oldPriceCard"], del, s');
-      if (origEl) originalPrice = parsePrice(origEl.innerText || origEl.textContent);
+      if (origEl && !isInstallmentElement(origEl)) originalPrice = parsePrice(origEl.innerText || origEl.textContent);
 
       // 4. DESCONTO KABUM
       const discEl = card.querySelector('[class*="discountCard"], [class*="tagDiscount"], [class*="discount"]');
@@ -676,7 +742,11 @@
       if (lines.length) name = lines[0].slice(0, 500);
     }
     if (!price) {
-      const text = card.innerText || '';
+      let text = card.innerText || card.textContent || '';
+      text = text
+        .replace(/(?:\b\d+\s*x\s*(?:de\s*)?|em\s*(?:at[ée]\s*)?\d+\s*x\s*(?:de\s*)?)\s*R\$\s*[\d.,]+/gi, '')
+        .replace(/R\$\s*[\d.,]+\s*(?:a\s*parcela|por\s*m[êe]s|sem\s*juros|com\s*juros|a\s*prazo|no\s*cart[aã]o)/gi, '')
+        .replace(/(?:parcelas?|sem\s*juros|com\s*juros|a\s*prazo)\s*(?:de\s*)?R\$\s*[\d.,]+/gi, '');
       const prices = (text.match(MONEY_RE) || []).map(parsePrice).filter(Boolean);
       MONEY_RE.lastIndex = 0;
       if (prices.length) price = prices[0];
@@ -688,6 +758,20 @@
       const higher = prices.find((candidate) => candidate > price);
       if (higher) originalPrice = higher;
     }
+
+    // Trava de segurança anti-parcela universal:
+    // Se o preço capturado for uma fração de parcela do preço original
+    if (price && originalPrice && originalPrice > price) {
+      const ratio = Math.round(originalPrice / price);
+      if (ratio >= 2 && ratio <= 24) {
+        const cardFullText = card.innerText || card.textContent || '';
+        if (new RegExp(`\\b${ratio}\\s*x\\b`, 'i').test(cardFullText) || /x\s*de/i.test(cardFullText)) {
+          price = originalPrice;
+          advertisedDiscount = null;
+        }
+      }
+    }
+
     if (!originalPrice && advertisedDiscount && price > 0) {
       originalPrice = Math.round((price / (1 - advertisedDiscount / 100)) * 100) / 100;
     }
@@ -695,7 +779,8 @@
       advertisedDiscount = Math.round(((originalPrice - price) / originalPrice) * 100);
     }
 
-    if (!name || !price) return null;
+    const isOutOfStock = isCardOutOfStock(card);
+    if (!name || !price) return isOutOfStock ? { name, url: href, price: 0, outOfStock: true } : null;
 
     const imgEl = card.querySelector('[data-testid="product-card-media"], [data-testid="image"], img');
     const imageUrl = imgEl?.currentSrc || imgEl?.src || imgEl?.getAttribute('data-src') || imgEl?.getAttribute('data-image-src') || null;
@@ -709,6 +794,7 @@
       currency: 'BRL',
       imageUrl,
       html: card.outerHTML,
+      outOfStock: isOutOfStock,
     };
   }
 
@@ -1037,9 +1123,27 @@
         scanError = 'Sessão do Eletroclub não identificada ou expirada. Faça login no Eletroclub no Chrome e confirme se os preços aparecem na tela.';
       }
     }
+    // Detecção de produtos esgotados na página atual
+    let outOfStockFound = false;
+    let outOfStockCount = 0;
+    for (const p of products) {
+      if (p.outOfStock || !p.price || p.price <= 0) {
+        outOfStockFound = true;
+        outOfStockCount += 1;
+      }
+    }
+    const pageBodyText = document.body ? (document.body.innerText || '').toLowerCase() : '';
+    const pageIndicatesUnavailable = /(?:nenhum\s*produto\s*encontrado|nenhum\s*resultado|todos\s*os\s*produtos\s*esgotados|produtos\s*esgotados|estoque\s*esgotado)/i.test(pageBodyText);
+    if (pageIndicatesUnavailable || outOfStockCount > 0) {
+      outOfStockFound = true;
+    }
+
     return {
       html, products: capturedProducts, productsFound: capturedProducts.length, pageTitle: document.title,
       error: scanError,
+      hasOutOfStock: outOfStockFound,
+      stopCategory: outOfStockFound,
+      outOfStockCount,
       ...nextPageInfo(), ...scroll,
     };
   }

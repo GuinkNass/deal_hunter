@@ -56,6 +56,16 @@ const SITE_RULES = {
     loginUrl: 'https://shopee.com.br/buyer/login',
     notes: 'OBSERVAÇÃO OBRIGATÓRIA: Exige login prévio (mesma regra do Eletroclub) para exibir produtos completos e paginação sem restrição.',
   },
+  MAGALU: {
+    siteId: 'magalu',
+    name: 'Magazine Luiza',
+    domain: 'magazineluiza.com.br',
+    baseUrl: 'https://www.magazineluiza.com.br',
+    productPattern: /(?:\/p\/[a-z0-9-]+|\/produto\/|[a-z0-9-]+-p-[a-z0-9]+|\/l\/[a-z0-9-]+|Smartphone|Preço R\$|data-testid="product-card)/i,
+    junkRegex: /(?:facebook|instagram|twitter|youtube|linkedin|tiktok|politicas|privacidade|portaldeprivacidade|siteblindado|atendimento|sac|login|carrinho|retire grátis na loja|meus-pedidos|quem-somos)/i,
+    requiresLogin: false,
+    notes: 'Proteção anti-bot (Cloudflare/Akamai). Usar rotação ou pausas. URL de produto contém /p/ ou /l/ para categoria. Preço promocional no Pix e proteção anti-parcela para evitar cálculo indevido de valor de parcela como valor final.',
+  },
 };
 
 /**
@@ -86,17 +96,20 @@ function extractDiscountPercent(orig, promo, text) {
 function extractCategories(paragraphs, rule) {
   const categories = [];
   let inCategorySection = false;
+  let pendingName = '';
+  const cleanDomain = rule.domain.toLowerCase().replace(/^www\./, '').split('.')[0];
 
   for (const text of paragraphs) {
     const lower = text.toLowerCase();
     if (lower.includes('link das principais') || lower.includes('link de cada categoria')) {
       inCategorySection = true;
+      pendingName = '';
       continue;
     }
     if (inCategorySection) {
       if (lower.includes('instruções de processamento') || lower.includes('documento de entrada')) {
         inCategorySection = false;
-        continue;
+        break;
       }
 
       // Procura formato: [Nome](URL) ou Nome: URL
@@ -106,6 +119,7 @@ function extractCategories(paragraphs, rule) {
         const url = markdownMatch[3].trim();
         const slug = `${rule.siteId}-${categories.length + 1}`;
         categories.push([slug, name, url]);
+        pendingName = '';
         continue;
       }
 
@@ -115,17 +129,27 @@ function extractCategories(paragraphs, rule) {
         const url = standardMatch[2].trim();
         const slug = `${rule.siteId}-${categories.length + 1}`;
         categories.push([slug, name, url]);
+        pendingName = '';
         continue;
       }
 
-      // Link direto
+      // Link direto ou multi-linha (nome na linha anterior e URL na linha atual)
       const directUrlMatch = text.match(/(https?:\/\/[^\s\)]+)/i);
-      if (directUrlMatch && directUrlMatch[1].includes(rule.domain.split('.')[0])) {
+      if (directUrlMatch) {
         const url = directUrlMatch[1].trim();
-        const rawName = text.replace(url, '').replace(/[•\-\*:\(\)\[\]]/g, '').trim();
-        const name = rawName || `Categoria ${categories.length + 1}`;
-        const slug = `${rule.siteId}-${categories.length + 1}`;
-        categories.push([slug, name, url]);
+        const urlLower = url.toLowerCase();
+        if (urlLower.includes(cleanDomain) || urlLower.includes('magazineluiza') || urlLower.includes(rule.domain)) {
+          const rawName = text.replace(url, '').replace(/[•\-\*:\(\)\[\]]/g, '').trim();
+          const name = rawName || pendingName || `Categoria ${categories.length + 1}`;
+          const slug = `${rule.siteId}-${categories.length + 1}`;
+          categories.push([slug, name, url]);
+          pendingName = '';
+        }
+      } else {
+        const cleaned = text.replace(/[•\-\*:\(\)\[\]]/g, '').trim();
+        if (cleaned && !cleaned.toLowerCase().includes('link das')) {
+          pendingName = cleaned;
+        }
       }
     }
   }
@@ -303,6 +327,43 @@ function extractSampleProducts(paragraphs, rule) {
       if (!name) {
         name = rawUrl.split('shopee.com.br/').pop().replace(/-i\.\d+\.\d+.*$/, '').replace(/-/g, ' ');
       }
+    } else if (rule.siteId === 'magalu') {
+      const urlMatch = line.match(/(https?:\/\/www\.magazineluiza\.com\.br\/[^\s\"\'<>]+|\/[a-z0-9-]+(?:\/p\/|\/produto\/)[^\s\"\'<>]*)/i);
+      if (urlMatch) {
+        const rawUrl = urlMatch[1].split('?')[0];
+        url = rawUrl.startsWith('http') ? rawUrl : `${rule.baseUrl}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
+
+        // Remoção prévia e estrita de parcelas (ex: 10x de R$ 84,55) da linha antes de extrair preços
+        // para garantir que o valor da parcela NUNCA seja capturado como preço final com desconto
+        const lineWithoutInstallments = line.replace(/(?:\b\d+\s*x\s*(?:de\s*)?|em\s*\d+\s*x\s*(?:de\s*)?)\s*R\$\s*[\d.,]+/gi, '');
+        const prices = [...lineWithoutInstallments.matchAll(/R\$\s*([\d.]+,\d{2})/gi)].map((m) => parsePrice(m[1])).filter(Boolean);
+
+        const discMatch = line.match(/(\d{1,2})%\s*off/i) || line.match(/Desconto:?\s*(\d{1,2})%/i);
+        discount = discMatch ? `${discMatch[1]}%` : '0%';
+        const discVal = parseInt(discount, 10) || 0;
+
+        if (prices.length >= 2) {
+          originalPrice = prices[0];
+          promotionalPrice = prices[1];
+        } else if (prices.length === 1) {
+          promotionalPrice = prices[0];
+        }
+
+        if (promotionalPrice && discVal > 0 && discVal < 100 && !originalPrice) {
+          originalPrice = Math.round((promotionalPrice / (1 - discVal / 100)) * 100) / 100;
+        }
+
+        const titleMatch = line.match(/<h[1-3][^>]*>(.*?)<\/h[1-3]>/i)
+          || line.match(/product-card-title[^>]*>(.*?)(?:<\/|$)/i);
+        if (titleMatch) {
+          name = titleMatch[1].replace(/<[^>]+>/g, '').trim();
+        } else {
+          let rest = line.substring(line.indexOf(urlMatch[1]) + urlMatch[1].length);
+          rest = rest.replace(/[\"\ue8cc\ue4cb\ue87d\ue000-\uf8ff]/g, '');
+          const firstR = rest.indexOf('R$');
+          name = (firstR !== -1 ? rest.substring(0, firstR) : rest.substring(0, 100)).trim();
+        }
+      }
     }
 
     if (name && url && (promotionalPrice || originalPrice) && !seenUrls.has(url)) {
@@ -315,6 +376,49 @@ function extractSampleProducts(paragraphs, rule) {
         discount,
         rawOriginalPrice: originalPrice,
         rawPromotionalPrice: promotionalPrice,
+      });
+    }
+  }
+
+  // Se nenhum produto foi extraído linha-a-linha no Magalu, extrai o bloco de exemplo do .docx
+  if (rule.siteId === 'magalu' && products.length === 0) {
+    let sampleTitle = '';
+    let samplePrice = null;
+    let sampleDiscount = '0%';
+    let sampleUrl = '';
+
+    for (const text of paragraphs) {
+      if (text.toLowerCase().includes('instruções de processamento')) break;
+
+      const titleMatch = text.match(/<h[1-3][^>]*>(.*?)<\/h[1-3]>/i)
+        || text.match(/product-card-title[^>]*>(.*?)(?:<\/|$)/i);
+      if (titleMatch) sampleTitle = titleMatch[1].replace(/<[^>]+>/g, '').trim();
+
+      const discMatch = text.match(/(\d{1,2})%\s*off/i);
+      if (discMatch) sampleDiscount = `${discMatch[1]}%`;
+
+      const priceMatch = text.match(/Preço\s*R\$\s*&?nbsp;?([\d.]+,\d{2})/i)
+        || text.match(/R\$\s*&?nbsp;?([\d.]+,\d{2})/i);
+      if (priceMatch && !text.includes('x de')) samplePrice = parsePrice(priceMatch[1]);
+
+      const imgMatch = text.match(/src="https?:\/\/[^\/]+\/[^\/]+\/([^\/]+)\//i);
+      if (imgMatch) sampleUrl = `https://www.magazineluiza.com.br/${imgMatch[1]}/p/`;
+    }
+
+    if (sampleTitle && samplePrice) {
+      const discVal = parseInt(sampleDiscount, 10) || 0;
+      let origPrice = null;
+      if (discVal > 0 && discVal < 100) {
+        origPrice = Math.round((samplePrice / (1 - discVal / 100)) * 100) / 100;
+      }
+      products.push({
+        name: sampleTitle,
+        url: sampleUrl || `${rule.baseUrl}/`,
+        originalPrice: origPrice ? formatCurrency(origPrice) : '-',
+        promotionalPrice: formatCurrency(samplePrice),
+        discount: sampleDiscount,
+        rawOriginalPrice: origPrice,
+        rawPromotionalPrice: samplePrice,
       });
     }
   }

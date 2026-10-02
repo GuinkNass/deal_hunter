@@ -46,4 +46,5 @@ Thumbs.db
 desktop.ini
 
 # Root archives
-Deal_Hunter_Cliente.zip
+*.zip
+

@@ -37,4 +37,45 @@ function calculateOpportunityScore({
   return Math.round(Math.max(0, Math.min(100, score)));
 }
 
-module.exports = { calculateOpportunityScore };
+function normalizeText(text) {
+  return String(text || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * Validação de filtro dinâmico por palavra-chave:
+ * O alerta só é disparado e enviado se o título ou descrição do produto
+ * contiver a palavra-chave específica digitada pelo usuário (modelo, marca ou característica).
+ * Se nenhum filtro estiver configurado para a categoria, retorna true.
+ * Suporta múltiplos termos separados por vírgula ou ponto-e-vírgula (ex: "RTX 4070, RTX 4080").
+ * @param {string|{title?: string, name?: string, description?: string}} product
+ * @param {string|null|undefined} keywordFilter
+ * @returns {boolean}
+ */
+function validateKeywordFilter(product, keywordFilter) {
+  if (!keywordFilter || typeof keywordFilter !== 'string') return true;
+  const rawFilter = keywordFilter.trim();
+  if (!rawFilter) return true;
+
+  const productText = typeof product === 'string'
+    ? product
+    : `${product?.title || ''} ${product?.name || ''} ${product?.description || ''}`;
+
+  const normalizedProduct = normalizeText(productText);
+  if (!normalizedProduct) return false;
+
+  const terms = rawFilter
+    .split(/[,;]/)
+    .map((t) => normalizeText(t))
+    .filter(Boolean);
+
+  if (!terms.length) return true;
+
+  // Retorna true se qualquer um dos termos configurados estiver presente no título ou descrição
+  return terms.some((term) => normalizedProduct.includes(term));
+}
+
+module.exports = { calculateOpportunityScore, validateKeywordFilter, normalizeText };

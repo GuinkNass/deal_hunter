@@ -397,10 +397,18 @@ async function capturePage(category, maxPages, tabId, manual = false) {
           discountPercent: firstProduct.advertisedDiscount,
           imageUrl: firstProduct.imageUrl,
         } : null,
-      });
       if (captured.error || pageNumber + 1 >= maxPages) break;
 
-      const targetPageNum = pageNumber + 2;
+      // Regra de parada: se a página atual retornar produtos esgotados, interrompe imediatamente o loop da categoria atual e passa para a próxima da fila
+      if (captured.hasOutOfStock || captured.stopCategory) {
+        console.warn(`[Deal Hunter] Categoria "${category.name}" retornou produtos esgotados/indisponíveis na página ${pageNumber + 1}. Interrompendo loop da categoria.`);
+        publishScanProgress({
+          scanning: true, manual, siteName: category.siteName, categoryName: category.name,
+          status: `Página ${pageNumber + 1}: produtos esgotados detectados. Avançando para próxima categoria...`,
+          product: null,
+        });
+        break;
+      }
       let navigated = false;
 
       // Nível 1: Se a página forneceu uma URL explícita de próxima página no DOM

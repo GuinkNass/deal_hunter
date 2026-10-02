@@ -361,11 +361,12 @@ function renderCatalogList(categories) {
       </div>
       <div class="store-categories">
         ${rows.map((category) => `
-          <label class="catalog-category" data-cat-name="${escapeHtml((category.name || '').toLowerCase())}">
+          <div class="catalog-category" data-cat-name="${escapeHtml((category.name || '').toLowerCase())}">
             <input type="checkbox" data-category-id="${escapeHtml(category.id)}" ${Number(category.selected) ? 'checked' : ''} />
-            <span>${escapeHtml(category.name)}</span>
-            <a href="${escapeHtml(safeHttpUrl(category.url))}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();">Abrir categoria ↗</a>
-          </label>
+            <span style="cursor:pointer;" onclick="this.previousElementSibling.click()">${escapeHtml(category.name)}</span>
+            <input type="text" class="catalog-keyword-input" data-keyword-id="${escapeHtml(category.id)}" placeholder="Palavra-chave (ex: RTX 4070)..." value="${escapeHtml(category.keyword_filter || '')}" title="Filtro de palavra-chave: alerta somente se o produto contiver este termo" onclick="event.stopPropagation();" />
+            <a href="${escapeHtml(safeHttpUrl(category.url))}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();">Abrir ↗</a>
+          </div>
         `).join('')}
       </div>
     </section>
@@ -478,6 +479,12 @@ document.getElementById('catalog-save').addEventListener('click', async () => {
   const selectedInputs = document.querySelectorAll('#catalog-list input[data-category-id]:checked');
   const selectedIds = [...selectedInputs].map((input) => input.dataset.categoryId);
 
+  const keywords = {};
+  document.querySelectorAll('#catalog-list input[data-keyword-id]').forEach((input) => {
+    const val = input.value.trim();
+    keywords[input.dataset.keywordId] = val || '';
+  });
+
   if (selectedIds.length === 0) {
     feedback.textContent = '⚠️ Selecione pelo menos uma categoria antes de salvar.';
     return;
@@ -485,10 +492,10 @@ document.getElementById('catalog-save').addEventListener('click', async () => {
 
   saveBtn.disabled = true;
   saveBtn.textContent = 'Salvando…';
-  feedback.textContent = '⏳ Gravando seleção…';
+  feedback.textContent = '⏳ Gravando seleção e filtros…';
 
   try {
-    await api.saveCategories(selectedIds);
+    await api.saveCategories(selectedIds, keywords);
     feedback.textContent = `✅ ${selectedIds.length} categoria(s) salva(s) com sucesso para monitoramento!`;
     setTimeout(() => { feedback.textContent = ''; }, 4000);
   } catch (err) {
@@ -500,7 +507,7 @@ document.getElementById('catalog-save').addEventListener('click', async () => {
 });
 
 // ---------- Agendamento da varredura ----------
-const PAGES_OPTIONS = [1, 2, 3, 5];
+const PAGES_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 const INTERVAL_OPTIONS = [
   { v: 15, label: '15 minutos' },
   { v: 30, label: '30 minutos' },

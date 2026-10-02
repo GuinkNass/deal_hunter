@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS monitored_categories (
   name VARCHAR(255) NOT NULL,
   url TEXT NOT NULL,
   selected INTEGER NOT NULL DEFAULT 0,
+  keyword_filter TEXT,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   CONSTRAINT uq_site_url UNIQUE(site_id, url)
 );

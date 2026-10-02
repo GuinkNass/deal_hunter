@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS monitored_categories (
   name TEXT NOT NULL,
   url TEXT NOT NULL,
   selected INTEGER NOT NULL DEFAULT 0,
+  keyword_filter TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(site_id, url)
 );

@@ -7,18 +7,18 @@ const zlib = require('node:zlib');
  */
 function findSitesDir() {
   const candidates = [
-    path.resolve(__dirname, '../../../../sites'),
-    path.resolve(__dirname, '../../../../SITES'),
-    path.resolve(__dirname, '../../../sites'),
-    path.resolve(__dirname, '../../../SITES'),
-    path.resolve(__dirname, '../../sites'),
-    path.resolve(__dirname, '../../SITES'),
-    path.resolve(process.cwd(), 'sites'),
     path.resolve(process.cwd(), 'SITES'),
-    path.resolve(process.cwd(), '../sites'),
+    path.resolve(process.cwd(), 'sites'),
+    path.resolve(__dirname, '../../../../SITES'),
+    path.resolve(__dirname, '../../../../sites'),
+    path.resolve(__dirname, '../../../SITES'),
+    path.resolve(__dirname, '../../../sites'),
+    path.resolve(__dirname, '../../SITES'),
+    path.resolve(__dirname, '../../sites'),
     path.resolve(process.cwd(), '../SITES'),
-    path.resolve(process.cwd(), '../../sites'),
+    path.resolve(process.cwd(), '../sites'),
     path.resolve(process.cwd(), '../../SITES'),
+    path.resolve(process.cwd(), '../../sites'),
   ];
 
   for (const dir of candidates) {

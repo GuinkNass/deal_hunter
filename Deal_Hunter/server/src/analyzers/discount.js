@@ -70,12 +70,67 @@ function round2(n) {
 }
 
 /**
+ * Verifica se o preço atual corresponde na verdade ao valor de uma parcela isolada
+ * (ex: R$ 79,90 de um produto de 10x de R$ 79,90 que custa R$ 799,00).
+ * Nesses casos a oferta é descartada para evitar alertas com falso desconto de 90%.
+ */
+function isIsolatedInstallment(item) {
+  if (!item || !item.price || item.price <= 0) return false;
+  const currentPrice = Number(item.price);
+
+  // 1. Se o valor da parcela foi fornecido diretamente no item
+  if (item.installmentAmount && Math.abs(currentPrice - Number(item.installmentAmount)) < 0.05) {
+    return true;
+  }
+
+  // 2. Se temos preço original de referência e a proporção fecha com um número de parcelas comum
+  const origPrice = Number(item.siteOriginalPrice || item.originalPrice);
+  const text = String(item.rawText || item.text || item.cardText || item.name || item.html || '');
+
+  if (origPrice && origPrice > currentPrice) {
+    const ratio = Math.round(origPrice / currentPrice);
+    if (ratio >= 2 && ratio <= 24) {
+      // Verifica se há menção a "Nx", "N x", "parcelas" ou "sem juros" no texto
+      const regexNx = new RegExp(`\\b${ratio}\\s*x\\b`, 'i');
+      if (regexNx.test(text) || /(?:x\s*de|parcelas?|sem\s*juros|a\s*prazo)/i.test(text)) {
+        return true;
+      }
+      // Se a divisão fecha com erro menor que 2 centavos
+      const expectedParcel = origPrice / ratio;
+      if (Math.abs(expectedParcel - currentPrice) < 0.03 && ratio >= 3) {
+        return true;
+      }
+    }
+  }
+
+  // 3. Procura no texto por padrões de parcelas como "10x de R$ 79,90"
+  if (text) {
+    const parcelMatches = text.matchAll(/(?:ou\s+)?(\d{1,2})\s*x\s*(?:de\s*)?R?\$?\s*([\d.]+,\d{2})/gi);
+    for (const match of parcelMatches) {
+      const numStr = match[2].replace(/\./g, '').replace(',', '.');
+      const val = parseFloat(numStr);
+      if (Number.isFinite(val) && Math.abs(val - currentPrice) < 0.05) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
  * Decide o desconto efetivo: prioriza o histórico próprio e só recai no
  * preço anterior informado pela loja quando ainda não há amostra suficiente.
+ * Descarta imediatamente ofertas onde o preço seja idêntico a uma parcela isolada.
  * @param {{price: number, siteOriginalPrice: number|null}} item
  * @param {ReturnType<typeof calculateHistoricalDiscount>} stats
  */
 function resolveEffectiveDiscount(item, stats) {
+  // Regra rígida: descarta se o preço promocional for idêntico a uma parcela isolada
+  if (isIsolatedInstallment(item)) {
+    return null;
+  }
+
   const declaredReference = item.siteOriginalPrice && item.siteOriginalPrice > item.price
     ? item.siteOriginalPrice : null;
   if (stats.reliable) {
@@ -113,4 +168,12 @@ function resolveEffectiveDiscount(item, stats) {
   return null;
 }
 
-module.exports = { mean, median, stdDev, calculateHistoricalDiscount, resolveEffectiveDiscount, round2 };
+module.exports = {
+  mean,
+  median,
+  stdDev,
+  calculateHistoricalDiscount,
+  resolveEffectiveDiscount,
+  isIsolatedInstallment,
+  round2,
+};

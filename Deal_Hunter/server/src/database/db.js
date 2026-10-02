@@ -176,6 +176,8 @@ async function initPostgresDatabase() {
     await pgPool.query("UPDATE monitored_categories SET selected = 1 WHERE id IN ('amazon-deals', 'eletroclub-outlet')");
   }
 
+  await pgPool.query('ALTER TABLE monitored_categories ADD COLUMN IF NOT EXISTS keyword_filter TEXT');
+
   logger.info('Banco de dados PostgreSQL (Render) inicializado com sucesso.');
 }
 
@@ -200,6 +202,9 @@ function initSqliteDatabase() {
       site_id: 'INTEGER REFERENCES sites(id) ON DELETE CASCADE',
       discount_percent: 'INTEGER',
       sent: 'INTEGER NOT NULL DEFAULT 1',
+    },
+    monitored_categories: {
+      keyword_filter: 'TEXT',
     },
   };
 

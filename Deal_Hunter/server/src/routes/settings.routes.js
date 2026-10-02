@@ -24,8 +24,8 @@ router.get('/', (req, res) => {
 
 router.post('/', (req, res) => {
   const body = req.body || {};
-  if ('scan_pages' in body && (!Number.isInteger(Number(body.scan_pages)) || Number(body.scan_pages) < 1 || Number(body.scan_pages) > 5)) {
-    return res.status(400).json({ error: 'scan_pages deve estar entre 1 e 5.' });
+  if ('scan_pages' in body && (!Number.isInteger(Number(body.scan_pages)) || Number(body.scan_pages) < 1 || Number(body.scan_pages) > 15)) {
+    return res.status(400).json({ error: 'scan_pages deve estar entre 1 e 15.' });
   }
   if ('scan_interval_minutes' in body && ![15, 30, 60, 120].includes(Number(body.scan_interval_minutes))) {
     return res.status(400).json({ error: 'O intervalo deve ser 15, 30, 60 ou 120 minutos.' });

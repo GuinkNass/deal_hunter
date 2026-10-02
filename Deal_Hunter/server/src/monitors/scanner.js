@@ -4,7 +4,7 @@ const settingsStore = require('../database/settingsStore');
 const logger = require('../utils/logger');
 const { parseListing, parseCapturedProducts, diagnoseListing } = require('../adapters/listing.adapter');
 const { calculateHistoricalDiscount, resolveEffectiveDiscount } = require('../analyzers/discount');
-const { calculateOpportunityScore } = require('../analyzers/score');
+const { calculateOpportunityScore, validateKeywordFilter } = require('../analyzers/score');
 const { alertFingerprint } = require('../analyzers/fingerprint');
 const { opportunityMessage } = require('../telegram/messageTemplates');
 const { sendMessage, sendPhoto } = require('../telegram/telegramClient');
@@ -17,7 +17,7 @@ const TELEGRAM_MESSAGE_PAUSE_MS = 1000;  // 1 segundo entre mensagens do mesmo l
 const PAGE_PAUSE_MS = 1200;
 
 const stmts = {
-  getSelectedCategories: db.prepare(`SELECT categories.id, categories.name AS category_name, categories.url,
+  getSelectedCategories: db.prepare(`SELECT categories.id, categories.name AS category_name, categories.url, categories.keyword_filter,
     sites.id AS site_id, sites.name AS site_name, sites.domain
     FROM monitored_categories AS categories JOIN sites ON sites.id = categories.site_id
     WHERE categories.selected = 1 ORDER BY sites.name, categories.name`),
@@ -49,7 +49,7 @@ const stmts = {
 async function getScanConfig() {
   const categories = await stmts.getSelectedCategories.all();
   return {
-    pages: Math.max(1, Math.min(5, Number(settingsStore.get('scan_pages', DEFAULTS.pages)) || DEFAULTS.pages)),
+    pages: Math.max(1, Math.min(15, Number(settingsStore.get('scan_pages', DEFAULTS.pages)) || DEFAULTS.pages)),
     scanIntervalMinutes: Number(settingsStore.get('scan_interval_minutes', DEFAULTS.intervalMinutes)) >= 15
       ? Number(settingsStore.get('scan_interval_minutes', DEFAULTS.intervalMinutes))
       : DEFAULTS.intervalMinutes,
@@ -134,6 +134,9 @@ async function runScanCycle() {
 
   for (let i = 0; i < candidatesToSend.length; i += 1) {
     const candidate = candidatesToSend[i];
+    if (candidate.category.keyword_filter && !validateKeywordFilter({ name: candidate.item.name, title: candidate.item.name, description: candidate.item.description }, candidate.category.keyword_filter)) {
+      continue;
+    }
     if (batchCounter > 0 && batchCounter % TELEGRAM_BATCH_SIZE === 0) {
       logger.info(`Deal Hunter Telegram: lote de ${TELEGRAM_BATCH_SIZE} produtos enviado; aguardando ${TELEGRAM_BATCH_PAUSE_MS / 1000}s...`);
       await delay(TELEGRAM_BATCH_PAUSE_MS);
@@ -277,6 +280,9 @@ async function processBrowserPagesCycle(pages, scanId, complete) {
   for (let i = 0; i < candidatesToSend.length; i += 1) {
     const candidate = candidatesToSend[i];
     if (session.cancelled) break;
+    if (candidate.category.keyword_filter && !validateKeywordFilter({ name: candidate.item.name, title: candidate.item.name, description: candidate.item.description }, candidate.category.keyword_filter)) {
+      continue;
+    }
 
     if (batchCounter > 0 && batchCounter % TELEGRAM_BATCH_SIZE === 0) {
       logger.info(`Deal Hunter Telegram: lote de ${TELEGRAM_BATCH_SIZE} produtos enviado; aguardando ${TELEGRAM_BATCH_PAUSE_MS / 1000}s...`);
@@ -352,11 +358,21 @@ async function fetchCategory(category, pages) {
     const pageUrl = page === 1 ? category.url : getPageUrl(category.url, category.domain, page);
     const html = await fetchHtml(pageUrl, category.domain);
     const pageProducts = parseListing(html, pageUrl, category.domain);
-    for (const product of pageProducts) products.set(product.url, product);
+    for (const product of pageProducts) {
+      if (!product.outOfStock) products.set(product.url, product);
+    }
     if (page === 1 && !pageProducts.length) {
       throw new Error(`Nenhum produto extraído (${diagnoseListing(html, category.domain)}).`);
     }
-    if (!pageProducts.length) break;
+
+    // Regra de parada para produtos esgotados
+    const hasOutOfStock = pageProducts.some((p) => p.outOfStock)
+      || /(?:todos\s*os\s*produtos\s*esgotados|produtos\s*esgotados|estoque\s*esgotado)/i.test(html);
+
+    if (!pageProducts.length || hasOutOfStock) {
+      if (hasOutOfStock) logger.info(`${category.site_name} / ${category.category_name}: produtos esgotados detectados na página ${page}. Interrompendo loop da categoria.`);
+      break;
+    }
     if (page < pages) await delay(PAGE_PAUSE_MS);
   }
   return [...products.values()];
@@ -451,9 +467,15 @@ async function updateProductAndFindDeal(category, item, config) {
     price: item.price,
     siteOriginalPrice: originalPrice,
     advertisedDiscount: item.advertisedDiscount,
+    rawText: `${item.name} ${item.url}`,
   }, stats);
   if (!effective || effective.referencePrice > item.price * 10
     || effective.discountPercent < config.minDiscountPercent) return null;
+
+  // Filtro Dinâmico por Palavra-Chave na Categoria
+  if (category.keyword_filter && !validateKeywordFilter({ name: item.name, title: item.name, description: item.description }, category.keyword_filter)) {
+    return null;
+  }
   const discountPercent = effective.discountPercent;
   if (config.maxPrice && item.price > Number(config.maxPrice)) return null;
 

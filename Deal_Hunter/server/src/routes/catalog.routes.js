@@ -6,7 +6,7 @@ const logger = require('../utils/logger');
 const router = express.Router();
 
 const listCategories = db.prepare(`
-  SELECT categories.id, categories.name, categories.url, categories.selected,
+  SELECT categories.id, categories.name, categories.url, categories.selected, categories.keyword_filter AS "keyword_filter",
          sites.id AS "siteId", sites.name AS "siteName", sites.domain AS domain
   FROM monitored_categories AS categories
   JOIN sites ON sites.id = categories.site_id
@@ -15,6 +15,7 @@ const listCategories = db.prepare(`
 const getCategories = db.prepare('SELECT id FROM monitored_categories');
 const unselectAll = db.prepare('UPDATE monitored_categories SET selected = 0');
 const selectOne = db.prepare('UPDATE monitored_categories SET selected = 1 WHERE id = ?');
+const updateKeywordFilter = db.prepare('UPDATE monitored_categories SET keyword_filter = ? WHERE id = ?');
 
 router.get('/categories', async (req, res) => {
   try {
@@ -28,10 +29,19 @@ router.get('/categories', async (req, res) => {
 
 router.put('/categories', async (req, res) => {
   const selectedIds = req.body?.selectedIds;
-  if (!Array.isArray(selectedIds) || selectedIds.some((id) => typeof id !== 'string')) {
+  const keywords = req.body?.keywords || req.body?.keywordFilters || {};
+  const categoriesList = req.body?.categories;
+
+  if (!Array.isArray(selectedIds) && !Array.isArray(categoriesList)) {
     return res.status(400).json({ error: 'Envie selectedIds como uma lista de categorias.' });
   }
-  const uniqueIds = [...new Set(selectedIds)];
+
+  const idsToSelect = Array.isArray(selectedIds)
+    ? selectedIds
+    : categoriesList.filter((c) => c.selected).map((c) => c.id);
+
+  const uniqueIds = [...new Set(idsToSelect)];
+
   try {
     const knownRows = await getCategories.all();
     const knownIds = new Set(knownRows.map((row) => row.id));
@@ -43,6 +53,25 @@ router.put('/categories', async (req, res) => {
     await unselectAll.run();
     for (const id of uniqueIds) {
       await selectOne.run(id);
+    }
+
+    // Atualiza keyword_filter a partir do objeto keywords ou lista de categorias
+    if (typeof keywords === 'object' && keywords !== null) {
+      for (const [id, kw] of Object.entries(keywords)) {
+        if (knownIds.has(id)) {
+          const val = typeof kw === 'string' ? kw.trim() : null;
+          await updateKeywordFilter.run(val || null, id);
+        }
+      }
+    }
+
+    if (Array.isArray(categoriesList)) {
+      for (const cat of categoriesList) {
+        if (cat?.id && knownIds.has(cat.id) && typeof cat.keyword_filter !== 'undefined') {
+          const val = typeof cat.keyword_filter === 'string' ? cat.keyword_filter.trim() : null;
+          await updateKeywordFilter.run(val || null, cat.id);
+        }
+      }
     }
 
     scheduleFromSettings();

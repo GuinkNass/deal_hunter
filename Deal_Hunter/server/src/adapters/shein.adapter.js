@@ -35,11 +35,11 @@ function isInstallmentElement($, el) {
   const text = cleanPriceText($(el).text());
   if (INSTALLMENT_REGEX.test(text)) return true;
   const className = $(el).attr('class') || '';
-  if (/installment|aPrazo|parcela/i.test(className)) return true;
+  if (/installment|parcela|didi/i.test(className)) return true;
   const parent = $(el).parent();
   if (parent.length && !parent.is('body, html, main, section, article, #content, .content')) {
     const parentClass = parent.attr('class') || '';
-    if (/installment|aPrazo|parcela/i.test(parentClass)) return true;
+    if (/installment|parcela|didi/i.test(parentClass)) return true;
     const parentText = cleanPriceText(parent.text());
     if (parentText.length < 150 && INSTALLMENT_REGEX.test(parentText)) {
       return true;
@@ -49,56 +49,33 @@ function isInstallmentElement($, el) {
 }
 
 /**
- * Adaptador Amazon:
- * Ignora valores extraídos de parcelas (ex: "x de", "sem juros") e valida disponibilidade.
+ * Adaptador Shein:
+ * Extrai preço atual ignorando parcelamentos e propagandas de cartões.
  */
-function parseAmazon(html, pageUrl) {
+function parseShein(html, pageUrl) {
   const $ = cheerio.load(html);
   const base = parseGeneric(html, pageUrl);
 
-  const title = $('#productTitle, #title, [data-testid="product-title"], h1').first().text().trim() || base.name;
+  const title = $('h1.product-intro__head-name, h1, [class*="goods-name-text"]').first().text().trim() || base.name;
 
-  // Detecção de indisponibilidade Amazon
-  const availText = $('#availability').text().toLowerCase();
+  // Detecção de indisponibilidade Shein
   const bodyText = $('body').text();
-  const isOutOfStock = /(?:não temos previsão|indisponível|não\s+dispon[íi]vel|atualmente\s+indispon[íi]vel|currently unavailable|esgotado|sem estoque|out of stock)/i.test(availText)
-    || /(?:não temos previsão de quando este produto estará disponível|avise-me quando estiver disponível|não disponível|atualmente indisponível)/i.test(bodyText);
+  const isOutOfStock = $('[class*="sold-out"], [class*="goods-soldout"], [class*="soldout"]').length > 0
+    || /(?:esgotado|sold out|indisponível|fora de estoque)/i.test(bodyText);
 
   // 1. Preço atual
   let currentPrice = null;
-  const priceElements = $([
-    '[data-testid="price-section"] [class*="priceToPay"] .a-price:not(.a-text-price) .a-offscreen',
-    '[class*="priceToPay"] .a-price:not(.a-text-price) .a-offscreen',
-    '#priceblock_dealprice',
-    '#priceblock_ourprice',
-    '#price_inside_buybox',
-    '.a-price:not(.a-text-price) .a-offscreen',
-  ].join(', '));
-
-  priceElements.each((_, el) => {
+  const curElements = $('[class*="final-price"], [class*="price__main"], [class*="sale-price"], [class*="current-price"], [class*="product-intro__head-price"] span, .from');
+  curElements.each((_, el) => {
     if (currentPrice) return;
     if (isInstallmentElement($, el)) return;
     const val = parsePrice($(el).text());
     if (val > 0) currentPrice = val;
   });
 
-  if (!currentPrice) {
-    const whole = $('.a-price-whole').first().text().replace(/\D/g, '');
-    const fraction = $('.a-price-fraction').first().text().replace(/\D/g, '').slice(0, 2).padEnd(2, '0');
-    if (whole) currentPrice = parsePrice(`${whole},${fraction || '00'}`);
-  }
-
   // 2. Preço original "De"
   let originalPrice = null;
-  const origElements = $([
-    '[data-testid="price-section"] [class*="wrapPrice"] .a-price.a-text-price .a-offscreen',
-    '[class*="wrapPrice"] .a-price.a-text-price .a-offscreen',
-    '.a-price.a-text-price .a-offscreen',
-    '[data-a-strike="true"] .a-offscreen',
-    'span.a-text-price',
-    'del',
-  ].join(', '));
-
+  const origElements = $('[class*="price__secondary"] del, del, s, [class*="original-price"]');
   origElements.each((_, el) => {
     if (originalPrice) return;
     if (isInstallmentElement($, el)) return;
@@ -106,22 +83,14 @@ function parseAmazon(html, pageUrl) {
     if (val > 0 && (!currentPrice || val > currentPrice)) originalPrice = val;
   });
 
-  if (!originalPrice || originalPrice <= currentPrice) {
-    const deMatch = bodyText.match(/(?:De|De:|Preço de lista:|Lista:)\s*R\$\s*([\d.,]+)/i);
-    if (deMatch) {
-      const parsedDe = parsePrice(deMatch[1]);
-      if (parsedDe && (!currentPrice || parsedDe > currentPrice)) originalPrice = parsedDe;
-    }
-  }
-
-  // 3. Desconto anunciado
+  // 3. Desconto
   let advertisedDiscount = null;
-  const badgeEl = $('[data-component="dui-badge"] [class*="BadgeLabel"], span.savingsPercentage, [data-a-badge-color="savings"]').first();
-  if (badgeEl.length) {
-    advertisedDiscount = parseDiscount(badgeEl.text());
+  const discEl = $('[class*="discount-label"], [class*="title-discount-label"], [class*="discount"]').first();
+  if (discEl.length) {
+    advertisedDiscount = parseDiscount(discEl.text());
   }
 
-  // Trava anti-parcela Amazon
+  // Trava anti-parcela Shein
   if (currentPrice && originalPrice && originalPrice > currentPrice) {
     const ratio = Math.round(originalPrice / currentPrice);
     if (ratio >= 2 && ratio <= 24 && new RegExp(`\\b${ratio}\\s*x\\b`, 'i').test(bodyText)) {
@@ -152,4 +121,4 @@ function isInstallmentPrice(price, html) {
   return regex.test(html);
 }
 
-module.exports = { parseAmazon };
+module.exports = { parseShein };

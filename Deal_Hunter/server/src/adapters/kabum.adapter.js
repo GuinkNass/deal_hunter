@@ -1,7 +1,7 @@
 const cheerio = require('cheerio');
 const { parseGeneric } = require('./generic.adapter');
 
-const INSTALLMENT_REGEX = /(?:\b\d+\s*x\s*(?:de\s*)?|parcelas?|sem\s*juros|com\s*juros|a\s*prazo)/i;
+const INSTALLMENT_REGEX = /(?:\b\d+\s*x\s*(?:de\s*)?|parcelas?|sem\s*juros|com\s*juros|a\s*prazo|no\s*cart[aã]o)/i;
 
 function cleanPriceText(text) {
   if (!text) return '';
@@ -27,7 +27,7 @@ function parsePrice(value) {
 
 function parseDiscount(value) {
   if (typeof value === 'number') return Number.isFinite(value) && value > 0 && value < 100 ? Math.round(value) : null;
-  const match = String(value || '').match(/(?:^|[^\d])[-]?(\d{1,2}(?:\.\d+)?)\s*%/i);
+  const match = String(value || '').match(/(?:^|[^\d])[-]?(\d{1,2}(?:\.\d+)?)\s*%\s*(?:off|de\s+desconto)?/i);
   return match ? Math.round(parseFloat(match[1])) : null;
 }
 
@@ -35,11 +35,11 @@ function isInstallmentElement($, el) {
   const text = cleanPriceText($(el).text());
   if (INSTALLMENT_REGEX.test(text)) return true;
   const className = $(el).attr('class') || '';
-  if (/installment|aPrazo|parcela/i.test(className)) return true;
+  if (/installment|cardPayment|aPrazo/i.test(className)) return true;
   const parent = $(el).parent();
   if (parent.length && !parent.is('body, html, main, section, article, #content, .content')) {
     const parentClass = parent.attr('class') || '';
-    if (/installment|aPrazo|parcela/i.test(parentClass)) return true;
+    if (/installment|cardPayment|aPrazo/i.test(parentClass)) return true;
     const parentText = cleanPriceText(parent.text());
     if (parentText.length < 150 && INSTALLMENT_REGEX.test(parentText)) {
       return true;
@@ -49,32 +49,23 @@ function isInstallmentElement($, el) {
 }
 
 /**
- * Adaptador Amazon:
- * Ignora valores extraídos de parcelas (ex: "x de", "sem juros") e valida disponibilidade.
+ * Adaptador KaBuM!:
+ * Extrai preço à vista/PIX ignorando parcelas e juros.
  */
-function parseAmazon(html, pageUrl) {
+function parseKabum(html, pageUrl) {
   const $ = cheerio.load(html);
   const base = parseGeneric(html, pageUrl);
 
-  const title = $('#productTitle, #title, [data-testid="product-title"], h1').first().text().trim() || base.name;
+  const title = $('h1[class*="title"], h1, [data-testid="product-title"]').first().text().trim() || base.name;
 
-  // Detecção de indisponibilidade Amazon
-  const availText = $('#availability').text().toLowerCase();
+  // Detecção de indisponibilidade
   const bodyText = $('body').text();
-  const isOutOfStock = /(?:não temos previsão|indisponível|não\s+dispon[íi]vel|atualmente\s+indispon[íi]vel|currently unavailable|esgotado|sem estoque|out of stock)/i.test(availText)
-    || /(?:não temos previsão de quando este produto estará disponível|avise-me quando estiver disponível|não disponível|atualmente indisponível)/i.test(bodyText);
+  const isOutOfStock = $('[class*="unavailable"], [class*="produtoIndisponivel"], [id*="indisponivel"]').length > 0
+    || /(?:produto indisponível|esgotado|avise-me quando chegar|ops! produto esgotado)/i.test(bodyText);
 
-  // 1. Preço atual
+  // 1. Preço à vista / PIX
   let currentPrice = null;
-  const priceElements = $([
-    '[data-testid="price-section"] [class*="priceToPay"] .a-price:not(.a-text-price) .a-offscreen',
-    '[class*="priceToPay"] .a-price:not(.a-text-price) .a-offscreen',
-    '#priceblock_dealprice',
-    '#priceblock_ourprice',
-    '#price_inside_buybox',
-    '.a-price:not(.a-text-price) .a-offscreen',
-  ].join(', '));
-
+  const priceElements = $('[class*="finalPrice"], [class*="priceText"], [class*="priceCard"], h4[class*="text-"], .preco_desconto_a_vista');
   priceElements.each((_, el) => {
     if (currentPrice) return;
     if (isInstallmentElement($, el)) return;
@@ -83,45 +74,28 @@ function parseAmazon(html, pageUrl) {
   });
 
   if (!currentPrice) {
-    const whole = $('.a-price-whole').first().text().replace(/\D/g, '');
-    const fraction = $('.a-price-fraction').first().text().replace(/\D/g, '').slice(0, 2).padEnd(2, '0');
-    if (whole) currentPrice = parsePrice(`${whole},${fraction || '00'}`);
+    const matchPix = bodyText.match(/R\$\s*([\d.]+,\d{2})\s*(?:no\s+Pix|à\s+vista|em\s+1x)/i);
+    if (matchPix) currentPrice = parsePrice(matchPix[1]);
   }
 
   // 2. Preço original "De"
   let originalPrice = null;
-  const origElements = $([
-    '[data-testid="price-section"] [class*="wrapPrice"] .a-price.a-text-price .a-offscreen',
-    '[class*="wrapPrice"] .a-price.a-text-price .a-offscreen',
-    '.a-price.a-text-price .a-offscreen',
-    '[data-a-strike="true"] .a-offscreen',
-    'span.a-text-price',
-    'del',
-  ].join(', '));
-
-  origElements.each((_, el) => {
+  const oldPriceElements = $('[class*="oldPrice"], [class*="oldPriceCard"], del, s');
+  oldPriceElements.each((_, el) => {
     if (originalPrice) return;
     if (isInstallmentElement($, el)) return;
     const val = parsePrice($(el).text());
     if (val > 0 && (!currentPrice || val > currentPrice)) originalPrice = val;
   });
 
-  if (!originalPrice || originalPrice <= currentPrice) {
-    const deMatch = bodyText.match(/(?:De|De:|Preço de lista:|Lista:)\s*R\$\s*([\d.,]+)/i);
-    if (deMatch) {
-      const parsedDe = parsePrice(deMatch[1]);
-      if (parsedDe && (!currentPrice || parsedDe > currentPrice)) originalPrice = parsedDe;
-    }
-  }
-
   // 3. Desconto anunciado
   let advertisedDiscount = null;
-  const badgeEl = $('[data-component="dui-badge"] [class*="BadgeLabel"], span.savingsPercentage, [data-a-badge-color="savings"]').first();
-  if (badgeEl.length) {
-    advertisedDiscount = parseDiscount(badgeEl.text());
+  const discEl = $('[class*="discountBadge"], [class*="tagDiscount"], [class*="discountCard"]').first();
+  if (discEl.length) {
+    advertisedDiscount = parseDiscount(discEl.text());
   }
 
-  // Trava anti-parcela Amazon
+  // Trava anti-parcela KaBuM!
   if (currentPrice && originalPrice && originalPrice > currentPrice) {
     const ratio = Math.round(originalPrice / currentPrice);
     if (ratio >= 2 && ratio <= 24 && new RegExp(`\\b${ratio}\\s*x\\b`, 'i').test(bodyText)) {
@@ -152,4 +126,4 @@ function isInstallmentPrice(price, html) {
   return regex.test(html);
 }
 
-module.exports = { parseAmazon };
+module.exports = { parseKabum };
