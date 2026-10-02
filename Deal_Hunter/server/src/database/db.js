@@ -10,8 +10,15 @@ let sqliteDb = null;
 
 if (isPostgres) {
   const { Pool } = require('pg');
-  const needsSsl = process.env.NODE_ENV === 'production' ||
+  const isRender = Boolean(
+    process.env.RENDER ||
+    process.env.RENDER_SERVICE_ID ||
     config.databaseUrl.includes('render.com') ||
+    config.databaseUrl.includes('dpg-') ||
+    config.databaseUrl.includes('.onrender.')
+  );
+  const needsSsl = isRender ||
+    process.env.NODE_ENV === 'production' ||
     process.env.DATABASE_SSL === 'true';
 
   pgPool = new Pool({
@@ -147,36 +154,80 @@ const db = {
 async function initPostgresDatabase() {
   const schemaPath = path.join(__dirname, 'schema.pg.sql');
   const schema = fs.readFileSync(schemaPath, 'utf-8');
-  await pgPool.query(schema);
 
-  for (const store of STORES) {
-    await pgPool.query(
-      `INSERT INTO sites (domain, name, url) VALUES ($1, $2, $3)
-       ON CONFLICT (domain) DO UPDATE SET name = EXCLUDED.name, url = EXCLUDED.url`,
-      [store.domain, store.name, store.url]
-    );
-
-    const siteRes = await pgPool.query('SELECT id FROM sites WHERE domain = $1', [store.domain]);
-    const siteId = siteRes.rows[0]?.id;
-    if (!siteId) continue;
-
-    for (const [id, name, url] of store.categories) {
-      await pgPool.query(
-        `INSERT INTO monitored_categories (id, site_id, name, url)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (id) DO UPDATE SET site_id = EXCLUDED.site_id, name = EXCLUDED.name, url = EXCLUDED.url`,
-        [id, siteId, name, url]
-      );
+  // 1. Retry loop de conexão inicial (até 5 tentativas)
+  let connected = false;
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      await pgPool.query('SELECT 1');
+      connected = true;
+      break;
+    } catch (connErr) {
+      logger.warn(`Tentativa ${attempt}/5 de conectar ao PostgreSQL no Render falhou: ${connErr.message}. Aguardando 2s...`);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
   }
 
-  // Categorias padrão ativas caso nenhuma esteja selecionada ainda
-  const countSelected = await pgPool.query('SELECT COUNT(*) AS c FROM monitored_categories WHERE selected = 1');
-  if (Number(countSelected.rows[0]?.c || 0) === 0) {
-    await pgPool.query("UPDATE monitored_categories SET selected = 1 WHERE id IN ('amazon-deals', 'eletroclub-outlet')");
+  if (!connected) {
+    logger.error('Não foi possível estabelecer conexão inicial com o PostgreSQL no Render após 5 tentativas.');
+    throw new Error('Falha de conexão com PostgreSQL');
   }
 
-  await pgPool.query('ALTER TABLE monitored_categories ADD COLUMN IF NOT EXISTS keyword_filter TEXT');
+  await pgPool.query(schema);
+
+  // 2. Garante que keyword_filter existe e remove constraints que possam causar conflito
+  try {
+    await pgPool.query('ALTER TABLE monitored_categories ADD COLUMN IF NOT EXISTS keyword_filter TEXT');
+  } catch {}
+  try {
+    await pgPool.query('ALTER TABLE monitored_categories DROP CONSTRAINT IF EXISTS uq_site_url');
+  } catch {}
+
+  // 3. Sincroniza sites e categorias de forma segura
+  for (const store of STORES) {
+    try {
+      await pgPool.query(
+        `INSERT INTO sites (domain, name, url) VALUES ($1, $2, $3)
+         ON CONFLICT (domain) DO UPDATE SET name = EXCLUDED.name, url = EXCLUDED.url`,
+        [store.domain, store.name, store.url]
+      );
+    } catch (e) {
+      logger.warn(`Aviso ao atualizar site ${store.domain}: ${e.message}`);
+    }
+
+    let siteId = null;
+    try {
+      const siteRes = await pgPool.query('SELECT id FROM sites WHERE domain = $1', [store.domain]);
+      siteId = siteRes.rows[0]?.id;
+    } catch {}
+    if (!siteId) continue;
+
+    for (const [id, name, url] of store.categories) {
+      try {
+        await pgPool.query(
+          `INSERT INTO monitored_categories (id, site_id, name, url)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (id) DO UPDATE SET site_id = EXCLUDED.site_id, name = EXCLUDED.name, url = EXCLUDED.url`,
+          [id, siteId, name, url]
+        );
+      } catch (catErr) {
+        try {
+          await pgPool.query(
+            `UPDATE monitored_categories SET id = $1, name = $2 WHERE site_id = $3 AND url = $4`,
+            [id, name, siteId, url]
+          );
+        } catch {}
+      }
+    }
+  }
+
+  // 4. Categorias padrão ativas caso nenhuma esteja selecionada ainda
+  try {
+    const countSelected = await pgPool.query('SELECT COUNT(*) AS c FROM monitored_categories WHERE selected = 1');
+    if (Number(countSelected.rows[0]?.c || 0) === 0) {
+      await pgPool.query("UPDATE monitored_categories SET selected = 1 WHERE id IN ('amazon-deals', 'eletroclub-outlet', 'magalu-1')");
+    }
+  } catch {}
 
   logger.info('Banco de dados PostgreSQL (Render) inicializado com sucesso.');
 }
