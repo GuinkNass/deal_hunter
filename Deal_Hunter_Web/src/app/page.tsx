@@ -38,6 +38,7 @@ export default function LandingPage() {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [downloadToast, setDownloadToast] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [isPlayingVideo, setIsPlayingVideo] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -144,7 +145,7 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#070a12] text-[#f1f5f9] selection:bg-violet-500/30 selection:text-violet-200 antialiased overflow-x-hidden">
+    <main className="min-h-screen bg-[#070a12] text-[#f1f5f9] selection:bg-violet-500/30 selection:text-violet-200 antialiased overflow-x-hidden">
       {/* Toast de Download Iniciado */}
       {downloadToast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 p-4 bg-[#0c101d]/95 border border-emerald-500/60 rounded-2xl shadow-2xl shadow-emerald-950/60 backdrop-blur-md animate-in slide-in-from-bottom-5 duration-300">
@@ -178,6 +179,7 @@ export default function LandingPage() {
             muted
             playsInline
             preload="auto"
+            aria-hidden="true"
             src="/video/novo.webm"
             className="w-full h-full object-cover object-center scale-100"
           >
@@ -299,7 +301,7 @@ export default function LandingPage() {
 
         {/* Trilho de animação contínua com logos sem moldura */}
         <div className="flex animate-marquee gap-10 sm:gap-14 md:gap-16 items-center py-2">
-          {[...monitoredStores, ...monitoredStores, ...monitoredStores, ...monitoredStores].map((store, idx) => (
+          {[...monitoredStores, ...monitoredStores].map((store, idx) => (
             <div
               key={`${store.slug}-${idx}`}
               className="flex-shrink-0 flex items-center justify-center transition-transform duration-300 hover:scale-110 cursor-default px-2"
@@ -308,8 +310,11 @@ export default function LandingPage() {
               <img
                 src={store.logo}
                 alt={`Logo ${store.name}`}
+                width={140}
+                height={56}
                 className="h-10 sm:h-12 md:h-14 w-auto max-w-[140px] sm:max-w-[170px] md:max-w-[200px] object-contain select-none pointer-events-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
                 loading="lazy"
+                decoding="async"
               />
             </div>
           ))}
@@ -320,6 +325,7 @@ export default function LandingPage() {
       {/* 3. SHOWCASE MONUMENTAL (PROPAGANDA2.JPG + 3 CARDS MODULARES)               */}
       {/* ========================================================================= */}
       <section className="py-6 sm:py-12 relative">
+        <h2 className="sr-only">Monitoramento e Automação de Ofertas em Tempo Real</h2>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           
           <div className="relative rounded-[2.5rem] bg-[#0c101d] border border-white/[0.08] p-4 sm:p-8 shadow-2xl shadow-black/80 overflow-hidden">
@@ -331,7 +337,11 @@ export default function LandingPage() {
               <img
                 src="/images/propaganda2.jpg"
                 alt="Deal Hunter Pro - Monitoramento 24h com Descontos e Alertas Holográficos"
+                width={1200}
+                height={670}
                 className="w-full h-full object-cover object-center"
+                loading="lazy"
+                decoding="async"
               />
               {/* Overlay suave com gradiente inferior para legibilidade */}
               <div className="absolute inset-0 bg-gradient-to-t from-[#0c101d] via-transparent to-black/30 pointer-events-none" />
@@ -363,7 +373,7 @@ export default function LandingPage() {
                     <span className="px-3 py-1 rounded-full bg-violet-500/15 border border-violet-500/30 text-violet-300 text-[10px] font-black uppercase tracking-wider">
                       Automação Pura
                     </span>
-                    <span className="text-slate-500 group-hover:text-violet-400 transition-colors">01</span>
+                    <span className="text-slate-400 group-hover:text-violet-400 transition-colors">01</span>
                   </div>
                   <h3 className="text-lg font-black uppercase tracking-tight text-white">
                     Varredura 24h na Nuvem
@@ -390,7 +400,7 @@ export default function LandingPage() {
                     <span className="px-3 py-1 rounded-full bg-[#d4ff32]/15 border border-[#d4ff32]/30 text-[#d4ff32] text-[10px] font-black uppercase tracking-wider">
                       Alerta Imediato
                     </span>
-                    <span className="text-slate-500 group-hover:text-[#d4ff32] transition-colors">02</span>
+                    <span className="text-slate-400 group-hover:text-[#d4ff32] transition-colors">02</span>
                   </div>
                   <h3 className="text-lg font-black uppercase tracking-tight text-white">
                     Disparo no Telegram em &lt; 3 Segundos
@@ -417,7 +427,7 @@ export default function LandingPage() {
                     <span className="px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-[10px] font-black uppercase tracking-wider">
                       Multilojas VIP
                     </span>
-                    <span className="text-slate-500 group-hover:text-cyan-400 transition-colors">03</span>
+                    <span className="text-slate-400 group-hover:text-cyan-400 transition-colors">03</span>
                   </div>
                   <h3 className="text-lg font-black uppercase tracking-tight text-white">
                     Amazon, Magalu &amp; Eletroclub
@@ -478,23 +488,42 @@ export default function LandingPage() {
               <div className="text-[11px] text-violet-400 font-bold uppercase tracking-wider">Tutorial Oficial</div>
             </div>
 
-            {/* Container do Vídeo: Mostra a capa do vídeo no player oficial sem tela azul */}
+            {/* Container do Vídeo: Mostra a capa do vídeo com Facade de alto desempenho */}
             <div
-              className="relative aspect-video w-full bg-black flex items-center justify-center overflow-hidden"
+              className="relative aspect-video w-full bg-black flex items-center justify-center overflow-hidden group cursor-pointer"
               style={{
                 backgroundImage: 'url(https://img.youtube.com/vi/xGPWD7slMN0/hqdefault.jpg)',
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
               }}
+              onClick={() => setIsPlayingVideo(true)}
             >
-              <iframe
-                src="https://www.youtube.com/embed/xGPWD7slMN0?rel=0"
-                title="Vídeo Tutorial de Instalação - Deal Hunter Pro"
-                className="w-full h-full border-0 relative z-10"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                loading="lazy"
-              />
+              {isPlayingVideo ? (
+                <iframe
+                  src="https://www.youtube-nocookie.com/embed/xGPWD7slMN0?autoplay=1&rel=0"
+                  title="Vídeo Tutorial de Instalação - Deal Hunter Pro"
+                  className="w-full h-full border-0 relative z-10"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              ) : (
+                <div className="absolute inset-0 bg-black/40 hover:bg-black/25 transition-colors flex flex-col items-center justify-center gap-3 z-10">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsPlayingVideo(true);
+                    }}
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-2xl shadow-indigo-600/50 hover:scale-110 active:scale-95 transition-all duration-300 border border-white/20"
+                    aria-label="Assistir ao vídeo tutorial"
+                  >
+                    <Play className="w-7 h-7 sm:w-8 sm:h-8 fill-white ml-1 text-white" />
+                  </button>
+                  <span className="px-3.5 py-1 rounded-full bg-black/70 border border-white/20 backdrop-blur-md text-[11px] sm:text-xs font-bold text-white uppercase tracking-wider">
+                    ▶ Assistir Tutorial (2 min)
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Rodapé do player */}
@@ -535,7 +564,11 @@ export default function LandingPage() {
                   <img
                     src="/images/propaganda1.jpg"
                     alt="Alertas de desconto no celular enquanto viaja de metrô"
+                    width={800}
+                    height={600}
                     className="w-full h-full object-cover"
+                    loading="lazy"
+                    decoding="async"
                   />
                   {/* Overlay gradiente */}
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0c101d]/90 via-transparent to-transparent pointer-events-none" />
@@ -553,7 +586,7 @@ export default function LandingPage() {
                         Smartphone 5G · 30% OFF na Amazon
                       </p>
                       <p className="text-[11px] text-slate-300">
-                        De <span className="line-through text-slate-500">R$ 2.499</span> por <strong className="text-emerald-400">R$ 1.749</strong>
+                        De <span className="line-through text-slate-400">R$ 2.499</span> por <strong className="text-emerald-400">R$ 1.749</strong>
                       </p>
                     </div>
                   </div>
@@ -939,7 +972,11 @@ export default function LandingPage() {
                   <img
                     src="/images/profit-hunter-logo.png"
                     alt="Profit Hunter Pro Logo"
+                    width={80}
+                    height={80}
                     className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-[0_8px_24px_rgba(139,92,246,0.6)] flex-shrink-0"
+                    loading="lazy"
+                    decoding="async"
                   />
                   <div>
                     <span className="text-xs font-black uppercase tracking-wider text-violet-300">
@@ -959,28 +996,28 @@ export default function LandingPage() {
                   <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                     <Target className="w-5 h-5 text-[#d4ff32] flex-shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Botão Flutuante</h4>
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider">Botão Flutuante</h3>
                       <p className="text-[11px] text-slate-400 mt-0.5">Aparece sutilmente na página do produto para disparo imediato.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                     <Zap className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Captura em 1 Segundo</h4>
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider">Captura em 1 Segundo</h3>
                       <p className="text-[11px] text-slate-400 mt-0.5">Lê título, preço com desconto e link pronto para o Telegram.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                     <BellRing className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Telegram Imediato</h4>
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider">Telegram Imediato</h3>
                       <p className="text-[11px] text-slate-400 mt-0.5">Envia direto para seu canal, grupo VIP ou chat pessoal.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                     <Sparkles className="w-5 h-5 text-violet-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Login 100% Unificado</h4>
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider">Login 100% Unificado</h3>
                       <p className="text-[11px] text-slate-400 mt-0.5">A mesma conta do Deal Hunter ativa ambas as extensões.</p>
                     </div>
                   </div>
@@ -1014,7 +1051,11 @@ export default function LandingPage() {
                       <img
                         src="/images/profit-hunter-logo.png"
                         alt="Profit Hunter Pro"
+                        width={28}
+                        height={28}
                         className="w-7 h-7 object-contain drop-shadow-[0_2px_8px_rgba(139,92,246,0.6)]"
+                        loading="lazy"
+                        decoding="async"
                       />
                       <span className="font-extrabold text-sm text-white uppercase tracking-wider">Profit Hunter Pro</span>
                     </div>
@@ -1035,7 +1076,7 @@ export default function LandingPage() {
 
                   <div className="p-3.5 rounded-xl bg-violet-950/20 border border-violet-500/30 text-xs text-slate-300 flex items-center gap-2.5">
                     <CheckCircle2 className="w-4 h-4 text-[#d4ff32] flex-shrink-0" />
-                    <span>Valor avulso: <s className="text-slate-500">R$ 97/ano</s> · <strong>Grátis</strong> para membros Pro.</span>
+                    <span>Valor avulso: <s className="text-slate-400">R$ 97/ano</s> · <strong>Grátis</strong> para membros Pro.</span>
                   </div>
                 </div>
               </div>
@@ -1367,7 +1408,15 @@ export default function LandingPage() {
             {/* Logo Footer */}
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-2xl overflow-hidden bg-[#0c101d] border border-white/10 flex items-center justify-center p-1">
-                <img src="/images/logo.png" alt="Deal Hunter Pro" className="w-full h-full object-contain" />
+                <img
+                  src="/images/logo.png"
+                  alt="Deal Hunter Pro"
+                  width={36}
+                  height={36}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="font-black text-base uppercase tracking-tight text-white">Deal Hunter</span>
@@ -1407,16 +1456,16 @@ export default function LandingPage() {
 
           </div>
 
-          <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
+          <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400">
             <p>
               &copy; {new Date().getFullYear()} Deal Hunter Pro (dealhunterpro.com.br) — Todos os direitos reservados.
             </p>
             <div className="flex items-center gap-4">
-              <Link href="/privacy#termos" className="hover:text-slate-300 transition-colors">
+              <Link href="/privacy#termos" className="hover:text-slate-200 transition-colors">
                 Termos de Uso
               </Link>
               <span>·</span>
-              <Link href="/privacy#privacidade" className="hover:text-slate-300 transition-colors">
+              <Link href="/privacy#privacidade" className="hover:text-slate-200 transition-colors">
                 Política de Privacidade
               </Link>
             </div>
@@ -1533,6 +1582,6 @@ export default function LandingPage() {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

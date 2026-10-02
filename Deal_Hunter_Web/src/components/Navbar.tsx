@@ -81,6 +81,8 @@ export default function Navbar() {
             <img
               src="/images/logo.png"
               alt="Deal Hunter Pro Logo"
+              width={40}
+              height={40}
               className="w-full h-full object-contain"
             />
           </div>
