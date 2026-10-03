@@ -33,10 +33,31 @@ import {
   Target,
 } from 'lucide-react';
 
+function ChromeIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      <path
+        fill="#EA4335"
+        d="M12 0C8.21 0 4.831 1.757 2.632 4.501l3.953 6.848A5.454 5.454 0 0 1 12 6.545h10.691A12 12 0 0 0 12 0z"
+      />
+      <path
+        fill="#34A853"
+        d="M1.931 5.47A11.943 11.943 0 0 0 0 12c0 6.012 4.42 10.991 10.189 11.864l3.953-6.847a5.45 5.45 0 0 1-6.865-2.29z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M15.273 7.478a5.449 5.449 0 0 1 2.182 6.865l-5.345 9.258C12.115 23.805 12.058 24 12 24c6.627 0 12-5.373 12-12 0-1.54-.29-3.011-.818-4.364z"
+      />
+      <circle cx="12" cy="12" r="5.455" fill="#FFFFFF" />
+      <circle cx="12" cy="12" r="4.364" fill="#1A73E8" />
+    </svg>
+  );
+}
+
 export default function LandingPage() {
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
-  const [downloadToast, setDownloadToast] = useState(false);
+  const [chromeToast, setChromeToast] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -49,8 +70,9 @@ export default function LandingPage() {
     }
   }, []);
 
-  // Links de pagamento e download
-  const downloadZipUrl = '/downloads/deal-hunter-pro.zip';
+  // Links oficiais, Chrome Web Store e pagamentos
+  const chromeWebStoreUrl =
+    'https://chromewebstore.google.com/detail/gdnmfnoccdcbpcnaafjcoapgmihmgbdo?utm_source=item-share-cb';
   const downloadProfitHunterZipUrl = '/downloads/profit-hunter-pro.zip';
   const infinitePayPixUrl = 'https://checkout.infinitepay.io/deal-hunter-pro-br/AoJYT9KaSj';
   const stripeCardUrl = '/login';
@@ -87,9 +109,9 @@ export default function LandingPage() {
     }
   }
 
-  function triggerDownload() {
-    setDownloadToast(true);
-    setTimeout(() => setDownloadToast(false), 5000);
+  function triggerOpenChromeStore() {
+    setChromeToast(true);
+    setTimeout(() => setChromeToast(false), 5000);
   }
 
   function toggleFaq(index: number) {
@@ -98,9 +120,9 @@ export default function LandingPage() {
 
   const faqs = [
     {
-      question: 'Como instalar a extensão a partir do arquivo .ZIP no Chrome ou Edge?',
+      question: 'Como instalar o Deal Hunter Pro pela Chrome Web Store oficial?',
       answer:
-        'A instalação leva menos de 1 minuto: 1) Baixe o arquivo .ZIP clicando no botão de download; 2) Descompacte a pasta no seu computador; 3) No Chrome ou Edge, acesse chrome://extensions e ative o "Modo do Desenvolvedor" no canto superior direito; 4) Clique em "Carregar compactada" (ou sem compactação) e selecione a pasta da extensão; 5) Faça login direto com sua conta da nuvem na extensão. Pronto!',
+        'A instalação é 100% oficial, segura e leva apenas 1 clique: 1) Clique no botão "Usar no Chrome" aqui na página; 2) Na Chrome Web Store oficial do Google, clique em "Usar no Chrome" (ou "Adicionar extensão"); 3) O Chrome baixa e instala automaticamente a versão oficial verificada; 4) Abra a extensão e faça login direto com sua conta da nuvem. Não é necessário descompactar pastas nem ativar o Modo do Desenvolvedor!',
     },
     {
       question: 'Quais são os requisitos mínimos e compatibilidade do Deal Hunter Pro?',
@@ -146,16 +168,16 @@ export default function LandingPage() {
 
   return (
     <main className="min-h-screen bg-[#070a12] text-[#f1f5f9] selection:bg-violet-500/30 selection:text-violet-200 antialiased overflow-x-hidden">
-      {/* Toast de Download Iniciado */}
-      {downloadToast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 p-4 bg-[#0c101d]/95 border border-emerald-500/60 rounded-2xl shadow-2xl shadow-emerald-950/60 backdrop-blur-md animate-in slide-in-from-bottom-5 duration-300">
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
-            <CheckCircle2 className="w-5 h-5" />
+      {/* Toast de Acesso Chrome Web Store */}
+      {chromeToast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 p-4 bg-[#0c101d]/95 border border-cyan-500/60 rounded-2xl shadow-2xl shadow-cyan-950/60 backdrop-blur-md animate-in slide-in-from-bottom-5 duration-300">
+          <div className="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center flex-shrink-0">
+            <ChromeIcon className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-xs font-bold text-white">Download Iniciado!</p>
+            <p className="text-xs font-bold text-white">Abrindo Chrome Web Store Oficial...</p>
             <p className="text-[11px] text-gray-300">
-              Extraia o arquivo .zip e siga o guia de instalação em 1 minuto.
+              Clique em &ldquo;Usar no Chrome&rdquo; para instalar a extensão verificada em 1 clique.
             </p>
           </div>
         </div>
@@ -202,7 +224,7 @@ export default function LandingPage() {
           {/* Badge de Destaque Superior */}
           <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-violet-950/50 border border-violet-500/30 text-violet-300 text-xs font-bold tracking-widest uppercase backdrop-blur-md animate-in fade-in duration-700 shadow-sm">
             <span className="w-2 h-2 rounded-full bg-[#d4ff32] animate-pulse" />
-            Extensão Inteligente · Versão 2.9
+            Extensão Oficial Chrome Web Store · Versão 2.9
           </div>
 
           {/* Headline Principal */}
@@ -220,15 +242,16 @@ export default function LandingPage() {
 
           {/* CTAs Principais da Hero */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
-            {/* Botão Primário: Download Direto do ZIP (Lime Accent) */}
+            {/* Botão Primário: Chrome Web Store Oficial (Lime Accent) */}
             <a
-              href={downloadZipUrl}
-              download="Deal_Hunter_Cliente.zip"
-              onClick={triggerDownload}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-full bg-[#d4ff32] hover:bg-[#c3f01c] text-black font-black text-sm sm:text-base uppercase tracking-wider shadow-xl shadow-[#d4ff32]/20 hover:shadow-[#d4ff32]/35 hover:-translate-y-0.5 transition-all active:scale-[0.98]"
+              href={chromeWebStoreUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={triggerOpenChromeStore}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-full bg-[#d4ff32] hover:bg-[#c3f01c] text-black font-black text-sm sm:text-base uppercase tracking-wider shadow-xl shadow-[#d4ff32]/25 hover:shadow-[#d4ff32]/40 hover:-translate-y-0.5 transition-all active:scale-[0.98] group"
             >
-              <Download className="w-5 h-5 stroke-[2.5]" />
-              <span>Baixar Extensão (.ZIP)</span>
+              <ChromeIcon className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" />
+              <span>Usar no Chrome (Oficial)</span>
             </a>
 
             {/* Botão Secundário: Teste 7 Dias (White Pill) */}
@@ -530,15 +553,17 @@ export default function LandingPage() {
             <div className="p-4 sm:p-5 bg-[#090d18] border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-300">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                <span>Instalação simples via arquivo .ZIP sem necessidade de conhecimento técnico.</span>
+                <span>Extensão oficial verificada pelo Google. Instalação instantânea em 1 clique.</span>
               </div>
               <a
-                href={downloadZipUrl}
-                download="Deal_Hunter_Cliente.zip"
-                onClick={triggerDownload}
-                className="text-[#d4ff32] hover:underline font-bold flex items-center gap-1.5 transition-colors uppercase tracking-wider text-[11px]"
+                href={chromeWebStoreUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={triggerOpenChromeStore}
+                className="text-[#d4ff32] hover:underline font-bold flex items-center gap-2 transition-colors uppercase tracking-wider text-[11px]"
               >
-                <span>Baixar .ZIP da Extensão</span>
+                <ChromeIcon className="w-3.5 h-3.5" />
+                <span>Adicionar ao Chrome (Web Store)</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </a>
             </div>
@@ -650,13 +675,14 @@ export default function LandingPage() {
                   </Link>
 
                   <a
-                    href={downloadZipUrl}
-                    download="Deal_Hunter_Cliente.zip"
-                    onClick={triggerDownload}
-                    className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-xs sm:text-sm font-bold text-white transition-all"
+                    href={chromeWebStoreUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={triggerOpenChromeStore}
+                    className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-white/[0.08] hover:bg-white/[0.14] border border-white/[0.15] text-xs sm:text-sm font-bold text-white transition-all hover:-translate-y-0.5"
                   >
-                    <Download className="w-4 h-4" />
-                    <span>Baixar Extensão</span>
+                    <ChromeIcon className="w-4 h-4" />
+                    <span>Instalar na Chrome Web Store</span>
                   </a>
                 </div>
 
@@ -683,7 +709,7 @@ export default function LandingPage() {
               Como Começar em Menos de 1 Minuto
             </p>
             <p className="text-sm text-slate-400 max-w-xl mx-auto">
-              100% na nuvem: sem scripts ou terminais complexos. Tudo pronto para rodar.
+              100% na nuvem e verificado pelo Google: instale em 1 clique e comece imediatamente.
             </p>
           </div>
 
@@ -696,21 +722,22 @@ export default function LandingPage() {
                   1
                 </div>
                 <h3 className="text-lg font-black uppercase tracking-tight text-white mb-2">
-                  Baixe e Extraia a Pasta
+                  Instale na Web Store
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
-                  Baixe o arquivo <strong>.ZIP</strong> da extensão atualizada diretamente aqui na landing page e extraia a pasta em qualquer local no seu computador.
+                  Acesse a <strong>Chrome Web Store oficial</strong> e clique em <strong>&ldquo;Usar no Chrome&rdquo;</strong>. A extensão é baixada e verificada pelo Google em 1 segundo.
                 </p>
               </div>
               <div className="pt-2">
                 <a
-                  href={downloadZipUrl}
-                  download="Deal_Hunter_Cliente.zip"
-                  onClick={triggerDownload}
+                  href={chromeWebStoreUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={triggerOpenChromeStore}
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-bold text-[#d4ff32] transition-colors uppercase tracking-wider"
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Baixar .ZIP agora</span>
+                  <ChromeIcon className="w-3.5 h-3.5" />
+                  <span>Abrir Web Store</span>
                 </a>
               </div>
             </div>
@@ -722,16 +749,16 @@ export default function LandingPage() {
                   2
                 </div>
                 <h3 className="text-lg font-black uppercase tracking-tight text-white mb-2">
-                  Carregue no Chrome
+                  Conecte sua Conta
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
-                  Acesse <code>chrome://extensions/</code>, ative a opção <strong>Modo do desenvolvedor</strong> no canto superior e clique em <strong>Carregar compactada</strong> selecionando a pasta da extensão.
+                  Abra a extensão pelo ícone do navegador e faça login com sua conta Google ou e-mail. Seu período de teste de 7 dias ou licença Pro é sincronizado automaticamente.
                 </p>
               </div>
               <div className="pt-2">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#d4ff32]/10 border border-[#d4ff32]/20 text-[11px] font-bold text-[#d4ff32] uppercase tracking-wider">
                   <Check className="w-3.5 h-3.5" />
-                  <span>Sem instalação complexa</span>
+                  <span>Login 100% Automático</span>
                 </span>
               </div>
             </div>
@@ -743,16 +770,16 @@ export default function LandingPage() {
                   3
                 </div>
                 <h3 className="text-lg font-black uppercase tracking-tight text-white mb-2">
-                  Faça Login na Nuvem
+                  Receba Alertas no Telegram
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
-                  Abra a extensão, faça login direto com a sua conta da nuvem e pronto: os alertas de bugs e superdescontos já começam a cair em tempo real no seu Telegram.
+                  Conecte seu canal, grupo ou chat privado. O robô em nuvem começa a monitorar Amazon, Magalu e Eletroclub e avisa você no segundo em que o preço despencar.
                 </p>
               </div>
               <div className="pt-2">
                 <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-bold text-emerald-400 uppercase tracking-wider">
                   <Check className="w-3.5 h-3.5" />
-                  <span>Alertas no Automático</span>
+                  <span>Alertas em Tempo Real</span>
                 </span>
               </div>
             </div>
@@ -1182,7 +1209,7 @@ export default function LandingPage() {
                     </li>
                     <li className="flex items-center gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                      <span>Download imediato da extensão (.zip) pré-configurada</span>
+                      <span>Instalação instantânea oficial via Chrome Web Store</span>
                     </li>
                     <li className="flex items-center gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />

@@ -20,7 +20,7 @@ export default function LoginPage() {
   const [licenseInfo, setLicenseInfo] = useState<any>(null);
   const [isCheckoutSuccess, setIsCheckoutSuccess] = useState(false);
 
-  const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID || 'lenaiemkaapkamkpbpdppmfblbpghhnc';
+  const extensionId = process.env.NEXT_PUBLIC_EXTENSION_ID || 'gdnmfnoccdcbpcnaafjcoapgmihmgbdo';
 
   // 1. Monitora sessão ativa do Supabase e parâmetros da URL
   useEffect(() => {

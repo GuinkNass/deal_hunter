@@ -16,10 +16,34 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
+function ChromeIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      <path
+        fill="#EA4335"
+        d="M12 0C8.21 0 4.831 1.757 2.632 4.501l3.953 6.848A5.454 5.454 0 0 1 12 6.545h10.691A12 12 0 0 0 12 0z"
+      />
+      <path
+        fill="#34A853"
+        d="M1.931 5.47A11.943 11.943 0 0 0 0 12c0 6.012 4.42 10.991 10.189 11.864l3.953-6.847a5.45 5.45 0 0 1-6.865-2.29z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M15.273 7.478a5.449 5.449 0 0 1 2.182 6.865l-5.345 9.258C12.115 23.805 12.058 24 12 24c6.627 0 12-5.373 12-12 0-1.54-.29-3.011-.818-4.364z"
+      />
+      <circle cx="12" cy="12" r="5.455" fill="#FFFFFF" />
+      <circle cx="12" cy="12" r="4.364" fill="#1A73E8" />
+    </svg>
+  );
+}
+
 export default function PaginaSucesso() {
   const [supabase] = useState(() => createClient());
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const chromeWebStoreUrl =
+    'https://chromewebstore.google.com/detail/gdnmfnoccdcbpcnaafjcoapgmihmgbdo?utm_source=item-share-cb';
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -30,7 +54,7 @@ export default function PaginaSucesso() {
   }, [supabase]);
 
   function copyDownloadLink() {
-    navigator.clipboard.writeText(window.location.origin + '/downloads/deal-hunter-pro.zip');
+    navigator.clipboard.writeText(chromeWebStoreUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 3000);
   }
@@ -82,28 +106,38 @@ export default function PaginaSucesso() {
           {/* Downloads das Extensões em Destaque */}
           <div className="space-y-4">
             {/* Extensão 1: Deal Hunter Pro */}
-            <div className="p-5 rounded-2xl bg-gradient-to-r from-[#141b2b] to-[#111726] border border-orange-500/30 text-left space-y-3 shadow-lg">
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-[#141b2b] to-[#111726] border border-cyan-500/40 text-left space-y-3 shadow-lg">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-orange-400">
-                  <Laptop className="w-4 h-4" />
-                  <span>1. Deal Hunter Pro (.ZIP)</span>
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-cyan-400">
+                  <ChromeIcon className="w-4 h-4" />
+                  <span>1. Deal Hunter Pro (Chrome Web Store Oficial)</span>
                 </div>
                 <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                  Varredura em Nuvem
+                  Verificada pelo Google
                 </span>
               </div>
               <p className="text-xs text-gray-300 leading-relaxed">
-                O motor central que varre Amazon, Magalu e Eletroclub continuamente na nuvem disparando no Telegram:
+                Extensão oficial aprovada pelo Google. Instale com 1 clique direto no seu navegador Chrome, Edge ou Brave:
               </p>
               <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
                 <a
-                  href="/downloads/deal-hunter-pro.zip"
-                  download="Deal_Hunter_Cliente.zip"
-                  className="flex-1 inline-flex items-center justify-center gap-2.5 py-3 px-5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs sm:text-sm shadow-lg shadow-orange-500/25 active:scale-[0.98] transition-all"
+                  href={chromeWebStoreUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 inline-flex items-center justify-center gap-2.5 py-3 px-5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-500/25 active:scale-[0.98] transition-all"
                 >
-                  <Download className="w-4 h-4" />
-                  <span>Baixar Deal Hunter (.ZIP)</span>
+                  <ChromeIcon className="w-4 h-4" />
+                  <span>Instalar via Chrome Web Store</span>
+                  <ArrowRight className="w-4 h-4" />
                 </a>
+                <button
+                  onClick={copyDownloadLink}
+                  className="px-4 py-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-semibold text-gray-300 transition-all flex items-center justify-center gap-2"
+                  title="Copiar link da Chrome Web Store"
+                >
+                  {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  <span>{copied ? 'Link Copiado!' : 'Copiar Link'}</span>
+                </button>
               </div>
             </div>
 
@@ -141,32 +175,32 @@ export default function PaginaSucesso() {
           {/* Guia Rápido de 3 Passos */}
           <div className="bg-[#0b0e15] border border-gray-800/80 rounded-2xl p-5 text-left space-y-3">
             <h2 className="text-xs font-bold text-gray-200 uppercase tracking-wider flex items-center gap-2">
-              <Zap className="w-4 h-4 text-orange-400" />
+              <Zap className="w-4 h-4 text-emerald-400" />
               Como começar a caçar ofertas agora:
             </h2>
             <ol className="space-y-3 text-xs text-gray-300">
               <li className="flex items-start gap-2.5">
-                <span className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-orange-500/20 text-orange-400 font-bold text-[11px] border border-orange-500/30">
+                <span className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-[11px] border border-emerald-500/30">
                   1
                 </span>
                 <span>
-                  <strong>Extraia o arquivo .zip</strong> baixado em uma pasta de sua preferência no computador.
+                  Clique no botão <strong>Instalar via Chrome Web Store</strong> acima e depois em <strong>&ldquo;Usar no Chrome&rdquo;</strong> (ou &ldquo;Adicionar ao Chrome&rdquo;).
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
-                <span className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-orange-500/20 text-orange-400 font-bold text-[11px] border border-orange-500/30">
+                <span className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-[11px] border border-emerald-500/30">
                   2
                 </span>
                 <span>
-                  No Chrome ou Edge, acesse <code>chrome://extensions</code>, ative o <strong>Modo do Desenvolvedor</strong> e clique em <strong>Carregar sem compactação</strong> selecionando a pasta <strong>Extensao</strong>.
+                  No Chrome, clique no ícone de <strong>quebra-cabeça (Extensões)</strong> e fixe o <strong>Deal Hunter Pro</strong> na barra de ferramentas para fácil acesso.
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
-                <span className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-orange-500/20 text-orange-400 font-bold text-[11px] border border-orange-500/30">
+                <span className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-[11px] border border-emerald-500/30">
                   3
                 </span>
                 <span>
-                  Abra a extensão pelo ícone do navegador e clique em <strong>Fazer Login</strong>. A conexão com a nuvem é 100% automática!
+                  Abra a extensão e faça login com a conta vinculada ({userEmail || 'seu e-mail'}). A ativação é 100% imediata e os alertas já começam a rodar!
                 </span>
               </li>
             </ol>
