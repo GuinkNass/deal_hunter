@@ -146,11 +146,12 @@ function parseCapturedProducts(products, pageUrl, domain) {
   const allowedDomain = domain.toLowerCase().replace(/^www\./, '');
   const results = new Map();
   for (const product of products.slice(0, 500)) {
-    const price = parsePrice(product?.price);
-    const name = clean(product?.name);
-    if (!name || !product?.url || !(price > 0)) continue;
+    const price = parsePrice(product?.price != null ? product.price : product?.preco_atual);
+    const name = clean(product?.name || product?.titulo);
+    const rawUrl = product?.url || product?.url_produto;
+    if (!name || !rawUrl || !(price > 0)) continue;
     try {
-      const url = new URL(product.url, pageUrl);
+      const url = new URL(rawUrl, pageUrl);
       const productHost = url.hostname.toLowerCase().replace(/^www\./, '');
       if (!['http:', 'https:'].includes(url.protocol)
         || (productHost !== allowedDomain && !productHost.endsWith(`.${allowedDomain}`))) continue;
@@ -158,20 +159,31 @@ function parseCapturedProducts(products, pageUrl, domain) {
       for (const key of [...url.searchParams.keys()]) {
         if (/^(utm_|ref$|tag$|psc$|crid$)/i.test(key)) url.searchParams.delete(key);
       }
-      let originalPrice = parsePrice(product.originalPrice);
-      let advertisedDiscount = Number(product.advertisedDiscount) || null;
+      let originalPrice = parsePrice(product?.originalPrice != null ? product.originalPrice : product?.preco_original);
+      let advertisedDiscount = Number(product?.advertisedDiscount != null ? product.advertisedDiscount : (String(product?.desconto || '').match(/\d+/)?.[0])) || null;
       if (!originalPrice && advertisedDiscount && price > 0 && advertisedDiscount > 0 && advertisedDiscount < 100) {
         originalPrice = Math.round((price / (1 - advertisedDiscount / 100)) * 100) / 100;
       }
       if (!advertisedDiscount && originalPrice && price && originalPrice > price) {
         advertisedDiscount = Math.round(((originalPrice - price) / originalPrice) * 100);
       }
+      const rawImage = typeof product.imageUrl === 'string' ? product.imageUrl : (typeof product.url_imagem === 'string' ? product.url_imagem : null);
       results.set(url.href, {
-        name, url: url.href, price,
+        id: product.id || null,
+        name,
+        titulo: name,
+        url: url.href,
+        url_produto: url.href,
+        price,
+        preco_atual: price,
         originalPrice: originalPrice > price ? originalPrice : null,
+        preco_original: originalPrice > price ? originalPrice : null,
         advertisedDiscount: advertisedDiscount > 0 && advertisedDiscount < 100 ? advertisedDiscount : null,
+        desconto: advertisedDiscount > 0 && advertisedDiscount < 100 ? `-${advertisedDiscount}%` : null,
         currency: product.currency || 'BRL',
-        imageUrl: typeof product.imageUrl === 'string' ? product.imageUrl : null,
+        imageUrl: rawImage,
+        url_imagem: rawImage,
+        loja: product.loja || null,
       });
     } catch {
       // Dados fornecidos pelo navegador são validados novamente no backend.
@@ -205,12 +217,14 @@ function diagnoseListing(html, domain) {
 
 function cardSelectors(domain) {
   if (domain.includes('amazon.')) return [
-    '[data-testid="product-card"]',
-    '[data-deal-id]',
-    '[data-csa-c-item-type="deal"]',
+    'div[data-component-type="s-search-result"]',
+    'div[role="listitem"][data-asin]:not([data-asin=""])',
     '[data-component-type="s-search-result"][data-asin]',
     '[data-asin][data-index]',
     '[data-asin]',
+    '[data-testid="product-card"]',
+    '[data-deal-id]',
+    '[data-csa-c-item-type="deal"]',
     '[class*="ProductCard-module__card"]',
     '.zg-grid-general-faceout',
     '[data-testid*="deal-card"]',
@@ -220,12 +234,14 @@ function cardSelectors(domain) {
     '[class*="DealGridItem"]',
   ];
   if (domain.includes('magazineluiza.')) return [
+    'div[data-testid="product-card-container"]',
+    'div[data-testid="inview-container"]',
+    'li[data-testid="product-list-item"]',
     '[data-testid="product-card-link"]',
     '[data-testid="product-card-container"]',
     '[data-testid="product-card-content"]',
     'a[data-testid="product-card-container"]',
     'a[data-testid="product-card-link"]',
-    'li[data-testid="product-list-item"]',
     'li[data-testid*="product"]',
     '[data-testid="product-card"]',
     '[data-testid*="product-card"]',
@@ -233,8 +249,9 @@ function cardSelectors(domain) {
     '[data-testid="product-card-price"]',
   ];
   if (domain.includes('eletroclub.')) return [
-    'section[class*="vtex-product-summary"]',
     '.vtex-product-summary-2-x-container',
+    'section[class*="vtex-product-summary"]',
+    'article[class*="vtex-product-summary"]',
     '[class*="vtex-product-summary"]',
     '[class*="product-summary-2-x-container"]',
     '[data-af-element="search-result"]',
@@ -248,9 +265,10 @@ function cardSelectors(domain) {
     '.product-card',
   ];
   if (domain.includes('kabum.')) return [
+    'a[href^="/produto/"]',
+    'a[href*="/produto/"]',
     'article[class*="productCard"]',
     '[class*="productCard"]',
-    'a[href*="/produto/"]',
     '.productCard',
   ];
   if (domain.includes('pichau.')) return [
@@ -264,12 +282,17 @@ function cardSelectors(domain) {
     'a[href*="/kit-"]',
     '.product-card',
   ];
-  if (domain.includes('lojasrenner.')) return [
+  if (domain.includes('lojasrenner.') || domain.includes('renner.')) return [
+    'div[data-product-id]',
+    'div[class*="ProductBox_productBoxContent"]',
     '[class*="product_item"]',
     '[class*="product-card"]',
     'a[href*="/p/"]',
   ];
   if (domain.includes('shein.')) return [
+    'div[role="listitem"].bs-product-card',
+    'div[role="listitem"][data-eid]',
+    'div[role="listitem"][class*="product-card"]',
     '[class*="bs-product-card"]',
     '[class*="product-list__item"]',
     '[class*="product-card"]',
@@ -278,6 +301,9 @@ function cardSelectors(domain) {
     '.c-goodsitem',
   ];
   if (domain.includes('shopee.')) return [
+    'div[role="group"][aria-label^="Product card:"]',
+    'li[data-sqe="item"]',
+    'div[data-sq="item"]',
     '[data-sq="item"]',
     '[class*="shopee-search-item-result__item"]',
     'a[href*="-i."]',

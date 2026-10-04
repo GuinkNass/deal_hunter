@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Deal Hunter Pro — Monitor de Ofertas",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Monitoramento de ofertas e bugs de preço em tempo real nas principais lojas com alertas instantâneos.",
   "icons": {
     "16": "icons/icon16.png",
