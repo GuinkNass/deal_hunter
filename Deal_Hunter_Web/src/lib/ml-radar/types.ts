@@ -20,6 +20,12 @@ export interface MLMatchItem {
   free_shipping: boolean;
   is_full: boolean;
   sold_quantity?: number;
+  date_created?: string;
+  days_active?: number;
+  sales_velocity?: number;
+  min_price?: number;
+  winner_price?: number;
+  oldest_date?: string;
   seller_nickname?: string;
   seller_reputation_level?: string;
 }
