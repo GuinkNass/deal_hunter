@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
       success: true,
       data: {
         gemini_api_key: profile?.gemini_api_key || '',
-        gemini_model: profile?.gemini_model || 'gemini-1.5-flash',
+        gemini_model: (profile?.gemini_model && !profile.gemini_model.includes('1.5') && !profile.gemini_model.includes('2.5')) ? profile.gemini_model : 'gemini-3.8-flash',
         ml_api_key: profile?.ml_api_key || '',
         ml_client_id: profile?.ml_client_id || '',
         ml_client_secret: profile?.ml_client_secret || '',
@@ -110,7 +110,10 @@ export async function POST(req: NextRequest) {
     };
 
     if (gemini_api_key !== undefined) updates.gemini_api_key = gemini_api_key ? String(gemini_api_key).trim() : null;
-    if (gemini_model !== undefined) updates.gemini_model = gemini_model ? String(gemini_model).trim() : 'gemini-1.5-flash';
+    if (gemini_model !== undefined) {
+      const m = gemini_model ? String(gemini_model).trim() : '';
+      updates.gemini_model = (!m.includes('1.5') && !m.includes('2.5') && m.length > 0) ? m : 'gemini-3.8-flash';
+    }
     if (ml_api_key !== undefined) updates.ml_api_key = ml_api_key ? String(ml_api_key).trim() : null;
     if (ml_client_id !== undefined) updates.ml_client_id = ml_client_id ? String(ml_client_id).trim() : null;
     if (ml_client_secret !== undefined) updates.ml_client_secret = ml_client_secret ? String(ml_client_secret).trim() : null;

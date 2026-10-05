@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { service, gemini_api_key, ml_client_id, ml_client_secret, telegram_bot_token, telegram_chat_id } = body;
+    const { service, gemini_api_key, gemini_model, ml_client_id, ml_client_secret, telegram_bot_token, telegram_chat_id } = body;
 
     // 1. Teste Mercado Livre
     if (service === 'mercadolivre') {
@@ -82,41 +82,81 @@ export async function POST(req: NextRequest) {
 
     // 3. Teste Google Gemini
     if (service === 'gemini') {
-      if (!gemini_api_key || gemini_api_key.trim().length < 10) {
+      let activeKey = gemini_api_key?.trim() || '';
+
+      if (!activeKey) {
+        const authHeader = req.headers.get('authorization') || '';
+        const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+        if (token) {
+          try {
+            const { createAdminClient } = await import('@/lib/supabase/admin');
+            const supabase = createAdminClient();
+            const { data: { user } } = await supabase.auth.getUser(token);
+            if (user) {
+              const { data: profile } = await supabase.from('profiles').select('gemini_api_key').eq('id', user.id).maybeSingle();
+              if (profile?.gemini_api_key) activeKey = profile.gemini_api_key.trim();
+            }
+          } catch {}
+        }
+      }
+
+      if (!activeKey) {
+        activeKey = process.env.GEMINI_API_KEY?.trim() || '';
+      }
+
+      if (!activeKey || activeKey.length < 10) {
         return NextResponse.json({
           success: false,
           message: '❌ Chave de API do Gemini não informada ou incompleta. Obtenha sua chave grátis em aistudio.google.com/app/apikey.',
         });
       }
 
-      try {
-        const testUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${gemini_api_key.trim()}`;
-        const res = await fetch(testUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: 'Responda estritamente "OK"' }] }],
-            generationConfig: { maxOutputTokens: 10 },
-          }),
-          signal: AbortSignal.timeout(8000),
-        });
+      const requestedModel = gemini_model?.trim() || '';
+      const candidateModels = [
+        requestedModel,
+        'gemini-3.8-flash',
+        'gemini-3.5-flash',
+        'gemini-flash-latest',
+        'gemini-flash-lite-latest',
+      ].filter((m, i, arr) => m && arr.indexOf(m) === i && !m.includes('1.5') && !m.includes('2.5'));
 
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          return NextResponse.json({
-            success: false,
-            message: `❌ Falha na API Gemini (${res.status}): ${errData.error?.message || 'Chave inválida'}`,
+      let lastError = '';
+      let connectedModel = '';
+
+      for (const model of candidateModels) {
+        try {
+          const testUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`;
+          const res = await fetch(testUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: 'Responda estritamente OK' }] }],
+              generationConfig: { maxOutputTokens: 10 },
+            }),
+            signal: AbortSignal.timeout(8000),
           });
-        }
 
+          if (res.ok) {
+            connectedModel = model;
+            break;
+          } else {
+            const errData = await res.json().catch(() => ({}));
+            lastError = errData.error?.message || `HTTP ${res.status}`;
+          }
+        } catch (err: any) {
+          lastError = err.message;
+        }
+      }
+
+      if (connectedModel) {
         return NextResponse.json({
           success: true,
-          message: '✅ Google Gemini AI conectado com sucesso e pronto para análises!',
+          message: `✅ Google Gemini AI conectado com sucesso via ${connectedModel} e pronto para auditorias de mercado!`,
         });
-      } catch (err: any) {
+      } else {
         return NextResponse.json({
           success: false,
-          message: `Erro ao testar Gemini: ${err.message}`,
+          message: `❌ Falha na API Gemini: ${lastError}`,
         });
       }
     }

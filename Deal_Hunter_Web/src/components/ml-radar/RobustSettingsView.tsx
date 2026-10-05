@@ -42,7 +42,7 @@ export default function RobustSettingsView({ authToken }: RobustSettingsViewProp
   const [telegramBotToken, setTelegramBotToken] = useState('');
   const [telegramChatId, setTelegramChatId] = useState('');
   const [geminiApiKey, setGeminiApiKey] = useState('');
-  const [geminiModel, setGeminiModel] = useState('gemini-1.5-flash');
+  const [geminiModel, setGeminiModel] = useState('gemini-3.8-flash');
 
   const [desiredMargin, setDesiredMargin] = useState<number>(20);
   const [minRoiAlert, setMinRoiAlert] = useState<number>(25);
@@ -76,7 +76,7 @@ export default function RobustSettingsView({ authToken }: RobustSettingsViewProp
         setTelegramBotToken(d.telegram_bot_token || '');
         setTelegramChatId(d.telegram_chat_id || '');
         setGeminiApiKey(d.gemini_api_key || '');
-        setGeminiModel(d.gemini_model || 'gemini-1.5-flash');
+        setGeminiModel(d.gemini_model || 'gemini-3.8-flash');
         setDesiredMargin(d.desired_margin ?? 20);
         setMinRoiAlert(d.min_roi_alert ?? 25);
         setTaxPercent(d.tax_percent ?? 6);
@@ -153,6 +153,7 @@ export default function RobustSettingsView({ authToken }: RobustSettingsViewProp
           telegram_bot_token: telegramBotToken,
           telegram_chat_id: telegramChatId,
           gemini_api_key: geminiApiKey,
+          gemini_model: geminiModel,
         }),
       });
       const json = await res.json();
@@ -562,9 +563,9 @@ export default function RobustSettingsView({ authToken }: RobustSettingsViewProp
               onChange={(e) => setGeminiModel(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-cyan-500"
             >
-              <option value="gemini-2.5-flash">gemini-2.5-flash (Ultra Rápido & Inteligente)</option>
-              <option value="gemini-1.5-flash">gemini-1.5-flash (Padrão Recomendado Free Tier)</option>
-              <option value="gemini-1.5-pro">gemini-1.5-pro (Raciocínio Profundo)</option>
+              <option value="gemini-3.8-flash">gemini-3.8-flash (Padrão Oficial Google AI Studio 2026 - Recomendado)</option>
+              <option value="gemini-3.5-flash">gemini-3.5-flash (Alta Velocidade & Baixo Consumo)</option>
+              <option value="gemini-flash-latest">gemini-flash-latest (Versão Mais Recente)</option>
             </select>
           </div>
         </div>
