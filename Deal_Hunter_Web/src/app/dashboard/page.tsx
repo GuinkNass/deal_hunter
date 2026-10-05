@@ -61,6 +61,14 @@ export default function DashboardPage() {
   const [notification, setNotification] = useState<string | null>(null);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab === 'calculator' || tab === 'manual' || tab === 'settings' || tab === 'status' || tab === 'radar') {
+        setActiveTab(tab as any);
+      }
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         router.push('/login');

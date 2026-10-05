@@ -31,15 +31,16 @@ async function sendToMLRadar({ title, price, originalPrice, imageUrl, productUrl
 
   const endpoints = [];
 
+  // 1. URL explícita por variável de ambiente se configurada
   if (process.env.ML_RADAR_INGEST_URL) {
     endpoints.push(process.env.ML_RADAR_INGEST_URL);
   }
 
-  // Next.js local comum (3001 quando server usa 3000)
-  endpoints.push('http://localhost:3001/api/ml-radar/ingest');
-  endpoints.push('http://127.0.0.1:3001/api/ml-radar/ingest');
+  // 2. Domínios oficiais de produção Deal Hunter Pro
+  endpoints.push('https://dealhunterpro.com.br/api/ml-radar/ingest');
+  endpoints.push('https://www.dealhunterpro.com.br/api/ml-radar/ingest');
 
-  // Nuvem Vercel oficial
+  // 3. Nuvem Vercel oficial
   if (config.webAuthUrl) {
     const cloudUrl = `${config.webAuthUrl.replace(/\/$/, '')}/api/ml-radar/ingest`;
     if (!endpoints.includes(cloudUrl)) {
@@ -47,7 +48,9 @@ async function sendToMLRadar({ title, price, originalPrice, imageUrl, productUrl
     }
   }
 
-  // Fallback para localhost:3000 (rota ponte ou Next se rodando na 3000)
+  // 4. Endpoints locais para desenvolvimento e testes
+  endpoints.push('http://localhost:3001/api/ml-radar/ingest');
+  endpoints.push('http://127.0.0.1:3001/api/ml-radar/ingest');
   endpoints.push('http://localhost:3000/api/ml-radar/ingest');
 
   for (const endpoint of endpoints) {

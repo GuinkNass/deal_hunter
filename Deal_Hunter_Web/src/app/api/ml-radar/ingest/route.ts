@@ -191,70 +191,99 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. Salva na tabela ml_radar_deals (Supabase) atrelada estritamente ao usuário
+    // 5. Salva na tabela ml_radar_deals (Supabase) atrelada ao usuário ou como público geral
     let savedDeal = null;
-    if (targetUserId) {
-      const finalVerdict = isGreatOpportunity ? 'Viável' : roi.netProfit > 0 ? 'Atenção' : 'Evitar';
+    const finalVerdict = isGreatOpportunity ? 'Viável' : roi.netProfit > 0 ? 'Atenção' : 'Evitar';
+
+    try {
+      const dealRecord: any = {
+        title,
+        price: numPrice,
+        original_price: numOriginalPrice,
+        image_url: imageUrl || bestMl.thumbnail || null,
+        product_url: cleanProductUrl,
+        store: cleanStore,
+        ml_title: bestMl.title,
+        ml_price: bestMl.price,
+        ml_url: bestMl.permalink,
+        ml_image_url: bestMl.thumbnail,
+        net_profit: roi.netProfit,
+        roi_percent: roi.roiPercent,
+        margin_percent: roi.marginPercent,
+        verdict: finalVerdict,
+        gemini_analysis: geminiAnalysis,
+        status: 'completed',
+      };
+
+      if (targetUserId) {
+        dealRecord.user_id = targetUserId;
+      }
 
       const { data: insertedDeal, error: dbError } = await supabase
         .from('ml_radar_deals')
-        .insert({
-          user_id: targetUserId,
-          title,
-          price: numPrice,
-          original_price: numOriginalPrice,
-          image_url: imageUrl || bestMl.thumbnail || null,
-          product_url: cleanProductUrl,
-          store: cleanStore,
-          ml_title: bestMl.title,
-          ml_price: bestMl.price,
-          ml_url: bestMl.permalink,
-          ml_image_url: bestMl.thumbnail,
-          net_profit: roi.netProfit,
-          roi_percent: roi.roiPercent,
-          margin_percent: roi.marginPercent,
-          verdict: finalVerdict,
-          gemini_analysis: geminiAnalysis,
-          status: 'completed',
-        })
+        .insert(dealRecord)
         .select()
         .single();
 
       if (!dbError && insertedDeal) {
         savedDeal = insertedDeal;
 
-        // 6. RETENÇÃO FIFO: "quando atingir o limite de histórico, começar a excluir permanentemente
-        //    do banco de dados do usuário da mais antiga pra mais nova. conforme limitação (máx 100 itens)."
-        try {
-          const { data: allDeals } = await supabase
-            .from('ml_radar_deals')
-            .select('id, created_at')
-            .eq('user_id', targetUserId)
-            .order('created_at', { ascending: false });
+        // 6. RETENÇÃO FIFO: limite do histórico a no máximo 100 itens por usuário
+        if (targetUserId) {
+          try {
+            const { data: allDeals } = await supabase
+              .from('ml_radar_deals')
+              .select('id, created_at')
+              .eq('user_id', targetUserId)
+              .order('created_at', { ascending: false });
 
-          if (allDeals && allDeals.length > 100) {
-            // Itens a partir do índice 100 são os mais antigos além do limite
-            const oldestDealsToDelete = allDeals.slice(100);
-            const idsToDelete = oldestDealsToDelete.map((d: any) => d.id);
-            if (idsToDelete.length > 0) {
-              await supabase
-                .from('ml_radar_deals')
-                .delete()
-                .in('id', idsToDelete);
+            if (allDeals && allDeals.length > 100) {
+              const oldestDealsToDelete = allDeals.slice(100);
+              const idsToDelete = oldestDealsToDelete.map((d: any) => d.id);
+              if (idsToDelete.length > 0) {
+                await supabase
+                  .from('ml_radar_deals')
+                  .delete()
+                  .in('id', idsToDelete);
+              }
             }
+          } catch (fifoErr: any) {
+            console.warn('[FIFO Retention] Erro ao podar histórico antigo:', fifoErr.message);
           }
-        } catch (fifoErr: any) {
-          console.warn('[FIFO Retention] Erro ao podar histórico antigo:', fifoErr.message);
         }
       } else if (dbError) {
-        console.error('[API ML Radar Ingest] Erro ao inserir no banco:', dbError);
+        console.warn('[API ML Radar Ingest] Erro ou tabela ausente no Supabase:', dbError.message);
       }
+    } catch (insertErr: any) {
+      console.warn('[API ML Radar Ingest] Falha ao persistir no Supabase:', insertErr.message);
     }
+
+    const fallbackDeal = {
+      id: savedDeal?.id || `deal-${Date.now()}`,
+      title,
+      price: numPrice,
+      original_price: numOriginalPrice,
+      image_url: imageUrl || bestMl.thumbnail || null,
+      product_url: cleanProductUrl,
+      store: cleanStore,
+      ml_title: bestMl.title,
+      ml_price: bestMl.price,
+      ml_url: bestMl.permalink,
+      ml_image_url: bestMl.thumbnail,
+      net_profit: roi.netProfit,
+      roi_percent: roi.roiPercent,
+      margin_percent: roi.marginPercent,
+      verdict: finalVerdict,
+      gemini_analysis: geminiAnalysis,
+      status: 'completed',
+      created_at: new Date().toISOString(),
+    };
 
     return NextResponse.json({
       success: true,
+      deal: savedDeal || fallbackDeal,
       data: {
-        id: savedDeal?.id,
+        id: (savedDeal || fallbackDeal).id,
         title,
         price: numPrice,
         productUrl: cleanProductUrl,
