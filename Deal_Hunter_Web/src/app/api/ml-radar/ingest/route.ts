@@ -30,6 +30,9 @@ function tagAmazonUrl(urlStr: string): string {
   }
 }
 
+const isValidUUID = (str?: string | null): boolean =>
+  Boolean(str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim()));
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as Partial<IngestPayload>;
@@ -49,41 +52,36 @@ export async function POST(req: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // 1. Busca credenciais individuais do usuário (profiles)
-    let userCredentials: {
-      gemini_api_key?: string | null;
-      ml_api_key?: string | null;
-      telegram_bot_token?: string | null;
-      telegram_chat_id?: string | null;
-    } = {};
-
-    let targetUserId = userId;
+    // 1. Identificação segura e recuperação das configurações individuais do usuário
+    let targetUserId: string | null = isValidUUID(userId) ? userId!.trim() : null;
+    let userCredentials: Record<string, any> = {};
 
     if (targetUserId) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('id, gemini_api_key, ml_api_key, telegram_bot_token, telegram_chat_id')
+        .select('*')
         .eq('id', targetUserId)
         .maybeSingle();
 
       if (profile) {
         userCredentials = profile;
+      } else {
+        targetUserId = null;
       }
     }
 
-    // Se nenhum userId válido foi encontrado no banco, tenta buscar admin ou primeiro usuário
-    if (!userCredentials.gemini_api_key && !userCredentials.telegram_bot_token) {
-      const { data: adminProfile } = await supabase
+    // Se o targetUserId não foi informado ou não era um UUID válido, localiza o perfil de admin ou primeiro usuário ativo
+    if (!targetUserId) {
+      const { data: primaryProfile } = await supabase
         .from('profiles')
-        .select('id, gemini_api_key, ml_api_key, telegram_bot_token, telegram_chat_id')
-        .eq('role', 'admin')
+        .select('*')
         .order('created_at', { ascending: true })
         .limit(1)
         .maybeSingle();
 
-      if (adminProfile) {
-        if (!targetUserId) targetUserId = adminProfile.id;
-        userCredentials = adminProfile;
+      if (primaryProfile) {
+        targetUserId = primaryProfile.id;
+        userCredentials = primaryProfile;
       }
     }
 
@@ -96,38 +94,67 @@ export async function POST(req: NextRequest) {
 
     const bestMl = mlCandidates[0];
 
-    // 3. Calcula ROI e viabilidade financeira
+    // 3. Calcula ROI e viabilidade financeira com taxas do usuário
     const roi = calculateROI({
       salePrice: bestMl.price,
       productCost: numPrice,
       listingType: bestMl.listing_type_id,
       freeShipping: bestMl.free_shipping,
+      desiredMargin: userCredentials.desired_margin ? Number(userCredentials.desired_margin) : 20,
+      feeClassicoPercent: userCredentials.fee_classico_percent ? Number(userCredentials.fee_classico_percent) : 12,
+      feePremiumPercent: userCredentials.fee_premium_percent ? Number(userCredentials.fee_premium_percent) : 17,
+      fixedFeeUnderThreshold: userCredentials.fixed_fee_under_79 ? Number(userCredentials.fixed_fee_under_79) : 6,
+      packagingCost: userCredentials.packaging_cost ? Number(userCredentials.packaging_cost) : 3.5,
+      taxPercent: userCredentials.tax_percent ? Number(userCredentials.tax_percent) : 6,
     });
 
-    // 4. Se for elegível ("ótima oportunidade" com lucro positivo):
-    //    - Chama Gemini sob demanda com tokens otimizados
-    //    - Dispara notificação Telegram se configurado
+    // 4. REGRA DE ALERTA: "O aviso ao telegram cadastrado no ml radar, deve ser enviado apenas quando
+    //    tiver ótima oportunidade conforme configuração pré-estabelecida pelo usuário."
+    const minRoiThreshold = Number(userCredentials.min_roi_alert ?? 25);
+    const minMarginThreshold = Number(userCredentials.desired_margin ?? 20);
+    const minPriceFilter = Number(userCredentials.min_price_filter ?? 0);
+    const maxPriceFilter = Number(userCredentials.max_price_filter ?? 999999);
+
+    let isKeywordExcluded = false;
+    if (userCredentials.excluded_keywords) {
+      const excludedWords = String(userCredentials.excluded_keywords)
+        .split(',')
+        .map((w: string) => w.trim().toLowerCase())
+        .filter(Boolean);
+      const titleLower = title.toLowerCase();
+      isKeywordExcluded = excludedWords.some((kw: string) => titleLower.includes(kw));
+    }
+
+    const isPriceInRange = numPrice >= minPriceFilter && numPrice <= maxPriceFilter;
+
+    const isGreatOpportunity =
+      roi.netProfit > 0 &&
+      roi.roiPercent >= minRoiThreshold &&
+      roi.marginPercent >= minMarginThreshold &&
+      isPriceInRange &&
+      !isKeywordExcluded;
+
     let geminiAnalysis: any = null;
     let telegramAlertSent = false;
 
-    const isGoodOpportunity = roi.netProfit > 0 && roi.roiPercent >= 15;
-
-    if (isGoodOpportunity) {
-      // 4.1 Chamada sob demanda ao Google Gemini com chave do usuário
+    if (isGreatOpportunity) {
+      // 4.1 Enriquecimento sob demanda com Google Gemini (apenas para ótimas oportunidades)
       const geminiApiKey = userCredentials.gemini_api_key || process.env.GEMINI_API_KEY || '';
-      geminiAnalysis = await analyzeOpportunityWithGemini({
-        apiKey: geminiApiKey,
-        sourceTitle: title,
-        store: cleanStore,
-        sourcePrice: numPrice,
-        mlTitle: bestMl.title,
-        mlPrice: bestMl.price,
-        netProfit: roi.netProfit,
-        roiPercent: roi.roiPercent,
-        marginPercent: roi.marginPercent,
-      });
+      if (geminiApiKey) {
+        geminiAnalysis = await analyzeOpportunityWithGemini({
+          apiKey: geminiApiKey,
+          sourceTitle: title,
+          store: cleanStore,
+          sourcePrice: numPrice,
+          mlTitle: bestMl.title,
+          mlPrice: bestMl.price,
+          netProfit: roi.netProfit,
+          roiPercent: roi.roiPercent,
+          marginPercent: roi.marginPercent,
+        });
+      }
 
-      // 4.2 Disparo Telegram privado se usuário configurou
+      // 4.2 Disparo Telegram privado para o bot do usuário apenas na ótima oportunidade confirmada
       if (userCredentials.telegram_bot_token && userCredentials.telegram_chat_id) {
         const tgRes = await sendTelegramNotification({
           botToken: userCredentials.telegram_bot_token,
@@ -144,16 +171,18 @@ export async function POST(req: NextRequest) {
             netProfit: roi.netProfit,
             roiPercent: roi.roiPercent,
             marginPercent: roi.marginPercent,
-            verdict: roi.verdict,
+            verdict: 'Viável',
           },
         });
         telegramAlertSent = tgRes.ok;
       }
     }
 
-    // 5. Salva na tabela ml_radar_deals (Supabase)
+    // 5. Salva na tabela ml_radar_deals (Supabase) atrelada estritamente ao usuário
     let savedDeal = null;
     if (targetUserId) {
+      const finalVerdict = isGreatOpportunity ? 'Viável' : roi.netProfit > 0 ? 'Atenção' : 'Evitar';
+
       const { data: insertedDeal, error: dbError } = await supabase
         .from('ml_radar_deals')
         .insert({
@@ -171,7 +200,7 @@ export async function POST(req: NextRequest) {
           net_profit: roi.netProfit,
           roi_percent: roi.roiPercent,
           margin_percent: roi.marginPercent,
-          verdict: roi.verdict,
+          verdict: finalVerdict,
           gemini_analysis: geminiAnalysis,
           status: 'completed',
         })
@@ -181,22 +210,31 @@ export async function POST(req: NextRequest) {
       if (!dbError && insertedDeal) {
         savedDeal = insertedDeal;
 
-        // Regra de retenção FIFO: remove itens além dos 100 mais recentes deste usuário
+        // 6. RETENÇÃO FIFO: "quando atingir o limite de histórico, começar a excluir permanentemente
+        //    do banco de dados do usuário da mais antiga pra mais nova. conforme limitação (máx 100 itens)."
         try {
-          const { data: oldestDeals } = await supabase
+          const { data: allDeals } = await supabase
             .from('ml_radar_deals')
-            .select('id')
+            .select('id, created_at')
             .eq('user_id', targetUserId)
-            .order('created_at', { ascending: false })
-            .range(100, 200);
+            .order('created_at', { ascending: false });
 
-          if (oldestDeals && oldestDeals.length > 0) {
-            const idsToDelete = oldestDeals.map((d: any) => d.id);
-            await supabase.from('ml_radar_deals').delete().in('id', idsToDelete);
+          if (allDeals && allDeals.length > 100) {
+            // Itens a partir do índice 100 são os mais antigos além do limite
+            const oldestDealsToDelete = allDeals.slice(100);
+            const idsToDelete = oldestDealsToDelete.map((d: any) => d.id);
+            if (idsToDelete.length > 0) {
+              await supabase
+                .from('ml_radar_deals')
+                .delete()
+                .in('id', idsToDelete);
+            }
           }
-        } catch {
-          // Trigger no banco também gerencia FIFO
+        } catch (fifoErr: any) {
+          console.warn('[FIFO Retention] Erro ao podar histórico antigo:', fifoErr.message);
         }
+      } else if (dbError) {
+        console.error('[API ML Radar Ingest] Erro ao inserir no banco:', dbError);
       }
     }
 
@@ -212,10 +250,11 @@ export async function POST(req: NextRequest) {
         roi,
         geminiAnalysis,
         telegramAlertSent,
+        isGreatOpportunity,
       },
     });
   } catch (err: any) {
-    console.error('[API ML Radar Ingest] Erro:', err);
+    console.error('[API ML Radar Ingest] Erro fatal:', err);
     return NextResponse.json(
       { error: err.message || 'Erro interno ao processar ingestão' },
       { status: 500 }

@@ -1,4 +1,5 @@
 const logger = require('./logger');
+const { config } = require('../config');
 const { tagAmazonUrl } = require('../adapters/amazon.adapter');
 
 /**
@@ -13,8 +14,8 @@ const { tagAmazonUrl } = require('../adapters/amazon.adapter');
  * - store
  */
 async function sendToMLRadar({ title, price, originalPrice, imageUrl, productUrl, userId, store }) {
-  const mlRadarEndpoint = process.env.ML_RADAR_INGEST_URL || 'http://localhost:3000/api/ml-radar/ingest';
-  
+  if (!title || price === undefined || price === null) return false;
+
   // Tagueamento defensivo para Amazon se aplicável
   const cleanUrl = tagAmazonUrl(productUrl);
 
@@ -24,33 +25,55 @@ async function sendToMLRadar({ title, price, originalPrice, imageUrl, productUrl
     originalPrice: originalPrice ? Number(originalPrice) : null,
     imageUrl: imageUrl || null,
     productUrl: cleanUrl,
-    userId: String(userId || process.env.DEFAULT_USER_ID || 'master_admin').trim(),
+    userId: userId ? String(userId).trim() : null,
     store: String(store || 'Online').trim(),
   };
 
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
-    const res = await fetch(mlRadarEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    }).finally(() => clearTimeout(timeout));
+  const endpoints = [];
 
-    if (!res.ok) {
-      const errText = await res.text().catch(() => '');
-      logger.warn(`[ML Radar Pipeline] Resposta ${res.status} ao enviar "${payload.title}": ${errText.substring(0, 100)}`);
-      return false;
-    }
-    logger.info(`[ML Radar Pipeline] Oportunidade enviada com sucesso ao ML Radar: "${payload.title}" (R$ ${payload.price})`);
-    return true;
-  } catch (err) {
-    logger.warn(`[ML Radar Pipeline] Erro ao despachar para ${mlRadarEndpoint}: ${err.message}`);
-    return false;
+  if (process.env.ML_RADAR_INGEST_URL) {
+    endpoints.push(process.env.ML_RADAR_INGEST_URL);
   }
+
+  // Next.js local comum (3001 quando server usa 3000)
+  endpoints.push('http://localhost:3001/api/ml-radar/ingest');
+  endpoints.push('http://127.0.0.1:3001/api/ml-radar/ingest');
+
+  // Nuvem Vercel oficial
+  if (config.webAuthUrl) {
+    const cloudUrl = `${config.webAuthUrl.replace(/\/$/, '')}/api/ml-radar/ingest`;
+    if (!endpoints.includes(cloudUrl)) {
+      endpoints.push(cloudUrl);
+    }
+  }
+
+  // Fallback para localhost:3000 (rota ponte ou Next se rodando na 3000)
+  endpoints.push('http://localhost:3000/api/ml-radar/ingest');
+
+  for (const endpoint of endpoints) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeout));
+
+      if (res.ok) {
+        logger.info(`[ML Radar Pipeline] Oferta sincronizada com sucesso no ML Radar (${endpoint}): "${payload.title}" (R$ ${payload.price})`);
+        return true;
+      }
+    } catch {
+      // Tenta próximo endpoint na lista
+    }
+  }
+
+  logger.warn(`[ML Radar Pipeline] Não foi possível despachar "${payload.title}" para os endpoints do ML Radar.`);
+  return false;
 }
 
 module.exports = { sendToMLRadar };

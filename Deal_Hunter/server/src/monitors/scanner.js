@@ -208,16 +208,16 @@ async function runScanCycle() {
   return { status, itemsScanned, candidatesFound: candidates.length, alertsSent, errors };
 }
 
-async function processBrowserPages(pages, scanId = null, complete = true) {
+async function processBrowserPages(pages, scanId = null, complete = true, userId = null) {
   if (scanId && cancelledBrowserScans.has(scanId)) {
     cancelledBrowserScans.delete(scanId);
     browserScanSessions.delete(scanId);
     return { status: 'cancelled', message: 'Varredura cancelada pelo usuário.' };
   }
-  return processBrowserPagesCycle(pages, scanId, complete);
+  return processBrowserPagesCycle(pages, scanId, complete, userId);
 }
 
-async function processBrowserPagesCycle(pages, scanId, complete) {
+async function processBrowserPagesCycle(pages, scanId, complete, userId = null) {
   const config = await getScanConfig();
   const categoriesList = await stmts.getSelectedCategories.all();
   const categories = new Map(categoriesList.map((category) => [category.id, category]));
@@ -326,6 +326,7 @@ async function processBrowserPagesCycle(pages, scanId, complete) {
       imageUrl,
       productUrl: candidate.item.url,
       store: candidate.category.site_name,
+      userId,
     }).catch(() => {});
 
     let sent = imageUrl ? await sendPhoto(message.text, imageUrl, { inlineButton: message.inlineButton, referer: candidate.item.url }) : await sendMessage(message.text, { inlineButton: message.inlineButton });

@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS products (
   title TEXT NOT NULL DEFAULT '',
   url TEXT NOT NULL,
   thumbnail TEXT,
+  image_url TEXT,
   currency VARCHAR(10) DEFAULT 'BRL',
   current_price NUMERIC(12, 2),
   site_original_price NUMERIC(12, 2),
@@ -50,10 +51,24 @@ CREATE TABLE IF NOT EXISTS price_history (
   observed_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS coupons (
+  id SERIAL PRIMARY KEY,
+  site_id INTEGER REFERENCES sites(id) ON DELETE CASCADE,
+  code TEXT,
+  discount_type VARCHAR(50),
+  discount_value NUMERIC(12, 2),
+  source_url TEXT,
+  description TEXT,
+  fingerprint VARCHAR(255) NOT NULL UNIQUE,
+  first_seen TIMESTAMP NOT NULL DEFAULT NOW(),
+  last_seen TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS alerts (
   id SERIAL PRIMARY KEY,
   site_id INTEGER REFERENCES sites(id) ON DELETE CASCADE,
   product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+  coupon_id INTEGER REFERENCES coupons(id) ON DELETE CASCADE,
   alert_type VARCHAR(50) NOT NULL,
   discount_percent INTEGER,
   score INTEGER,
@@ -73,6 +88,18 @@ CREATE TABLE IF NOT EXISTS scan_runs (
   status VARCHAR(50) NOT NULL,
   items_scanned INTEGER DEFAULT 0,
   candidates_found INTEGER DEFAULT 0,
+  alerts_sent INTEGER DEFAULT 0,
+  message TEXT,
+  started_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  finished_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS monitor_runs (
+  id SERIAL PRIMARY KEY,
+  site_id INTEGER REFERENCES sites(id) ON DELETE CASCADE,
+  status VARCHAR(50) NOT NULL,
+  products_analyzed INTEGER DEFAULT 0,
+  changes_detected INTEGER DEFAULT 0,
   alerts_sent INTEGER DEFAULT 0,
   message TEXT,
   started_at TIMESTAMP NOT NULL DEFAULT NOW(),

@@ -42,7 +42,8 @@ router.post('/browser-pages', async (req, res) => {
   if (scanId && !/^[a-zA-Z0-9-]{8,80}$/.test(scanId)) {
     return res.status(400).json({ error: 'Identificador de varredura inválido.' });
   }
-  const result = await processBrowserPages(pages, scanId, req.body?.complete !== false);
+  const userId = req.user?.sub || req.user?.id || req.body?.userId;
+  const result = await processBrowserPages(pages, scanId, req.body?.complete !== false, userId);
   res.json(result);
 });
 

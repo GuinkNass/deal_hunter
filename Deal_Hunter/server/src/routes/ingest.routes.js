@@ -2,6 +2,7 @@ const express = require('express');
 const { db } = require('../database/db');
 const { processProduct, processCoupons } = require('../monitors/checker');
 const { extractCandidateCoupons } = require('../analyzers/coupon');
+const { sendToMLRadar } = require('../utils/mlRadarPipeline');
 
 const router = express.Router();
 
@@ -17,6 +18,8 @@ router.post('/', async (req, res) => {
   const { domain, url, name, price, currency, imageUrl, pageText } = req.body || {};
   if (!domain || !url) return res.status(400).json({ error: 'domain e url são obrigatórios.' });
 
+  const userId = req.user?.sub || req.user?.id || req.body?.userId;
+
   const site = getSiteByDomain.get(domain);
   if (!site || !site.active) {
     return res.status(200).json({ ignored: true, reason: 'Site não monitorado ou pausado.' });
@@ -24,9 +27,22 @@ router.post('/', async (req, res) => {
 
   let alertsSent = 0;
 
-  if (typeof price === 'number' && price > 0 && (site.monitor_prices || site.monitor_anomalies)) {
-    const result = await processProduct(site, { name, url, price, currency, imageUrl });
-    alertsSent += result.alertsSent;
+  if (typeof price === 'number' && price > 0) {
+    // Encaminha automaticamente para o ML Radar Dashboard
+    sendToMLRadar({
+      title: name || site.name,
+      price,
+      originalPrice: null,
+      imageUrl: imageUrl || null,
+      productUrl: url,
+      store: site.name || domain,
+      userId,
+    }).catch(() => {});
+
+    if (site.monitor_prices || site.monitor_anomalies) {
+      const result = await processProduct(site, { name, url, price, currency, imageUrl, userId });
+      alertsSent += result.alertsSent;
+    }
   }
 
   if (site.monitor_coupons && pageText) {

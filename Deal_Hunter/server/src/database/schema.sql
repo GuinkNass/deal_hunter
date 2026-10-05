@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS products (
   title TEXT NOT NULL,
   url TEXT NOT NULL,
   thumbnail TEXT,
+  image_url TEXT,
   currency TEXT DEFAULT 'BRL',
   current_price REAL,
   site_original_price REAL,
@@ -50,10 +51,24 @@ CREATE TABLE IF NOT EXISTS price_history (
   observed_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS coupons (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  site_id INTEGER REFERENCES sites(id) ON DELETE CASCADE,
+  code TEXT,
+  discount_type TEXT,
+  discount_value REAL,
+  source_url TEXT,
+  description TEXT,
+  fingerprint TEXT NOT NULL UNIQUE,
+  first_seen TEXT NOT NULL DEFAULT (datetime('now')),
+  last_seen TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS alerts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   site_id INTEGER REFERENCES sites(id) ON DELETE CASCADE,
   product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+  coupon_id INTEGER REFERENCES coupons(id) ON DELETE CASCADE,
   alert_type TEXT NOT NULL, -- 'anomaly' | 'possible_error'
   discount_percent INTEGER,
   score INTEGER,
@@ -73,6 +88,18 @@ CREATE TABLE IF NOT EXISTS scan_runs (
   status TEXT NOT NULL, -- 'success' | 'error'
   items_scanned INTEGER DEFAULT 0,
   candidates_found INTEGER DEFAULT 0,
+  alerts_sent INTEGER DEFAULT 0,
+  message TEXT,
+  started_at TEXT NOT NULL DEFAULT (datetime('now')),
+  finished_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS monitor_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  site_id INTEGER REFERENCES sites(id) ON DELETE CASCADE,
+  status TEXT NOT NULL,
+  products_analyzed INTEGER DEFAULT 0,
+  changes_detected INTEGER DEFAULT 0,
   alerts_sent INTEGER DEFAULT 0,
   message TEXT,
   started_at TEXT NOT NULL DEFAULT (datetime('now')),

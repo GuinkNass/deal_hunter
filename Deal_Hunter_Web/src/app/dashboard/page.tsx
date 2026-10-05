@@ -85,9 +85,18 @@ export default function DashboardPage() {
     return () => subscription.unsubscribe();
   }, [supabase, router]);
 
-  async function loadDeals(token: string) {
+  // Polling automático a cada 30 segundos mantendo o painel sempre atualizado
+  useEffect(() => {
+    if (!authToken) return;
+    const interval = setInterval(() => {
+      loadDeals(authToken, false);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [authToken]);
+
+  async function loadDeals(token: string, showIndicator = true) {
     try {
-      setRefreshing(true);
+      if (showIndicator) setRefreshing(true);
       const res = await fetch('/api/ml-radar/deals', {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -99,7 +108,7 @@ export default function DashboardPage() {
       console.error('Erro ao carregar ofertas:', err);
     } finally {
       setLoading(false);
-      setRefreshing(false);
+      if (showIndicator) setRefreshing(false);
     }
   }
 
@@ -264,11 +273,19 @@ export default function DashboardPage() {
               <span>Testar Ingestão</span>
             </button>
 
+            <div
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-bold text-emerald-400 select-none"
+              title="Sincronização contínua a cada 30 segundos"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Auto-sync 30s</span>
+            </div>
+
             <button
-              onClick={() => authToken && loadDeals(authToken)}
+              onClick={() => authToken && loadDeals(authToken, true)}
               disabled={refreshing}
               className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all"
-              title="Atualizar lista"
+              title="Atualizar lista agora"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-cyan-400' : ''}`} />
             </button>

@@ -44,6 +44,16 @@ if (isPostgres) {
   sqliteDb = new DatabaseSync(dbPath);
   sqliteDb.exec('PRAGMA journal_mode = WAL');
   sqliteDb.exec('PRAGMA foreign_keys = ON');
+  try {
+    const tableInfo = sqliteDb.prepare("PRAGMA table_info(products)").all();
+    if (tableInfo.length > 0 && !tableInfo.some((c) => c.name === 'image_url')) {
+      sqliteDb.exec('ALTER TABLE products ADD COLUMN image_url TEXT');
+    }
+    const alertInfo = sqliteDb.prepare("PRAGMA table_info(alerts)").all();
+    if (alertInfo.length > 0 && !alertInfo.some((c) => c.name === 'coupon_id')) {
+      sqliteDb.exec('ALTER TABLE alerts ADD COLUMN coupon_id INTEGER');
+    }
+  } catch {}
 }
 
 function adaptSqlForPostgres(sql) {
@@ -180,6 +190,9 @@ async function initPostgresDatabase() {
     await pgPool.query('ALTER TABLE monitored_categories ADD COLUMN IF NOT EXISTS keyword_filter TEXT');
   } catch {}
   try {
+    await pgPool.query('ALTER TABLE products ADD COLUMN IF NOT EXISTS image_url TEXT');
+  } catch {}
+  try {
     await pgPool.query('ALTER TABLE monitored_categories DROP CONSTRAINT IF EXISTS uq_site_url');
   } catch {}
 
@@ -261,6 +274,7 @@ function initSqliteDatabase() {
       ml_item_id: 'TEXT',
       title: "TEXT NOT NULL DEFAULT ''",
       thumbnail: 'TEXT',
+      image_url: 'TEXT',
       site_original_price: 'REAL',
       category_id: 'TEXT',
       first_seen: 'TEXT',
@@ -268,6 +282,7 @@ function initSqliteDatabase() {
     },
     alerts: {
       site_id: 'INTEGER REFERENCES sites(id) ON DELETE CASCADE',
+      coupon_id: 'INTEGER REFERENCES coupons(id) ON DELETE CASCADE',
       discount_percent: 'INTEGER',
       sent: 'INTEGER NOT NULL DEFAULT 1',
     },
