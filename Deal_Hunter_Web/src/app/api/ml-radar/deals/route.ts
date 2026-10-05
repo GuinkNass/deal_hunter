@@ -70,7 +70,7 @@ function mapRenderAlertToDeal(r: any) {
     id: `render-${r.id}`,
     title: r.product_title || 'Produto Oferta',
     price: currentPrice,
-    original_price: origPrice,
+    original_price: rawOrigPrice,
     image_url: r.thumbnail || null,
     product_url: productUrl,
     store: r.site_name || 'Amazon Brasil',
