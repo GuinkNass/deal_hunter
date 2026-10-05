@@ -2,6 +2,37 @@ const cheerio = require('cheerio');
 const { parseGeneric } = require('./generic.adapter');
 
 const INSTALLMENT_REGEX = /(?:\b\d+\s*x\s*(?:de\s*)?|parcelas?|sem\s*juros|com\s*juros|a\s*prazo)/i;
+const AMAZON_AFFILIATE_TAG = 'dealhunterp07-20';
+
+/**
+ * Injeta defensivamente a tag de afiliado Amazon (dealhunterp07-20).
+ * - Valida se o domínio pertence à Amazon (ex: amazon.com.br, amazon.com, amzn.to).
+ * - Anexa ou substitui o parâmetro tag=dealhunterp07-20.
+ * - Preserva todos os outros parâmetros de query (ref, psc, etc.).
+ * - Se a URL for inválida ou não pertencer à Amazon, retorna a URL original intacta.
+ */
+function tagAmazonUrl(urlStr) {
+  if (!urlStr || typeof urlStr !== 'string') return urlStr;
+  try {
+    const trimmed = urlStr.trim();
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      return urlStr;
+    }
+    const parsed = new URL(trimmed);
+    const hostname = parsed.hostname.toLowerCase();
+    const isAmazon = /(?:^|\.)amazon\.(?:[a-z]{2,3}(?:\.[a-z]{2})?)$/i.test(hostname) ||
+                     /(?:^|\.)amazon\.[a-z.]+$/i.test(hostname) ||
+                     /(?:^|\.)amzn\.(?:to|com)$/i.test(hostname);
+
+    if (isAmazon) {
+      parsed.searchParams.set('tag', AMAZON_AFFILIATE_TAG);
+      return parsed.toString();
+    }
+    return urlStr;
+  } catch {
+    return urlStr;
+  }
+}
 
 function cleanPriceText(text) {
   if (!text) return '';
@@ -141,7 +172,7 @@ function parseAmazon(html, pageUrl) {
     outOfStock: isOutOfStock,
     is_available: !isOutOfStock,
     available: !isOutOfStock,
-    url: pageUrl,
+    url: tagAmazonUrl(pageUrl),
   };
 }
 
@@ -152,4 +183,4 @@ function isInstallmentPrice(price, html) {
   return regex.test(html);
 }
 
-module.exports = { parseAmazon };
+module.exports = { parseAmazon, tagAmazonUrl, AMAZON_AFFILIATE_TAG };

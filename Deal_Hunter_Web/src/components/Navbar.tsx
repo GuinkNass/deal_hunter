@@ -151,10 +151,17 @@ export default function Navbar() {
               </Link>
 
               <Link
-                href="/login"
+                href="/ml-radar"
+                className="text-xs font-bold uppercase tracking-wider text-cyan-400 hover:text-cyan-300 px-2 py-2 transition-colors flex items-center gap-1"
+              >
+                <span>ML Radar</span>
+              </Link>
+
+              <Link
+                href="/settings"
                 className="text-xs font-semibold uppercase tracking-wider text-gray-300 hover:text-white px-2 py-2 transition-colors"
               >
-                Painel
+                Configurações
               </Link>
 
               <button
@@ -324,6 +331,20 @@ export default function Navbar() {
                   </button>
                 </div>
 
+                <Link
+                  href="/ml-radar"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full text-center py-2.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-xs font-bold text-cyan-300 block"
+                >
+                  🚀 ML Radar (Dashboard)
+                </Link>
+                <Link
+                  href="/settings"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full text-center py-2.5 rounded-xl border border-gray-700 text-xs font-semibold text-gray-200 block"
+                >
+                  ⚙️ Configurações & APIs
+                </Link>
                 <Link
                   href="/login"
                   onClick={() => setMobileMenuOpen(false)}

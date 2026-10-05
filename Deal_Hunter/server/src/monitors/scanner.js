@@ -8,6 +8,7 @@ const { calculateOpportunityScore, validateKeywordFilter } = require('../analyze
 const { alertFingerprint } = require('../analyzers/fingerprint');
 const { opportunityMessage } = require('../telegram/messageTemplates');
 const { sendMessage, sendPhoto } = require('../telegram/telegramClient');
+const { sendToMLRadar } = require('../utils/mlRadarPipeline');
 
 const DEFAULTS = { pages: 2, intervalMinutes: 30, minDiscountPercent: 70, repeatIntervalHours: 24 };
 const MAX_TELEGRAM_ALERTS_PER_SCAN = 15; // Máximo de 15 produtos por vez no Telegram
@@ -156,6 +157,17 @@ async function runScanCycle() {
     });
     const candidateImage = candidate.item.imageUrl || candidate.product.thumbnail || '';
     const imageUrl = /^https?:\/\//i.test(candidateImage) ? candidateImage : null;
+
+    // Encaminha para o ML Radar (Etapa 1.3)
+    sendToMLRadar({
+      title: candidate.item.name,
+      price: candidate.item.price,
+      originalPrice: candidate.referencePrice || candidate.item.originalPrice || null,
+      imageUrl,
+      productUrl: candidate.item.url,
+      store: candidate.category.site_name,
+    }).catch(() => {});
+
     let sendResult = imageUrl ? await sendPhoto(message.text, imageUrl, { inlineButton: message.inlineButton, referer: candidate.item.url }) : await sendMessage(message.text, { inlineButton: message.inlineButton });
     if (!sendResult.ok && imageUrl && sendResult.photoRejected) {
       sendResult = await sendMessage(`${message.text}\n\n${candidate.item.url}`, { inlineButton: message.inlineButton });
@@ -305,6 +317,16 @@ async function processBrowserPagesCycle(pages, scanId, complete) {
     });
     const candidateImage = candidate.item.imageUrl || candidate.product.thumbnail || '';
     const imageUrl = /^https?:\/\//i.test(candidateImage) ? candidateImage : null;
+
+    // Encaminha dados higienizados para o ML Radar (Etapa 1.3)
+    sendToMLRadar({
+      title: candidate.item.name,
+      price: candidate.item.price,
+      originalPrice: candidate.referencePrice || candidate.item.originalPrice || null,
+      imageUrl,
+      productUrl: candidate.item.url,
+      store: candidate.category.site_name,
+    }).catch(() => {});
 
     let sent = imageUrl ? await sendPhoto(message.text, imageUrl, { inlineButton: message.inlineButton, referer: candidate.item.url }) : await sendMessage(message.text, { inlineButton: message.inlineButton });
     if (!sent.ok && imageUrl && sent.photoRejected) {

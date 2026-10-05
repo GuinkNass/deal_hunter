@@ -13,6 +13,7 @@ const {
   couponAlertMessage,
 } = require("../telegram/messageTemplates");
 const { sendMessage } = require("../telegram/telegramClient");
+const { sendToMLRadar } = require("../utils/mlRadarPipeline");
 
 const DEFAULT_MIN_DISCOUNT_PERCENT = 70;
 const DEFAULT_ALERT_REPEAT_HOURS = 24;
@@ -241,6 +242,16 @@ async function processProduct(site, data) {
   if (!(meetsDiscount && meetsMaxPrice && meetsScore)) {
     return { changed: priceChanged, alertsSent: 0 };
   }
+
+  // Encaminha dados higienizados para o ML Radar (Etapa 1.3)
+  sendToMLRadar({
+    title: product.name,
+    price: data.price,
+    originalPrice: stats.referenceAverage || null,
+    imageUrl: data.imageUrl || product.image_url || null,
+    productUrl: product.url,
+    store: site.name,
+  }).catch(() => {});
 
   const fp = alertFingerprint({
     siteId: site.id,

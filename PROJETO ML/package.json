@@ -1,0 +1,27 @@
+{
+  "name": "ml-radar",
+  "version": "1.0.0",
+  "description": "ML Radar - Sistema Completo de Monitoramento de Ofertas, Match Cirúrgico no Mercado Livre, Viabilidade Financeira e Inteligência com Gemini",
+  "main": "server/index.js",
+  "scripts": {
+    "postinstall": "npm --prefix web install",
+    "dev": "concurrently -k -p \"[{name}]\" -n \"SERVER,WEB\" -c \"cyan.bold,magenta.bold\" \"npm run server\" \"npm run web\"",
+    "server": "node server/index.js",
+    "web": "npm --prefix web run dev",
+    "build": "npm --prefix web run build",
+    "test": "node --test server/tests/*.test.js",
+    "seed": "node server/db/seed.js"
+  },
+  "keywords": ["mercadolivre", "arbitragem", "radar", "roi", "gemini", "telegram"],
+  "author": "ML Radar Team",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "concurrently": "^10.0.5",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.5",
+    "express": "^5.2.1",
+    "telegram": "^2.26.22"
+  }
+}

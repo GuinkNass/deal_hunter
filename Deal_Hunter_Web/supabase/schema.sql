@@ -130,3 +130,98 @@ SET
     subscription_status = 'active',
     updated_at = NOW()
 WHERE LOWER(TRIM(email)) = 'guilherme.r.nascimento@live.com';
+
+-- ==============================================================================
+-- 7. ETAPA 2: CONFIGURAÇÕES INDIVIDUAIS POR USUÁRIO (APIs & TELEGRAM PRIVADO)
+-- Campos adicionados à tabela profiles para cada usuário gerenciar suas chaves
+-- ==============================================================================
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS gemini_api_key TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS ml_api_key TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS telegram_bot_token TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT;
+
+-- ==============================================================================
+-- 8. ETAPA 1: TABELA ML_RADAR_DEALS & REGRA DE RETENÇÃO AUTOMÁTICA (FIFO 100)
+-- Histórico individual indexado por user_id limitado aos 100 itens mais recentes
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.ml_radar_deals (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    price NUMERIC(12, 2) NOT NULL,
+    original_price NUMERIC(12, 2),
+    image_url TEXT,
+    product_url TEXT NOT NULL,
+    store TEXT NOT NULL DEFAULT 'Online',
+    ml_title TEXT,
+    ml_price NUMERIC(12, 2),
+    ml_url TEXT,
+    ml_image_url TEXT,
+    net_profit NUMERIC(12, 2),
+    roi_percent NUMERIC(8, 2),
+    margin_percent NUMERIC(8, 2),
+    verdict TEXT,
+    gemini_analysis JSONB,
+    status TEXT NOT NULL DEFAULT 'completed',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
+
+-- Índices obrigatórios por user_id e created_at
+CREATE INDEX IF NOT EXISTS idx_ml_radar_deals_user_id ON public.ml_radar_deals(user_id);
+CREATE INDEX IF NOT EXISTS idx_ml_radar_deals_created_at ON public.ml_radar_deals(created_at DESC);
+
+-- Habilitação de RLS em ml_radar_deals
+ALTER TABLE public.ml_radar_deals ENABLE ROW LEVEL SECURITY;
+
+-- Políticas de RLS: o usuário acessa e gerencia estritamente os seus próprios dados
+DROP POLICY IF EXISTS "Usuário visualiza suas próprias ofertas ml_radar" ON public.ml_radar_deals;
+CREATE POLICY "Usuário visualiza suas próprias ofertas ml_radar"
+ON public.ml_radar_deals
+FOR SELECT
+TO authenticated
+USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuário insere suas próprias ofertas ml_radar" ON public.ml_radar_deals;
+CREATE POLICY "Usuário insere suas próprias ofertas ml_radar"
+ON public.ml_radar_deals
+FOR INSERT
+TO authenticated
+WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuário atualiza suas próprias ofertas ml_radar" ON public.ml_radar_deals;
+CREATE POLICY "Usuário atualiza suas próprias ofertas ml_radar"
+ON public.ml_radar_deals
+FOR UPDATE
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuário deleta suas próprias ofertas ml_radar" ON public.ml_radar_deals;
+CREATE POLICY "Usuário deleta suas próprias ofertas ml_radar"
+ON public.ml_radar_deals
+FOR DELETE
+TO authenticated
+USING (auth.uid() = user_id);
+
+-- Regra/Trigger de Retenção FIFO Automática (Limite de 100 itens por usuário)
+-- Mantém estritamente os últimos 100 itens por user_id, excluindo os mais antigos
+CREATE OR REPLACE FUNCTION public.handle_ml_radar_fifo_retention()
+RETURNS TRIGGER AS $$
+BEGIN
+    DELETE FROM public.ml_radar_deals
+    WHERE id IN (
+        SELECT id FROM public.ml_radar_deals
+        WHERE user_id = NEW.user_id
+        ORDER BY created_at DESC
+        OFFSET 100
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trigger_ml_radar_fifo ON public.ml_radar_deals;
+CREATE TRIGGER trigger_ml_radar_fifo
+AFTER INSERT ON public.ml_radar_deals
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_ml_radar_fifo_retention();
+

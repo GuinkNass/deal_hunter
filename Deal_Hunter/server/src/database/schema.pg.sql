@@ -83,3 +83,30 @@ CREATE INDEX IF NOT EXISTS idx_products_site_url ON products(site_id, url);
 CREATE INDEX IF NOT EXISTS idx_price_history_product ON price_history(product_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_fingerprint ON alerts(fingerprint);
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+
+-- ML Radar Deals & FIFO Retention (100 itens por usuário)
+CREATE TABLE IF NOT EXISTS ml_radar_deals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id VARCHAR(255) NOT NULL,
+  title TEXT NOT NULL,
+  price NUMERIC(12, 2) NOT NULL,
+  original_price NUMERIC(12, 2),
+  image_url TEXT,
+  product_url TEXT NOT NULL,
+  store VARCHAR(255) NOT NULL DEFAULT 'Online',
+  ml_title TEXT,
+  ml_price NUMERIC(12, 2),
+  ml_url TEXT,
+  ml_image_url TEXT,
+  net_profit NUMERIC(12, 2),
+  roi_percent NUMERIC(8, 2),
+  margin_percent NUMERIC(8, 2),
+  verdict VARCHAR(50),
+  gemini_analysis JSONB,
+  status VARCHAR(50) NOT NULL DEFAULT 'completed',
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ml_radar_deals_user ON ml_radar_deals(user_id);
+CREATE INDEX IF NOT EXISTS idx_ml_radar_deals_created ON ml_radar_deals(created_at DESC);
+
