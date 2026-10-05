@@ -110,6 +110,23 @@ async function runScanCycle() {
         if (candidate && !seenDeals.has(candidate.fingerprint)) {
           seenDeals.add(candidate.fingerprint);
           candidates.push(candidate);
+          sendToMLRadar({
+            title: candidate.item.name,
+            price: candidate.item.price,
+            originalPrice: candidate.referencePrice || candidate.item.originalPrice || null,
+            imageUrl: candidate.item.imageUrl || candidate.product.thumbnail || null,
+            productUrl: candidate.item.url,
+            store: candidate.category.site_name,
+          }).catch(() => {});
+        } else if (item.price && Number(item.price) > 0 && ((item.originalPrice && Number(item.originalPrice) > Number(item.price)) || (item.advertisedDiscount && Number(item.advertisedDiscount) >= 10))) {
+          sendToMLRadar({
+            title: item.name,
+            price: Number(item.price),
+            originalPrice: item.originalPrice ? Number(item.originalPrice) : null,
+            imageUrl: item.imageUrl || null,
+            productUrl: item.url,
+            store: category.site_name,
+          }).catch(() => {});
         }
       }
       logger.info(`${category.site_name} / ${category.category_name}: ${items.length} produto(s) lido(s).`);
@@ -258,6 +275,25 @@ async function processBrowserPagesCycle(pages, scanId, complete, userId = null) 
       if (candidate && !session.seenDeals.has(candidate.fingerprint)) {
         session.seenDeals.add(candidate.fingerprint);
         candidates.push(candidate);
+        sendToMLRadar({
+          title: candidate.item.name,
+          price: candidate.item.price,
+          originalPrice: candidate.referencePrice || candidate.item.originalPrice || null,
+          imageUrl: candidate.item.imageUrl || candidate.product.thumbnail || null,
+          productUrl: candidate.item.url,
+          store: candidate.category.site_name,
+          userId,
+        }).catch(() => {});
+      } else if (item.price && Number(item.price) > 0 && ((item.originalPrice && Number(item.originalPrice) > Number(item.price)) || (item.advertisedDiscount && Number(item.advertisedDiscount) >= 10))) {
+        sendToMLRadar({
+          title: item.name,
+          price: Number(item.price),
+          originalPrice: item.originalPrice ? Number(item.originalPrice) : null,
+          imageUrl: item.imageUrl || null,
+          productUrl: item.url,
+          store: category.site_name,
+          userId,
+        }).catch(() => {});
       }
     }
     await stmts.updateSiteChecked.run(category.site_id);
@@ -388,12 +424,16 @@ async function fetchCategory(category, pages) {
       throw new Error(`Nenhum produto extraído (${diagnoseListing(html, category.domain)}).`);
     }
 
-    // Regra de parada para produtos esgotados
-    const hasOutOfStock = pageProducts.some((p) => p.outOfStock)
-      || /(?:todos\s*os\s*produtos\s*esgotados|produtos\s*esgotados|estoque\s*esgotado)/i.test(html);
+    // Regra de parada para produtos esgotados: só interrompe a categoria se TODOS os produtos da página estiverem esgotados
+    // ou se houver banner inequívoco de estoque vazio sem nenhum produto disponível na página
+    const allOutOfStock = pageProducts.length > 0 && pageProducts.every((p) => p.outOfStock);
+    const globalStockExhausted = /(?:todos\s*os\s*produtos\s*esgotados|estoque\s*totalmente\s*esgotado|nenhum\s*produto\s*encontrado)/i.test(html)
+      && !pageProducts.some((p) => !p.outOfStock);
 
-    if (!pageProducts.length || hasOutOfStock) {
-      if (hasOutOfStock) logger.info(`${category.site_name} / ${category.category_name}: produtos esgotados detectados na página ${page}. Interrompendo loop da categoria.`);
+    if (!pageProducts.length || allOutOfStock || globalStockExhausted) {
+      if (allOutOfStock || globalStockExhausted) {
+        logger.info(`${category.site_name} / ${category.category_name}: produtos esgotados detectados na página ${page}. Interrompendo loop da categoria.`);
+      }
       break;
     }
     if (page < pages) await delay(PAGE_PAUSE_MS);
@@ -403,9 +443,18 @@ async function fetchCategory(category, pages) {
 
 function getPageUrl(base, domain, page) {
   const url = new URL(base);
-  if (domain.includes('amazon.')) url.searchParams.set('page', String(page));
-  else if (domain.includes('eletroclub.')) url.searchParams.set('page', String(page));
-  else url.searchParams.set('page', String(page));
+  if (domain.includes('amazon.')) {
+    url.searchParams.set('page', String(page));
+    if (url.searchParams.has('promotionsSearchStartIndex')) {
+      url.searchParams.set('promotionsSearchStartIndex', String((page - 1) * 60));
+    }
+    url.searchParams.delete('ref');
+    url.searchParams.delete('ref_');
+  } else if (domain.includes('eletroclub.')) {
+    url.searchParams.set('page', String(page));
+  } else {
+    url.searchParams.set('page', String(page));
+  }
   return url.href;
 }
 

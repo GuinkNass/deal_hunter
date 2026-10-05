@@ -77,16 +77,18 @@ function authMiddleware(req, res, next) {
   const rawProvided = header.startsWith('Bearer ') ? header.slice(7) : req.headers['x-deal-hunter-token'];
   const provided = typeof rawProvided === 'string' ? rawProvided.trim() : '';
 
-  // 1. Verifica token de API configurado (estilo mestre/ambiente)
-  let isAuthorized = Boolean(provided && (provided === serverToken || (config.apiToken && provided === config.apiToken)));
-
-  // 2. Se for um JWT do Supabase/Vercel da extensão do usuário
-  if (!isAuthorized && provided) {
+  // 1. Se for um JWT do Supabase/Vercel da extensão do usuário, extrai req.user
+  if (provided) {
     const jwtPayload = parseAndValidateJWT(provided);
     if (jwtPayload) {
       req.user = jwtPayload;
       isAuthorized = true;
     }
+  }
+
+  // 2. Verifica token de API configurado (estilo mestre/ambiente)
+  if (!isAuthorized) {
+    isAuthorized = Boolean(provided && (provided === serverToken || (config.apiToken && provided === config.apiToken)));
   }
 
   req.isAuthenticated = isAuthorized;

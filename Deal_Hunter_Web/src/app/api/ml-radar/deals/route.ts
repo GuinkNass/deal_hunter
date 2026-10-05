@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     const { data: userDeals, error } = await supabase
       .from('ml_radar_deals')
       .select('*')
-      .eq('user_id', userId)
+      .or(`user_id.eq.${userId},user_id.is.null`)
       .order('created_at', { ascending: false })
       .limit(100);
 
