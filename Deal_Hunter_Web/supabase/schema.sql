@@ -137,8 +137,19 @@ WHERE LOWER(TRIM(email)) = 'guilherme.r.nascimento@live.com';
 -- ==============================================================================
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS gemini_api_key TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS ml_api_key TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS ml_client_id TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS ml_client_secret TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS telegram_bot_token TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS desired_margin NUMERIC DEFAULT 20;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS tax_percent NUMERIC DEFAULT 6;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS fee_classico_percent NUMERIC DEFAULT 12;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS fee_premium_percent NUMERIC DEFAULT 17;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS fixed_fee_under_79 NUMERIC DEFAULT 6;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS packaging_cost NUMERIC DEFAULT 3.5;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS min_price_filter NUMERIC DEFAULT 15;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS max_price_filter NUMERIC DEFAULT 50000;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS excluded_keywords TEXT;
 
 -- ==============================================================================
 -- 8. ETAPA 1: TABELA ML_RADAR_DEALS & REGRA DE RETENÇÃO AUTOMÁTICA (FIFO 100)
@@ -224,4 +235,44 @@ CREATE TRIGGER trigger_ml_radar_fifo
 AFTER INSERT ON public.ml_radar_deals
 FOR EACH ROW
 EXECUTE FUNCTION public.handle_ml_radar_fifo_retention();
+
+-- ==============================================================================
+-- 9. TABELA DE SIMULAÇÕES SALVAS DA CALCULADORA DE MARGEM (POR USUÁRIO)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.margin_calculations (
+    id TEXT PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    analysis_id UUID,
+    ml_price NUMERIC(12, 2) NOT NULL,
+    listing_type TEXT NOT NULL DEFAULT 'gold_pro',
+    product_cost NUMERIC(12, 2) NOT NULL,
+    tax_percent NUMERIC(6, 2) DEFAULT 0,
+    free_shipping_auto BOOLEAN DEFAULT TRUE,
+    custom_shipping_enabled BOOLEAN DEFAULT FALSE,
+    shipping_cost NUMERIC(12, 2) DEFAULT 0,
+    packaging_cost NUMERIC(12, 2) DEFAULT 3.5,
+    ads_percent NUMERIC(6, 2) DEFAULT 0,
+    return_percent NUMERIC(6, 2) DEFAULT 2.0,
+    commission_rate NUMERIC(6, 2) DEFAULT 17.0,
+    commission_value NUMERIC(12, 2) DEFAULT 0,
+    fixed_fee NUMERIC(12, 2) DEFAULT 0,
+    net_profit NUMERIC(12, 2) NOT NULL,
+    margin_percent NUMERIC(6, 2) NOT NULL,
+    roi_percent NUMERIC(8, 2) NOT NULL,
+    break_even_price NUMERIC(12, 2),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_margin_calc_user ON public.margin_calculations(user_id);
+ALTER TABLE public.margin_calculations ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Usuário gerencia suas próprias simulações" ON public.margin_calculations;
+CREATE POLICY "Usuário gerencia suas próprias simulações"
+ON public.margin_calculations
+FOR ALL
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
 

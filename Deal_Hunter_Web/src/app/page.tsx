@@ -31,6 +31,7 @@ import {
   Clock,
   Compass,
   Target,
+  Radar,
 } from 'lucide-react';
 
 function ChromeIcon({ className = 'w-5 h-5' }: { className?: string }) {
@@ -55,6 +56,7 @@ function ChromeIcon({ className = 'w-5 h-5' }: { className?: string }) {
 }
 
 export default function LandingPage() {
+  const [user, setUser] = useState<any>(null);
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [chromeToast, setChromeToast] = useState(false);
@@ -68,6 +70,19 @@ export default function LandingPage() {
       videoRef.current.muted = true;
       videoRef.current.play().catch(() => {});
     }
+
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Links oficiais, Chrome Web Store e pagamentos
@@ -242,6 +257,17 @@ export default function LandingPage() {
 
           {/* CTAs Principais da Hero */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+            {/* Se logado: Botão DASHBOARD em destaque máximo */}
+            {user ? (
+              <Link
+                href="/dashboard"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 hover:from-cyan-300 hover:to-indigo-500 text-white font-black text-sm sm:text-base uppercase tracking-wider shadow-2xl shadow-cyan-500/40 hover:-translate-y-0.5 transition-all active:scale-[0.98] group border border-cyan-300/40"
+              >
+                <Radar className="w-5 h-5 text-cyan-100 animate-pulse group-hover:scale-110 transition-transform" />
+                <span>Acessar Dashboard</span>
+              </Link>
+            ) : null}
+
             {/* Botão Primário: Chrome Web Store Oficial (Lime Accent) */}
             <a
               href={chromeWebStoreUrl}
@@ -254,14 +280,16 @@ export default function LandingPage() {
               <span>Usar no Chrome (Oficial)</span>
             </a>
 
-            {/* Botão Secundário: Teste 7 Dias (White Pill) */}
-            <Link
-              href="/login"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-full bg-white hover:bg-slate-100 text-black font-extrabold text-sm sm:text-base uppercase tracking-wider shadow-lg transition-all active:scale-[0.98]"
-            >
-              <Sparkles className="w-4 h-4 text-violet-600" />
-              <span>Testar 7 Dias Grátis</span>
-            </Link>
+            {/* Se deslogado: Botão Secundário: Teste 7 Dias */}
+            {!user ? (
+              <Link
+                href="/login"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-full bg-white hover:bg-slate-100 text-black font-extrabold text-sm sm:text-base uppercase tracking-wider shadow-lg transition-all active:scale-[0.98]"
+              >
+                <Sparkles className="w-4 h-4 text-violet-600" />
+                <span>Testar 7 Dias Grátis</span>
+              </Link>
+            ) : null}
 
             {/* Botão Secundário: Conhecer como funciona */}
             <a

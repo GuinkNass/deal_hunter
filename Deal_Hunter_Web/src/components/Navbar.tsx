@@ -10,6 +10,7 @@ import {
   X,
   LogOut,
   User as UserIcon,
+  Radar,
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -127,41 +128,43 @@ export default function Navbar() {
         {/* CTAs Header Desktop */}
         <div className="hidden md:flex items-center gap-3">
           {user ? (
-            /* ================= USUÁRIO LOGADO ================= */
             <div className="flex items-center gap-2.5">
+              {/* Botão DASHBOARD em destaque */}
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:-translate-y-0.5 transition-all active:scale-[0.98]"
+              >
+                <Radar className="w-3.5 h-3.5 text-cyan-200 animate-pulse" />
+                <span>Dashboard</span>
+              </Link>
+
               <Link
                 href="/login"
-                className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-white/[0.06] border border-white/10 hover:border-white/20 transition-all group"
+                className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10 hover:border-white/20 transition-all group"
                 title={user.email}
               >
                 {avatarUrl ? (
                   <img
                     src={avatarUrl}
                     alt={displayName}
-                    className="w-6 h-6 rounded-full object-cover border border-emerald-400"
+                    className="w-5 h-5 rounded-full object-cover border border-emerald-400"
                   />
                 ) : (
-                  <div className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300 font-bold text-xs flex items-center justify-center border border-indigo-500/40">
-                    <UserIcon className="w-3.5 h-3.5" />
+                  <div className="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-300 font-bold text-xs flex items-center justify-center border border-indigo-500/40">
+                    <UserIcon className="w-3 h-3" />
                   </div>
                 )}
-                <span className="text-xs font-bold text-white group-hover:text-indigo-300 transition-colors max-w-[130px] truncate">
+                <span className="text-xs font-bold text-white group-hover:text-indigo-300 transition-colors max-w-[110px] truncate">
                   {displayName}
                 </span>
               </Link>
 
               <Link
-                href="/ml-radar"
-                className="text-xs font-bold uppercase tracking-wider text-cyan-400 hover:text-cyan-300 px-2 py-2 transition-colors flex items-center gap-1"
+                href="/dashboard"
+                onClick={() => {}}
+                className="text-xs font-semibold uppercase tracking-wider text-gray-300 hover:text-white px-2 py-2 transition-colors hidden lg:inline-block"
               >
-                <span>ML Radar</span>
-              </Link>
-
-              <Link
-                href="/settings"
-                className="text-xs font-semibold uppercase tracking-wider text-gray-300 hover:text-white px-2 py-2 transition-colors"
-              >
-                Configurações
+                Calculadora
               </Link>
 
               <button
@@ -332,11 +335,12 @@ export default function Navbar() {
                 </div>
 
                 <Link
-                  href="/ml-radar"
+                  href="/dashboard"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-full text-center py-2.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-xs font-bold text-cyan-300 block"
+                  className="w-full text-center py-3 rounded-xl bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 border border-cyan-400/40 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-cyan-600/30 flex items-center justify-center gap-2"
                 >
-                  🚀 ML Radar (Dashboard)
+                  <Radar className="w-4 h-4 text-cyan-200 animate-pulse" />
+                  <span>Acessar Dashboard</span>
                 </Link>
                 <Link
                   href="/settings"
