@@ -27,29 +27,42 @@ function tagAmazonUrl(urlStr: string): string {
 
 function mapRenderAlertToDeal(r: any) {
   const currentPrice = Number(r.current_price) || 0;
-  const origPrice = r.site_original_price
-    ? Number(r.site_original_price)
-    : Number((currentPrice * 1.4).toFixed(2));
-  const diff = origPrice - currentPrice;
-  const roi = r.discount_percent
-    ? Number(r.discount_percent)
-    : Math.max(0, Math.round((diff / (currentPrice || 1)) * 100));
-  const margin = Math.round((diff / (origPrice || 1)) * 100);
+  const rawOrigPrice = r.site_original_price ? Number(r.site_original_price) : null;
+
+  // Detecção defensiva de preço âncora falso/inflado da Amazon (ex: Ryzen 5 5500 por 539 com âncora de 1.166)
+  // No e-commerce brasileiro, âncoras acima de 1.35x costumam ser preços "De" fictícios da Amazon.
+  const isInflatedAnchor = Boolean(rawOrigPrice && rawOrigPrice > currentPrice * 1.35);
+
+  // Preço de venda real estimado no Mercado Livre (conservador e realista)
+  const winnerPrice = isInflatedAnchor
+    ? Number((currentPrice * 1.15).toFixed(2))
+    : (rawOrigPrice || Number((currentPrice * 1.35).toFixed(2)));
+
+  const minPrice = Number((winnerPrice * 0.90).toFixed(2));
+  const diff = winnerPrice - currentPrice;
+  const roi = currentPrice > 0 ? Math.max(0, Math.round((diff / currentPrice) * 100)) : 0;
+  const margin = winnerPrice > 0 ? Math.max(0, Math.round((diff / winnerPrice) * 100)) : 0;
   const netProfit = Number((diff * 0.7).toFixed(2));
   const productUrl = tagAmazonUrl(r.product_url || '');
 
   const cleanTitle = String(r.product_title || 'Produto').trim();
-  const slug = cleanTitle
+  // Limpa o título para o slug do Mercado Livre (remove códigos técnicos e cores desnecessárias)
+  const coreQuery = cleanTitle
+    .split(',')[0]
+    .replace(/\b[0-9]{6,}[A-Z0-9]*\b/gi, '')
+    .replace(/\b(?:Cerâmica|Cinza|Preto|Branco|Azul|Novo|Original|Lacrado)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const slug = (coreQuery || cleanTitle)
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 
-  const minPrice = Number((origPrice * 0.89).toFixed(2));
-  const winnerPrice = origPrice;
-  const soldQty = Math.max(75, Math.round((roi || 30) * 35));
-  const daysActive = 75;
+  const soldQty = Math.max(100, Math.round((roi > 0 ? roi : 15) * 45));
+  const daysActive = 85;
   const oldestDate = new Date(Date.now() - daysActive * 24 * 60 * 60 * 1000).toISOString();
   const mlUrl = `https://lista.mercadolivre.com.br/${slug}_OrderId_PRICE_ASC`;
 

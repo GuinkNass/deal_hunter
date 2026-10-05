@@ -18,6 +18,8 @@ import {
   Tag,
   Clock,
   Flame,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 import { getProductFallbackImage } from '@/lib/ml-radar/imageFallback';
 
@@ -80,16 +82,15 @@ function getSafeMlUrl(item: DealAnalysis): string {
     return url;
   }
 
-  // Se é uma listagem de busca, garante a ordenação pelo Menor Preço (anúncio vencedor no topo)
-  if (url && url.includes('lista.mercadolivre.com.br')) {
-    if (!url.includes('_OrderId_PRICE_ASC') && !url.includes('sort=price_asc')) {
-      return `${url}_OrderId_PRICE_ASC`;
-    }
-    return url;
-  }
-
   const title = item.ml_title || item.title || item.source_title || '';
-  const cleanSlug = title
+  const coreQuery = title
+    .split(',')[0]
+    .replace(/\b[0-9]{6,}[A-Z0-9]*\b/gi, '')
+    .replace(/\b(?:Cerâmica|Cinza|Preto|Branco|Azul|Novo|Original|Lacrado)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const cleanSlug = (coreQuery || title)
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
@@ -101,24 +102,77 @@ function getSafeMlUrl(item: DealAnalysis): string {
 
 export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculator }: AnalysisDetailModalProps) {
   const [projectionDays, setProjectionDays] = useState<number>(30);
+  const [geminiData, setGeminiData] = useState<any>(analysis?.gemini_analysis || null);
+  const [isAuditing, setIsAuditing] = useState<boolean>(false);
+
+  const productTitle = analysis?.ml_title || analysis?.title || analysis?.source_title || 'Produto sem título';
+  const sourcePrice = Number(analysis?.price || analysis?.source_price || 0);
+  const mlPrice = Number(analysis?.ml_price || 0);
+  const originalPrice = analysis?.original_price || analysis?.source_original_price;
+
+  const winnerPrice = Number(
+    analysis?.ml_winner_price ||
+      mlPrice ||
+      (sourcePrice > 0 ? (sourcePrice * 1.45).toFixed(2) : 129.9)
+  );
+
+  // Executa auditoria em tempo real com Gemini 3.8 se ainda não houver análise com realMarketPrice
+  React.useEffect(() => {
+    if (!analysis) return;
+    if (analysis.gemini_analysis && analysis.gemini_analysis.realMarketPrice) {
+      setGeminiData(analysis.gemini_analysis);
+      return;
+    }
+
+    let isMounted = true;
+    setIsAuditing(true);
+
+    fetch('/api/ml-radar/audit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: productTitle,
+        sourcePrice,
+        mlPrice: winnerPrice,
+        store: analysis.store || 'Amazon',
+        netProfit: analysis.net_profit,
+        roiPercent: analysis.roi_percent,
+        marginPercent: analysis.margin_percent,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted && data.success && data.audit) {
+          setGeminiData(data.audit);
+        }
+      })
+      .catch((err) => console.error('[AnalysisDetailModal] Erro na auditoria Gemini:', err))
+      .finally(() => {
+        if (isMounted) setIsAuditing(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [analysis?.id, productTitle, sourcePrice, winnerPrice]);
 
   if (!analysis) return null;
 
-  const productTitle = analysis.ml_title || analysis.title || analysis.source_title || 'Produto sem título';
-  const sourcePrice = Number(analysis.price || analysis.source_price || 0);
-  const mlPrice = Number(analysis.ml_price || 0);
-  const originalPrice = analysis.original_price || analysis.source_original_price;
+  const gemini = geminiData || analysis.gemini_analysis || {};
+  const isInflatedAnchor = Boolean(
+    gemini.verdict === 'Evitar' ||
+    gemini.riskLevel === 'Alto' ||
+    (gemini.realMarketPrice && gemini.realMarketPrice < winnerPrice * 0.85)
+  );
+
+  // Preço de referência corrigido pela auditoria da IA caso a loja parceira tenha inflado a âncora
+  const effectiveWinnerPrice =
+    isInflatedAnchor && gemini.realMarketPrice ? Number(gemini.realMarketPrice) : winnerPrice;
 
   // 1. Dados Reais de Mercado (Menor Preço, Anúncio Campeão e Data Mais Antiga)
   const minPrice = Number(
     analysis.ml_min_price ||
-      (mlPrice > 0 ? (mlPrice * 0.89).toFixed(2) : (sourcePrice * 1.35).toFixed(2))
-  );
-
-  const winnerPrice = Number(
-    analysis.ml_winner_price ||
-      mlPrice ||
-      (sourcePrice > 0 ? (sourcePrice * 1.45).toFixed(2) : 129.9)
+      (effectiveWinnerPrice > 0 ? (effectiveWinnerPrice * 0.89).toFixed(2) : (sourcePrice * 1.35).toFixed(2))
   );
 
   const soldQty = Number(analysis.ml_sold_quantity || 1500);
@@ -139,7 +193,7 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
 
   // Projeções para o horizonte selecionado (30 ou 120 dias)
   const projectedUnitsWinner = Math.round(salesVelocityWinner * projectionDays);
-  const projectedRevenueWinner = projectedUnitsWinner * winnerPrice;
+  const projectedRevenueWinner = projectedUnitsWinner * effectiveWinnerPrice;
 
   const projectedUnitsMin = Math.round(salesVelocityMin * projectionDays);
   const projectedRevenueMin = projectedUnitsMin * minPrice;
@@ -148,7 +202,7 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
   const conversionRate = visits > 0 ? ((soldQty / visits) * 100).toFixed(2) : '6.25';
   const visitsPerSale = Math.max(1, Math.round(100 / parseFloat(conversionRate)));
 
-  const revenueNum = soldQty * winnerPrice;
+  const revenueNum = soldQty * effectiveWinnerPrice;
   const revenueFormatted =
     revenueNum >= 1000000
       ? `R$ ${(revenueNum / 1000000).toFixed(1)} mi`
@@ -160,18 +214,25 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
       ? `R$ ${(revenuePerMonth / 1000000).toFixed(1)} mi`
       : `R$ ${revenuePerMonth.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
 
-  const gemini = analysis.gemini_analysis || {};
   const score = gemini.score ?? Math.min(100, Math.max(0, Math.round((analysis.roi_percent || 30) * 1.5 + 40)));
   const scoreTitle = score >= 76 ? 'Anúncio forte' : score >= 45 ? 'Anúncio mediano' : 'Anúncio fraco';
 
   const bulletPoints: string[] =
     gemini.alerts && Array.isArray(gemini.alerts) && gemini.alerts.length > 0
       ? gemini.alerts
+      : isInflatedAnchor
+      ? [
+          `⚠️ AUDITORIA IA: Preço de R$ ${winnerPrice.toFixed(2)} foi identificado como âncora inflada de loja.`,
+          `Preço real de concorrência no Mercado Livre estimado pela IA: R$ ${effectiveWinnerPrice.toFixed(2)}.`,
+          `Menor valor encontrado no Mercado Livre: R$ ${minPrice.toFixed(2)}.`,
+          `Veredito da Inteligência Artificial: ${gemini.verdict || 'Evitar'} (${gemini.riskLevel || 'Alto'} Risco).`,
+          `Justificativa: ${gemini.justification || 'Margem de lucro inconsistente com os preços reais do ML.'}`,
+        ]
       : [
           `Anúncio vencedor ativo há ${daysActive} dias com ${soldQty.toLocaleString('pt-BR')} unidades vendidas comprovadas.`,
           `Menor valor encontrado no Mercado Livre: R$ ${minPrice.toFixed(2)} (excelente parâmetro de entrada).`,
           `Giro diário estimado em ${salesVelocityWinner} unidades/dia na liderança de vendas.`,
-          `Margem líquida estimada de R$ ${Number(analysis.net_profit || (winnerPrice - sourcePrice) * 0.7).toFixed(2)} (${Number(analysis.roi_percent || 35).toFixed(1)}% ROI).`,
+          `Margem líquida estimada de R$ ${Number(analysis.net_profit || (effectiveWinnerPrice - sourcePrice) * 0.7).toFixed(2)} (${Number(analysis.roi_percent || 35).toFixed(1)}% ROI).`,
           `Taxa de conversão estimada em ${conversionRate}% (${visitsPerSale} visitas por venda).`,
         ];
 
@@ -287,11 +348,18 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
 
               {/* Price & Seller Metadata Line */}
               <div className="flex flex-wrap items-center gap-2.5 text-xs text-slate-400 pt-1">
-                <span className="text-xl sm:text-2xl font-black text-emerald-400">
-                  R$ {winnerPrice > 0 ? winnerPrice.toFixed(2) : 'A definir'}
-                </span>
+                <div className="flex items-baseline gap-2">
+                  <span className={`text-xl sm:text-2xl font-black ${isInflatedAnchor ? 'text-amber-400' : 'text-emerald-400'}`}>
+                    R$ {effectiveWinnerPrice > 0 ? effectiveWinnerPrice.toFixed(2) : 'A definir'}
+                  </span>
+                  {isInflatedAnchor && (
+                    <span className="text-xs text-rose-400/80 font-semibold line-through">
+                      R$ {winnerPrice.toFixed(2)} (âncora)
+                    </span>
+                  )}
+                </div>
 
-                {originalPrice && originalPrice > winnerPrice && (
+                {originalPrice && originalPrice > effectiveWinnerPrice && !isInflatedAnchor && (
                   <span className="text-sm text-slate-500 line-through">
                     R$ {Number(originalPrice).toFixed(2)}
                   </span>
@@ -316,6 +384,25 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
                 <span>• {analysis.ml_seller_location || 'Brasil'}</span>
                 <span>• Frete Est.: R$ {Number(analysis.shipping_cost || 19.9).toFixed(2)}</span>
               </div>
+
+              {/* Alerta de Âncora Falsa Detectada pela Auditoria Gemini */}
+              {isInflatedAnchor && (
+                <div className="bg-rose-950/40 border border-rose-500/50 rounded-xl p-3 flex items-start gap-2.5 text-xs text-rose-200 mt-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-rose-300">Âncora Falsa Detectada pela IA (Gemini 3.8)</span>
+                      <span className="px-2 py-0.5 rounded bg-rose-900/80 text-rose-200 font-bold text-[10px]">
+                        {gemini.verdict || 'Evitar'}
+                      </span>
+                    </div>
+                    <p className="text-slate-300 text-[11px] leading-relaxed">
+                      {gemini.justification ||
+                        `O valor inicial informado (R$ ${winnerPrice.toFixed(2)}) foi inflado pela loja parceira. No Mercado Livre, o produto é comercializado pelos líderes por cerca de R$ ${effectiveWinnerPrice.toFixed(2)}.`}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="pt-2 flex flex-wrap items-center gap-3">
@@ -353,27 +440,45 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
           <div className="bg-[#12151f] border border-slate-800/80 rounded-2xl p-6 flex flex-col md:flex-row gap-8 items-start">
             <div className="w-full md:w-56 flex-shrink-0 space-y-3">
               <div className="flex items-baseline gap-1">
-                <span className="text-5xl font-black text-white">{score}</span>
+                <span className={`text-5xl font-black ${score <= 35 ? 'text-rose-400' : score < 75 ? 'text-amber-400' : 'text-white'}`}>
+                  {score}
+                </span>
                 <span className="text-xl text-slate-400 font-semibold">/100</span>
                 <Info className="w-4 h-4 text-slate-500 ml-1" />
               </div>
 
               <div className="space-y-1.5">
                 <div className="w-full h-1.5 rounded-full bg-slate-800 flex overflow-hidden">
-                  <div className="w-1/3 bg-rose-500/80 h-full" />
-                  <div className="w-1/3 bg-amber-500/80 h-full" />
+                  <div className="w-1/3 bg-rose-500/80 h-full relative">
+                    {score <= 35 && (
+                      <div
+                        className="absolute top-0 bottom-0 w-1.5 bg-white shadow-md shadow-white rounded-full -translate-x-1/2"
+                        style={{ left: `${Math.max(5, Math.min(95, (score / 35) * 100))}%` }}
+                      />
+                    )}
+                  </div>
+                  <div className="w-1/3 bg-amber-500/80 h-full relative">
+                    {score > 35 && score < 75 && (
+                      <div
+                        className="absolute top-0 bottom-0 w-1.5 bg-white shadow-md shadow-white rounded-full -translate-x-1/2"
+                        style={{ left: `${Math.max(5, Math.min(95, ((score - 35) / 40) * 100))}%` }}
+                      />
+                    )}
+                  </div>
                   <div className="w-1/3 bg-emerald-500 h-full relative">
-                    <div
-                      className="absolute top-0 bottom-0 w-1.5 bg-white shadow-md shadow-white rounded-full -translate-x-1/2"
-                      style={{ left: `${Math.max(0, Math.min(100, (score - 66) * 3))}%` }}
-                    />
+                    {score >= 75 && (
+                      <div
+                        className="absolute top-0 bottom-0 w-1.5 bg-white shadow-md shadow-white rounded-full -translate-x-1/2"
+                        style={{ left: `${Math.max(5, Math.min(95, ((score - 75) / 25) * 100))}%` }}
+                      />
+                    )}
                   </div>
                 </div>
 
                 <div className="flex justify-between text-[11px] text-slate-400 font-medium">
-                  <span>Fraco</span>
-                  <span>Mediano</span>
-                  <span className="text-emerald-400 font-bold">Forte</span>
+                  <span className={score <= 35 ? 'text-rose-400 font-bold' : ''}>Fraco</span>
+                  <span className={score > 35 && score < 75 ? 'text-amber-400 font-bold' : ''}>Mediano</span>
+                  <span className={score >= 75 ? 'text-emerald-400 font-bold' : ''}>Forte</span>
                 </div>
               </div>
             </div>
@@ -643,9 +748,17 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
 
           {/* 5. GOOGLE GEMINI AI BLOCK */}
           <div className="bg-[#12151f] border border-purple-900/40 rounded-2xl p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-purple-400" />
-              <h3 className="text-sm font-bold text-white tracking-wide">Inteligência Estratégica (Google Gemini AI)</h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-purple-400" />
+                <h3 className="text-sm font-bold text-white tracking-wide">Inteligência Estratégica (Google Gemini AI)</h3>
+              </div>
+              {isAuditing && (
+                <div className="flex items-center gap-1.5 text-xs text-purple-300 font-medium animate-pulse">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Auditando mercado com Gemini 3.8...</span>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
@@ -655,19 +768,42 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
               </div>
 
               <div className="bg-[#0e1015] p-3 rounded-lg border border-slate-800">
-                <span className="text-slate-400 block mb-0.5">Sazonalidade Ideal:</span>
-                <span className="font-bold text-slate-200">{gemini.bestSeason || 'Ano todo'}</span>
+                <span className="text-slate-400 block mb-0.5">
+                  {gemini.realMarketPrice ? 'Preço Real Auditado (ML):' : 'Sazonalidade Ideal:'}
+                </span>
+                <span className="font-bold text-slate-200">
+                  {gemini.realMarketPrice
+                    ? `R$ ${Number(gemini.realMarketPrice).toFixed(2)}`
+                    : gemini.bestSeason || 'Ano todo'}
+                </span>
               </div>
 
               <div className="bg-[#0e1015] p-3 rounded-lg border border-slate-800">
                 <span className="text-slate-400 block mb-0.5">Nível de Risco:</span>
-                <span className="font-bold text-emerald-400">{gemini.riskLevel || 'Baixo'}</span>
+                <span
+                  className={`font-bold ${
+                    gemini.riskLevel === 'Alto'
+                      ? 'text-rose-400'
+                      : gemini.riskLevel === 'Médio'
+                      ? 'text-amber-400'
+                      : 'text-emerald-400'
+                  }`}
+                >
+                  {gemini.riskLevel || 'Baixo'}
+                </span>
               </div>
             </div>
 
             {(gemini.justification || gemini.verdict) && (
-              <p className="text-xs text-slate-300 bg-[#0e1015] p-3 rounded-lg border border-slate-800 leading-relaxed">
-                {gemini.justification || gemini.verdict}
+              <p
+                className={`text-xs p-3 rounded-lg border leading-relaxed ${
+                  isInflatedAnchor
+                    ? 'bg-rose-950/30 border-rose-500/40 text-rose-200'
+                    : 'bg-[#0e1015] border-slate-800 text-slate-300'
+                }`}
+              >
+                <strong>{gemini.verdict ? `[Veredito: ${gemini.verdict}] ` : ''}</strong>
+                {gemini.justification}
               </p>
             )}
           </div>

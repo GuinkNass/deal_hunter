@@ -49,6 +49,7 @@ export interface GeminiAnalysis {
   riskLevel: 'Baixo' | 'Médio' | 'Alto' | 'Medio';
   verdict: string;
   justification: string;
+  realMarketPrice?: number;
 }
 
 export interface UserCredentials {

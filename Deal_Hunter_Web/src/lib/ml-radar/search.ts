@@ -5,6 +5,11 @@ function extractCoreQuery(title: string): string {
   let q = title.replace(/\([^)]*\)/g, ' ').replace(/\[[^\]]*\]/g, ' ');
   if (q.includes('|')) q = q.split('|')[0];
   if (q.includes(' - ') && q.length > 25) q = q.split(' - ')[0];
+  if (q.includes(',') && q.split(',')[0].length >= 12) q = q.split(',')[0];
+  // Remove códigos técnicos longos de fabricante (ex: 100100000457BOX)
+  q = q.replace(/\b[0-9]{6,}[A-Z0-9]*\b/gi, ' ');
+  // Remove adjetivos irrelevantes de cor e embalagem
+  q = q.replace(/\b(?:Cerâmica|Cinza|Preto|Branco|Azul|Vermelho|Original|Lacrado)\b/gi, ' ');
   return q.replace(/[^\w\s\d]/gi, ' ').replace(/\s+/g, ' ').trim();
 }
 
