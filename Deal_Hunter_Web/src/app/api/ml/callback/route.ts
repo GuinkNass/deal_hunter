@@ -65,6 +65,9 @@ export async function GET(req: NextRequest) {
         if (profile.ml_client_id && profile.ml_client_id.trim()) {
           clientId = profile.ml_client_id.trim();
         }
+        if (clientId === '26238620730357') {
+          clientId = '226238620730357';
+        }
         // Se a chave no banco for a antiga revogada, ignora e usa a nova oficial
         if (
           profile.ml_client_secret &&

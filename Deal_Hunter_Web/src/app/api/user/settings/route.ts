@@ -116,7 +116,11 @@ export async function POST(req: NextRequest) {
       updates.gemini_model = (!m.includes('1.5') && !m.includes('2.0') && !m.includes('2.5') && m.length > 0) ? m : 'gemini-3.8-flash';
     }
     if (ml_api_key !== undefined) updates.ml_api_key = ml_api_key ? String(ml_api_key).trim() : null;
-    if (ml_client_id !== undefined) updates.ml_client_id = ml_client_id ? String(ml_client_id).trim() : null;
+    if (ml_client_id !== undefined) {
+      let cid = ml_client_id ? String(ml_client_id).trim() : null;
+      if (cid === '26238620730357') cid = '226238620730357';
+      updates.ml_client_id = cid;
+    }
     if (ml_client_secret !== undefined) updates.ml_client_secret = ml_client_secret ? String(ml_client_secret).trim() : null;
     if (telegram_bot_token !== undefined) updates.telegram_bot_token = telegram_bot_token ? String(telegram_bot_token).trim() : null;
     if (telegram_chat_id !== undefined) updates.telegram_chat_id = telegram_chat_id ? String(telegram_chat_id).trim() : null;

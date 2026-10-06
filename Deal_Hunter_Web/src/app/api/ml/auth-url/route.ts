@@ -6,13 +6,18 @@ export async function GET(req: NextRequest) {
     const clientIdParam = url.searchParams.get('clientId');
     const userId = url.searchParams.get('userId') || '';
 
-    const clientId = (
+    let clientId = (
       clientIdParam?.trim() ||
       process.env.ML_CLIENT_ID?.trim() ||
       process.env.MERCADOLIVRE_APP_ID?.trim() ||
       process.env.MERCADO_LIVRE_CLIENT_ID?.trim() ||
       '226238620730357'
     );
+
+    // Corrige automaticamente erro de digitação comum (falta do segundo '2')
+    if (clientId === '26238620730357') {
+      clientId = '226238620730357';
+    }
 
     const redirectUri = (
       process.env.ML_REDIRECT_URI?.trim() ||

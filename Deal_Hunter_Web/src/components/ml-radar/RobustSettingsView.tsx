@@ -199,7 +199,11 @@ export default function RobustSettingsView({ authToken, userId }: RobustSettings
 
   async function handleConnectML() {
     try {
-      const activeClientId = (mlClientId || '226238620730357').trim();
+      let activeClientId = (mlClientId || '226238620730357').trim();
+      if (activeClientId === '26238620730357') {
+        activeClientId = '226238620730357';
+        setMlClientId('226238620730357');
+      }
       const activeClientSecret = (mlClientSecret || 'dsjLowWybTxjm2I3EKo6PThe3X4oCEMO').trim();
 
       if (authToken) {
