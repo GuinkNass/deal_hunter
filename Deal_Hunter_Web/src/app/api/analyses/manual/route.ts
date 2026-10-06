@@ -68,9 +68,27 @@ export async function POST(req: NextRequest) {
       if (profile) userCreds = profile;
     }
 
+    let activeMlKey = userCreds.ml_api_key || userCreds.ml_access_token || '';
+    if (!activeMlKey) {
+      activeMlKey = req.cookies.get('ml_access_token')?.value || '';
+    }
+    if (!activeMlKey) {
+      try {
+        const { data: latestProf } = await supabase
+          .from('profiles')
+          .select('ml_api_key, ml_access_token')
+          .not('ml_api_key', 'is', null)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (latestProf?.ml_api_key) activeMlKey = latestProf.ml_api_key;
+        else if (latestProf?.ml_access_token) activeMlKey = latestProf.ml_access_token;
+      } catch {}
+    }
+
     // 3. Busca no Mercado Livre
     const candidates = await searchMercadoLivre(title, {
-      mlApiKey: userCreds.ml_api_key,
+      mlApiKey: activeMlKey,
       sourcePrice: numPrice,
       imageUrl,
     });

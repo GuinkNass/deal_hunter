@@ -144,6 +144,14 @@ export default function AnalysisDetailModal({
         headers['Authorization'] = `Bearer ${authToken}`;
       }
 
+      let clientMlKey = '';
+      if (typeof window !== 'undefined') {
+        try {
+          const creds = JSON.parse(localStorage.getItem('dealhunter_ml_credentials') || '{}');
+          clientMlKey = creds.ml_api_key || localStorage.getItem('dealhunter_ml_token') || '';
+        } catch {}
+      }
+
       const res = await fetch('/api/ml-radar/audit', {
         method: 'POST',
         headers,
@@ -156,6 +164,7 @@ export default function AnalysisDetailModal({
           netProfit: analysis.net_profit,
           roiPercent: analysis.roi_percent,
           marginPercent: analysis.margin_percent,
+          mlApiKey: clientMlKey,
         }),
       });
 

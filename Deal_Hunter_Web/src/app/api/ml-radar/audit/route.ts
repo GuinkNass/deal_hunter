@@ -73,7 +73,38 @@ export async function POST(req: NextRequest) {
       roiPercent,
       marginPercent,
       providedCandidates,
+      mlApiKey: bodyMlKey,
+      ml_api_key: bodyMlKeyAlt,
     } = body;
+
+    // Se a chave veio do frontend (localStorage/modal), adota com prioridade
+    if (!mlApiKey && (bodyMlKey || bodyMlKeyAlt)) {
+      mlApiKey = (bodyMlKey || bodyMlKeyAlt).trim();
+    }
+
+    // Se ainda não encontrou, verifica o cookie de sessão do OAuth
+    if (!mlApiKey) {
+      const cookieToken = req.cookies.get('ml_access_token')?.value;
+      if (cookieToken) mlApiKey = cookieToken.trim();
+    }
+
+    // Se obteve a chave e temos token de sessão, sincroniza no perfil do Supabase em background
+    if (token && mlApiKey && mlApiKey.length > 10) {
+      (async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser(token);
+          if (user) {
+            await supabase.from('profiles').upsert({
+              id: user.id,
+              email: user.email,
+              ml_api_key: mlApiKey,
+              ml_access_token: mlApiKey,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'id' });
+          }
+        } catch {}
+      })();
+    }
 
     if (!title || sourcePrice === undefined) {
       return NextResponse.json({ success: false, error: 'Dados insuficientes' }, { status: 400 });

@@ -239,6 +239,23 @@ export default function RobustSettingsView({ authToken, userId }: RobustSettings
       }
       if (service === 'mercadolivre' && json.activeMlKey) {
         setMlApiKey(json.activeMlKey);
+        try {
+          const creds = JSON.parse(localStorage.getItem('dealhunter_ml_credentials') || '{}');
+          creds.ml_api_key = json.activeMlKey;
+          localStorage.setItem('dealhunter_ml_credentials', JSON.stringify(creds));
+          localStorage.setItem('dealhunter_ml_token', json.activeMlKey);
+        } catch {}
+
+        if (authToken) {
+          fetch('/api/user/settings', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ ml_api_key: json.activeMlKey }),
+          }).catch(() => {});
+        }
       }
       setTestResults((prev) => ({
         ...prev,
