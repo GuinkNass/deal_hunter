@@ -256,9 +256,44 @@ export async function scrapeMercadoLivreSearch(
     }
   }
 
-  // Ordena por menor preço competitivo entre os produtos correspondentes
-  items.sort((a, b) => a.price - b.price);
-  return items;
+  // Extrai palavras-chave essenciais da query para cálculo de similaridade semântica
+  const queryWords = query
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, '')
+    .split(/\s+/)
+    .filter((w) => w.length >= 3);
+
+  const scoredItems = items.map((it) => {
+    const titleLower = it.title
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    let matched = 0;
+    for (const w of queryWords) {
+      if (titleLower.includes(w)) matched++;
+    }
+    const score = queryWords.length > 0 ? matched / queryWords.length : 0.5;
+    return { ...it, simScore: score };
+  });
+
+  // Filtra itens com correspondência semântica real (elimina acessórios/brinquedos avulsos de R$ 20)
+  const relevant = scoredItems.filter((it) => (it.simScore || 0) >= 0.35);
+  const candidatesPool = relevant.length >= 1 ? relevant : scoredItems;
+
+  // Dentre os candidatos relevantes, prioriza correspondência forte e menor preço
+  candidatesPool.sort((a, b) => {
+    const aHigh = (a.simScore || 0) >= 0.6;
+    const bHigh = (b.simScore || 0) >= 0.6;
+    if (aHigh && bHigh) return a.price - b.price;
+    if (aHigh && !bHigh) return -1;
+    if (!aHigh && bHigh) return 1;
+    if (Math.abs((a.simScore || 0) - (b.simScore || 0)) <= 0.2) return a.price - b.price;
+    return (b.simScore || 0) - (a.simScore || 0);
+  });
+
+  return candidatesPool;
 }
 
 /**
@@ -270,20 +305,29 @@ export async function scrapeMercadoLivreSearch(
  * - Média de avaliações
  */
 export async function enrichCandidateWithMlApi(
-  item: { id: string; url?: string; title?: string; price?: number },
+  item: {
+    id: string;
+    url?: string;
+    title?: string;
+    price?: number;
+    sellerNickname?: string;
+    salesCount?: number;
+    isFull?: boolean;
+    freeShipping?: boolean;
+  },
   mlApiKey?: string | null
 ): Promise<ClinicalCandidatePayload['produto_candidato']> {
   const targetUrl = item.url || `https://produto.mercadolivre.com.br/${item.id}`;
 
-  let totalVendas = 0;
-  let estoqueDisponivel = 20;
-  let vendedorNome = 'Vendedor Mercado Livre';
+  let totalVendas = item.salesCount || 0;
+  let estoqueDisponivel = 10;
+  let vendedorNome = item.sellerNickname || 'Vendedor Mercado Livre';
   let reputacaoVendedor = 'MercadoLíder Platinum';
   let notaAvaliacoes = 4.8;
   let totalAvaliacoes = 150;
   let precoAtual = item.price || 0;
   let precoTabela: number | null = null;
-  let isFull = false;
+  let isFull = Boolean(item.isFull);
 
   // 1. Tenta API oficial caso haja chave de acesso
   let apiSuccess = false;

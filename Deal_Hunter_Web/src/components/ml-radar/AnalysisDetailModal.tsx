@@ -76,32 +76,26 @@ interface AnalysisDetailModalProps {
   onOpenCalculator: (item: DealAnalysis) => void;
   onUpdateDeal?: (updated: DealAnalysis) => void;
   autoEvaluate?: boolean;
+  authToken?: string | null;
 }
 
 /**
  * Garante link direto e canônico ao Anúncio Vencedor no Mercado Livre (NUNCA busca genérica)
  */
 function getSafeMlUrl(item: DealAnalysis, realWinner?: any): string {
-  if (
-    realWinner?.permalink &&
-    (realWinner.permalink.includes('produto.mercadolivre.com.br') ||
-      realWinner.permalink.includes('/p/MLB') ||
-      realWinner.permalink.includes('MLB'))
-  ) {
-    return realWinner.permalink;
+  const candidate = realWinner?.permalink || item?.ml_url || '';
+  if (!candidate || candidate.includes('lista.mercadolivre.com.br')) {
+    return '#';
   }
-  if (!item) return '#';
-  const url = item.ml_url;
-
   if (
-    url &&
-    (url.includes('produto.mercadolivre.com.br') ||
-      url.includes('/p/MLB') ||
-      url.includes('MLB-'))
+    candidate.includes('produto.mercadolivre.com.br') ||
+    candidate.includes('/p/MLB') ||
+    candidate.includes('/up/MLB') ||
+    candidate.includes('MLB-') ||
+    candidate.includes('MLB')
   ) {
-    return url;
+    return candidate;
   }
-
   return '#';
 }
 
@@ -111,6 +105,7 @@ export default function AnalysisDetailModal({
   onOpenCalculator,
   onUpdateDeal,
   autoEvaluate = true,
+  authToken,
 }: AnalysisDetailModalProps) {
   const [projectionDays, setProjectionDays] = useState<number>(30);
   const [geminiData, setGeminiData] = useState<any>(analysis?.gemini_analysis || null);
@@ -144,9 +139,14 @@ export default function AnalysisDetailModal({
     setAuditError(null);
 
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
       const res = await fetch('/api/ml-radar/audit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           dealId: analysis.id,
           title: productTitle,
@@ -199,7 +199,16 @@ export default function AnalysisDetailModal({
   // Dispara a avaliação em segundo plano apenas sob demanda (quando o modal é aberto pelo botão "Avaliar ML")
   React.useEffect(() => {
     if (!analysis) return;
-    if (analysis.clinical_result) {
+    const hasValidWinner = Boolean(
+      analysis.clinical_result?.raw_payload?.url &&
+        !analysis.clinical_result.raw_payload.url.includes('lista.mercadolivre.com.br') &&
+        analysis.clinical_result.raw_payload.item_id !== 'MLB-REF' &&
+        analysis.clinical_result.candidates_evaluated &&
+        analysis.clinical_result.candidates_evaluated.length > 0 &&
+        !analysis.clinical_result.candidates_evaluated[0].url?.includes('lista.mercadolivre.com.br')
+    );
+
+    if (hasValidWinner && analysis.clinical_result) {
       setClinicalResult(analysis.clinical_result);
       if (analysis.clinical_result.candidates_evaluated) {
         setCandidates(analysis.clinical_result.candidates_evaluated);

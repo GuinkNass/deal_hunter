@@ -716,9 +716,11 @@ export default function DashboardPage() {
                         )}
 
                         {deal.ml_url &&
+                          !deal.ml_url.includes('lista.mercadolivre.com.br') &&
                           (deal.clinical_evaluated ||
                             deal.ml_url.includes('produto.mercadolivre.com.br') ||
                             deal.ml_url.includes('/p/MLB') ||
+                            deal.ml_url.includes('/up/MLB') ||
                             deal.ml_url.includes('/MLB-')) && (
                             <a
                               href={deal.ml_url}
@@ -807,6 +809,7 @@ export default function DashboardPage() {
           onOpenCalculator={handleOpenCalculatorForDeal}
           onUpdateDeal={handleUpdateDeal}
           autoEvaluate={true}
+          authToken={authToken}
         />
       )}
 

@@ -42,6 +42,23 @@ export async function POST(req: NextRequest) {
       } catch {}
     }
 
+    // Se as chaves não vierem do header, busca do perfil mais recente com chaves configuradas
+    if (!geminiApiKey || !mlApiKey) {
+      try {
+        const { data: latestProfile } = await supabase
+          .from('profiles')
+          .select('gemini_api_key, ml_api_key')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (latestProfile) {
+          if (!geminiApiKey && latestProfile.gemini_api_key) geminiApiKey = latestProfile.gemini_api_key;
+          if (!mlApiKey && latestProfile.ml_api_key) mlApiKey = latestProfile.ml_api_key;
+        }
+      } catch {}
+    }
+
     const body = await req.json();
     const { dealId, title, sourcePrice, mlPrice, store, netProfit, roiPercent, marginPercent } = body;
 
@@ -64,6 +81,12 @@ export async function POST(req: NextRequest) {
     // =========================================================================
     let scrapedCandidates = await scrapeMercadoLivreSearch(cleanedQuery, 2, numSourcePrice);
 
+    // Se a query limpa for excessivamente restrita ou não trouxer resultados, tenta a busca direta com o título original
+    if (!scrapedCandidates || scrapedCandidates.length === 0) {
+      console.log(`[Clinical Audit] Sem retorno para "${cleanedQuery}". Tentando busca direta com o título original...`);
+      scrapedCandidates = await scrapeMercadoLivreSearch(title, 2, numSourcePrice);
+    }
+
     // Fallback defensivo com a busca oficial do ML caso Akamai bloqueie o scraping HTML
     if (!scrapedCandidates || scrapedCandidates.length === 0) {
       console.log('[Clinical Audit] Scraping HTML sem retorno direto. Acionando API oficial ML como fallback...');
@@ -85,7 +108,7 @@ export async function POST(req: NextRequest) {
               isFull: m.is_full === 1,
               freeShipping: m.free_shipping === 1,
             }))
-            .filter((x: any) => Boolean(x.id));
+            .filter((x: any) => Boolean(x.id && !x.url?.includes('lista.mercadolivre.com.br')));
         }
       } catch (err: any) {
         console.warn('[Clinical Audit] Falha no fallback ML API:', err.message);
@@ -103,30 +126,10 @@ export async function POST(req: NextRequest) {
         topThree.map((cand) => enrichCandidateWithMlApi(cand, mlApiKey))
       );
     } else {
-      // Fallback estruturado caso nenhum candidato tenha sido localizado
-      enrichedCandidates = [
-        {
-          item_id: 'MLB-REF',
-          titulo: title,
-          preco_atual: fallbackMlPrice,
-          preco_tabela: null,
-          desconto_percentual: 0,
-          total_vendas: 100,
-          estoque_disponivel: 10,
-          quantidade_inicial: 110,
-          tipo_anuncio: 'gold_pro',
-          frete_gratis: true,
-          logistica: 'fulfillment',
-          condicao: 'new',
-          marca: '',
-          modelo: '',
-          reputacao_vendedor: 'MercadoLíder Platinum',
-          vendedor_nome: 'Vendedor Oficial ML',
-          nota_avaliacoes: 4.8,
-          total_avaliacoes: 85,
-          url: `https://lista.mercadolivre.com.br/${encodeURIComponent(cleanedQuery)}`,
-        },
-      ];
+      return NextResponse.json({
+        success: false,
+        error: 'Nenhum anúncio correspondente autêntico foi localizado no Mercado Livre para este produto.',
+      });
     }
 
     // =========================================================================
