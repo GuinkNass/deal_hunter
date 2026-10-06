@@ -80,13 +80,24 @@ export async function GET(req: NextRequest) {
     }
 
     if (!targetUserId) {
-      const { data: latestProf } = await supabase
-        .from('profiles')
-        .select('id')
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (latestProf) targetUserId = latestProf.id;
+      try {
+        const { data: latestProf } = await supabase
+          .from('profiles')
+          .select('id')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (latestProf?.id) targetUserId = latestProf.id;
+      } catch {}
+    }
+
+    if (!targetUserId) {
+      try {
+        const { data: authUsers } = await supabase.auth.admin.listUsers();
+        if (authUsers?.users && authUsers.users.length > 0) {
+          targetUserId = authUsers.users[0].id;
+        }
+      } catch {}
     }
 
     // 2. Define o Redirect URI rigorosamente idêntico ao cadastrado no DevCenter
@@ -197,9 +208,18 @@ export async function GET(req: NextRequest) {
         console.log(`[ML OAuth Callback] ✅ Token também replicado para o perfil mais recente ${latestProf.id}!`);
       }
 
-      return NextResponse.redirect(
-        new URL('/dashboard?tab=settings&ml_connected=true', req.url)
-      );
+      const redirectTarget = new URL('/dashboard?tab=settings&ml_connected=true', req.url);
+      redirectTarget.searchParams.set('ml_token', accessToken);
+
+      const redirectRes = NextResponse.redirect(redirectTarget);
+      redirectRes.cookies.set('ml_access_token', accessToken, {
+        path: '/',
+        maxAge: expiresIn,
+        sameSite: 'lax',
+        secure: true,
+      });
+
+      return redirectRes;
     } else {
       const errMsg =
         tokenData?.message ||

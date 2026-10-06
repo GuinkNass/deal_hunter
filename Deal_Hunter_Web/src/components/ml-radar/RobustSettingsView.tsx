@@ -59,6 +59,38 @@ export default function RobustSettingsView({ authToken, userId }: RobustSettings
   const [excludedKeywords, setExcludedKeywords] = useState('');
 
   useEffect(() => {
+    // Processa token retornado diretamente da autorização OAuth na URL
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const incomingToken = urlParams.get('ml_token');
+      if (incomingToken) {
+        setMlApiKey(incomingToken);
+        try {
+          const creds = JSON.parse(localStorage.getItem('dealhunter_ml_credentials') || '{}');
+          creds.ml_api_key = incomingToken;
+          localStorage.setItem('dealhunter_ml_credentials', JSON.stringify(creds));
+        } catch {}
+
+        // Limpa o token da barra de endereço para manter a URL limpa e segura
+        urlParams.delete('ml_token');
+        const cleanQuery = urlParams.toString();
+        const cleanUrl = window.location.pathname + (cleanQuery ? `?${cleanQuery}` : '');
+        window.history.replaceState({}, document.title, cleanUrl);
+
+        // Se já tiver authToken, sincroniza imediatamente no banco
+        if (authToken) {
+          fetch('/api/user/settings', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ ml_api_key: incomingToken }),
+          }).catch(() => {});
+        }
+      }
+    }
+
     if (authToken) {
       loadSettings();
       if (typeof window !== 'undefined') {
@@ -245,9 +277,19 @@ export default function RobustSettingsView({ authToken, userId }: RobustSettings
         }).catch(() => {});
       }
 
+      let activeUserId = userId;
+      if (!activeUserId) {
+        try {
+          const { createClient } = await import('@/lib/supabase/client');
+          const supabase = createClient();
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user?.id) activeUserId = session.user.id;
+        } catch {}
+      }
+
       const params = new URLSearchParams();
       params.set('clientId', activeClientId);
-      if (userId) params.set('userId', userId.trim());
+      if (activeUserId) params.set('userId', activeUserId.trim());
 
       const res = await fetch(`/api/ml/auth-url?${params.toString()}`);
       const json = await res.json();

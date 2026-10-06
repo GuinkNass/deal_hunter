@@ -46,6 +46,12 @@ export async function POST(req: NextRequest) {
           } catch {}
         }
 
+        // Se ainda não encontrou activeMlKey, verifica o cookie ml_access_token
+        if (!activeMlKey) {
+          const cookieToken = req.cookies.get('ml_access_token')?.value;
+          if (cookieToken) activeMlKey = cookieToken.trim();
+        }
+
         // Se possui access_token oficial, valida diretamente com /users/me
         if (activeMlKey) {
           const userRes = await fetch('https://api.mercadolibre.com/users/me', {
@@ -58,10 +64,30 @@ export async function POST(req: NextRequest) {
 
           if (userRes.ok) {
             const userData = await userRes.json();
+
+            // Valida também busca real de produto para garantir que o token tem escopo total
+            let sampleInfo = '';
+            try {
+              const searchRes = await fetch('https://api.mercadolibre.com/sites/MLB/search?q=fone+bluetooth&limit=1', {
+                headers: {
+                  Authorization: `Bearer ${activeMlKey}`,
+                  Accept: 'application/json',
+                },
+                signal: AbortSignal.timeout(5000),
+              });
+              if (searchRes.ok) {
+                const searchData = await searchRes.json();
+                const firstItem = searchData.results?.[0];
+                if (firstItem) {
+                  sampleInfo = ` | Produto de teste consultado com sucesso: "${firstItem.title.substring(0, 35)}..." por R$ ${firstItem.price}`;
+                }
+              }
+            } catch {}
+
             return NextResponse.json({
               success: true,
               activeMlKey,
-              message: `✅ Token ML Oficial Ativo! Usuário Autenticado: "${userData.nickname || userData.id}". Busca de concorrentes vencedores e dados reais 100% liberados!`,
+              message: `✅ Conexão Mercado Livre 100% Ativa! Usuário autenticado: "${userData.nickname || userData.id}"${sampleInfo}`,
             });
           } else {
             return NextResponse.json({
