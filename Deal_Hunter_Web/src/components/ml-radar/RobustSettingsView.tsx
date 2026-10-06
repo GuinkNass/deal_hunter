@@ -196,9 +196,27 @@ export default function RobustSettingsView({ authToken, userId }: RobustSettings
 
   async function handleConnectML() {
     try {
+      const activeClientId = (mlClientId || '226238620730357').trim();
+      const activeClientSecret = (mlClientSecret || 'dsjLowWybTxjm2I3EKo6PThe3X4oCEMO').trim();
+
+      if (authToken) {
+        await fetch('/api/user/settings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({
+            ml_client_id: activeClientId,
+            ml_client_secret: activeClientSecret,
+          }),
+        }).catch(() => {});
+      }
+
       const params = new URLSearchParams();
-      if (mlClientId) params.set('clientId', mlClientId.trim());
+      params.set('clientId', activeClientId);
       if (userId) params.set('userId', userId.trim());
+
       const res = await fetch(`/api/ml/auth-url?${params.toString()}`);
       const json = await res.json();
       if (json.success && json.url) {
