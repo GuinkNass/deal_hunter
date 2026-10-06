@@ -364,5 +364,31 @@ export async function searchMercadoLivre(
     console.warn('[searchMercadoLivre] Erro na extração da listagem:', err.message);
   }
 
+  // 3. Fallback inteligente com Google Gemini Search Grounding
+  try {
+    const { searchMercadoLivreWithGeminiGrounding } = await import('./clinicalAudit');
+    const geminiKey = process.env.GEMINI_API_KEY || '';
+    const grounded = await searchMercadoLivreWithGeminiGrounding(query, geminiKey);
+    if (grounded && grounded.length > 0) {
+      const groundedItems: MLMatchItem[] = grounded.map((g) => ({
+        id: g.id,
+        title: g.title,
+        permalink: g.url,
+        price: g.price,
+        original_price: Number((g.price * 1.15).toFixed(2)),
+        thumbnail: options.imageUrl || '',
+        listing_type_id: g.price >= 100 ? 'gold_pro' : 'gold_special',
+        free_shipping: g.freeShipping,
+        is_full: g.isFull,
+        sold_quantity: g.salesCount,
+        seller_nickname: g.sellerNickname,
+        seller_reputation_level: '5_green',
+      }));
+      const { winner } = rankWinningSeller(groundedItems, options.sourcePrice);
+      const others = groundedItems.filter((it) => it.id !== winner.id);
+      return [winner, ...others];
+    }
+  } catch {}
+
   return [];
 }

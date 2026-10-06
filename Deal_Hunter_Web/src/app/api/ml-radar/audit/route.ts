@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import {
   cleanProductTitleWithGemini,
   scrapeMercadoLivreSearch,
+  searchMercadoLivreWithGeminiGrounding,
   enrichCandidateWithMlApi,
   decideBestCandidateWithGemini,
   ClinicalCandidatePayload,
@@ -160,6 +161,15 @@ export async function POST(req: NextRequest) {
       if (!scrapedCandidates || scrapedCandidates.length === 0) {
         console.log(`[Clinical Audit] Sem retorno para "${cleanedQuery}". Tentando busca com o título original...`);
         scrapedCandidates = await scrapeMercadoLivreSearch(title, 2, numSourcePrice);
+      }
+    }
+
+    // Prioridade 3: Se o WAF/Datacenter bloquear raspagem direta, aciona busca em tempo real via Gemini Search Grounding
+    if (!scrapedCandidates || scrapedCandidates.length === 0) {
+      console.log(`[Clinical Audit] Acionando busca em tempo real via Gemini Search Grounding para "${cleanedQuery || title}"...`);
+      scrapedCandidates = await searchMercadoLivreWithGeminiGrounding(cleanedQuery || title, geminiApiKey);
+      if (!scrapedCandidates || scrapedCandidates.length === 0) {
+        scrapedCandidates = await searchMercadoLivreWithGeminiGrounding(title, geminiApiKey);
       }
     }
 
