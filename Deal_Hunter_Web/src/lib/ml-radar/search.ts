@@ -196,9 +196,48 @@ export async function searchMercadoLivre(
             date_created: it.date_created || it.stop_time,
             seller_nickname: it.seller?.nickname || 'Vendedor ML',
             seller_reputation_level: it.seller?.seller_reputation?.level_id || '5_green',
+            catalog_product_id: it.catalog_product_id || null,
           }));
 
           const { winner } = rankWinningSeller(rawItems, options.sourcePrice);
+
+          // Se o produto possui Catálogo Oficial (PDP), consulta /products/$PRODUCT_ID
+          // conforme documentação oficial "Buscador de Produtos" para obter a Buy Box e permalink canônico
+          if (winner && winner.catalog_product_id) {
+            try {
+              const catUrl = `https://api.mercadolibre.com/products/${winner.catalog_product_id}`;
+              const prodRes = await fetch(catUrl, {
+                headers: {
+                  Authorization: `Bearer ${options.mlApiKey}`,
+                  Accept: 'application/json',
+                },
+                signal: AbortSignal.timeout(3500),
+              });
+
+              if (prodRes.ok) {
+                const prodData = await prodRes.json();
+                if (prodData.permalink) {
+                  winner.permalink = prodData.permalink;
+                }
+                if (prodData.buy_box_winner) {
+                  const bb = prodData.buy_box_winner;
+                  if (bb.price && Number(bb.price) > 0) {
+                    winner.price = Number(bb.price);
+                    winner.winner_price = Number(bb.price);
+                  }
+                  if (bb.seller?.nickname) {
+                    winner.seller_nickname = bb.seller.nickname;
+                  }
+                }
+                if (prodData.buy_box_winner_price_range?.min_price) {
+                  winner.min_price = Number(prodData.buy_box_winner_price_range.min_price);
+                }
+              }
+            } catch (pErr: any) {
+              console.warn('[searchMercadoLivre] Aviso ao buscar Buy Box do catálogo:', pErr.message);
+            }
+          }
+
           // Coloca o vencedor no topo (índice 0)
           const filtered = rawItems.filter((it) => it.id !== winner.id);
           return [winner, ...filtered];

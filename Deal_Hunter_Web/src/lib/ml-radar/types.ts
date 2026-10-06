@@ -28,6 +28,7 @@ export interface MLMatchItem {
   oldest_date?: string;
   seller_nickname?: string;
   seller_reputation_level?: string;
+  catalog_product_id?: string | null;
 }
 
 export interface ROIResult {
