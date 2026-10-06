@@ -415,7 +415,9 @@ export async function enrichCandidateWithMlApi(
         const pdpHtml = await pdpRes.text();
 
         // Vendas comprovadas no topo do anúncio
-        const salesMatch = pdpHtml.match(/(\+?\d+[\d.]*(?:\s*mil)?)\s*vendidos/i);
+        const salesMatch =
+          pdpHtml.match(/(?:Mais de\s*)?(\+?\d+[\d.]*(?:\s*mil)?)\s*(?:produtos\s*)?vendidos/i) ||
+          pdpHtml.match(/(\+?\d+[\d.]*(?:\s*mil)?)\s*vendidos/i);
         if (salesMatch) {
           totalVendas = parseMlSalesCount(salesMatch[1]);
         }
