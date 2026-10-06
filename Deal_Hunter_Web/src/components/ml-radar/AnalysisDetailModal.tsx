@@ -147,7 +147,7 @@ export default function AnalysisDetailModal({
       if (typeof window !== 'undefined' && (window as any).chrome?.runtime?.sendMessage) {
         try {
           const extPromise = new Promise<any[]>((resolve) => {
-            const timeout = setTimeout(() => resolve([]), 8000);
+            const timeout = setTimeout(() => resolve([]), 16000);
             (window as any).chrome.runtime.sendMessage(
               extensionId,
               {
