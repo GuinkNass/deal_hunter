@@ -28,44 +28,11 @@ function tagAmazonUrl(urlStr: string): string {
 function mapRenderAlertToDeal(r: any) {
   const currentPrice = Number(r.current_price) || 0;
   const rawOrigPrice = r.site_original_price ? Number(r.site_original_price) : null;
-
-  // Detecção defensiva de preço âncora falso/inflado da Amazon (ex: Ryzen 5 5500 por 539 com âncora de 1.166)
-  // No e-commerce brasileiro, âncoras acima de 1.35x costumam ser preços "De" fictícios da Amazon.
-  const isInflatedAnchor = Boolean(rawOrigPrice && rawOrigPrice > currentPrice * 1.35);
-
-  // Preço de venda real estimado no Mercado Livre (conservador e realista)
-  const winnerPrice = isInflatedAnchor
-    ? Number((currentPrice * 1.15).toFixed(2))
-    : (rawOrigPrice || Number((currentPrice * 1.35).toFixed(2)));
-
-  const minPrice = Number((winnerPrice * 0.90).toFixed(2));
-  const diff = winnerPrice - currentPrice;
-  const roi = currentPrice > 0 ? Math.max(0, Math.round((diff / currentPrice) * 100)) : 0;
-  const margin = winnerPrice > 0 ? Math.max(0, Math.round((diff / winnerPrice) * 100)) : 0;
-  const netProfit = Number((diff * 0.7).toFixed(2));
   const productUrl = tagAmazonUrl(r.product_url || '');
 
-  const cleanTitle = String(r.product_title || 'Produto').trim();
-  // Limpa o título para o slug do Mercado Livre (remove códigos técnicos e cores desnecessárias)
-  const coreQuery = cleanTitle
-    .split(',')[0]
-    .replace(/\b[0-9]{6,}[A-Z0-9]*\b/gi, '')
-    .replace(/\b(?:Cerâmica|Cinza|Preto|Branco|Azul|Novo|Original|Lacrado)\b/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  const slug = (coreQuery || cleanTitle)
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-
-  const soldQty = Math.max(100, Math.round((roi > 0 ? roi : 15) * 45));
-  const daysActive = 85;
-  const oldestDate = new Date(Date.now() - daysActive * 24 * 60 * 60 * 1000).toISOString();
-  const mlUrl = `https://lista.mercadolivre.com.br/${slug}_OrderId_PRICE_ASC`;
-
+  // Anúncio bruto recém-chegado da varredura/extensão:
+  // NÃO inventa preço de ML fictício nem url de busca.
+  // Fica pendente de avaliação até o usuário acionar "Avaliar ML".
   return {
     id: `render-${r.id}`,
     title: r.product_title || 'Produto Oferta',
@@ -74,22 +41,24 @@ function mapRenderAlertToDeal(r: any) {
     image_url: r.thumbnail || null,
     product_url: productUrl,
     store: r.site_name || 'Amazon Brasil',
-    ml_title: r.product_title,
-    ml_price: winnerPrice,
-    ml_url: mlUrl,
-    ml_image_url: r.thumbnail || null,
-    ml_min_price: minPrice,
-    ml_winner_price: winnerPrice,
-    ml_sold_quantity: soldQty,
-    ml_days_active: daysActive,
-    ml_oldest_date: oldestDate,
-    ml_visits: soldQty * 16,
-    net_profit: netProfit,
-    roi_percent: roi,
-    margin_percent: margin,
-    verdict: roi >= 20 ? 'Viável' : 'Atenção',
+    ml_title: null,
+    ml_price: null,
+    ml_url: null,
+    ml_image_url: null,
+    ml_min_price: null,
+    ml_winner_price: null,
+    ml_sold_quantity: null,
+    ml_available_quantity: null,
+    ml_days_active: null,
+    ml_oldest_date: null,
+    ml_visits: null,
+    net_profit: null,
+    roi_percent: null,
+    margin_percent: null,
+    verdict: 'Aguardando Avaliação',
     gemini_analysis: null,
-    status: 'completed',
+    clinical_evaluated: false,
+    status: 'pending_evaluation',
     created_at: r.sent_at || r.created_at || new Date().toISOString(),
   };
 }
@@ -108,18 +77,15 @@ export async function GET(req: NextRequest) {
         const {
           data: { user },
         } = await supabase.auth.getUser(token);
-        if (user) userId = user.id;
-      } catch (authErr) {
-        // Ignora erro de token expirado ou malformado
+        if (user) {
+          userId = user.id;
+        }
+      } catch (authErr: any) {
+        console.warn('[ML Radar Deals] Token inválido ou expirado:', authErr.message);
       }
     }
 
-    if (!userId) {
-      const url = new URL(req.url);
-      userId = url.searchParams.get('userId');
-    }
-
-    // 1. Busca ofertas persistidas no Supabase
+    // 1. Busca ofertas persistidas no banco de dados (Supabase)
     let supabaseDeals: any[] = [];
     try {
       if (!userId) {
@@ -178,13 +144,31 @@ export async function GET(req: NextRequest) {
     const seenTitles = new Set<string>();
     const combinedDeals: any[] = [];
 
-    // Prioriza ofertas já processadas e detalhadas do Supabase
+    // Prioriza ofertas do Supabase
     for (const d of supabaseDeals) {
       const normUrl = (d.product_url || '').trim().toLowerCase();
       const normTitle = (d.title || '').trim().toLowerCase();
       if (normUrl) seenUrls.add(normUrl);
       if (normTitle) seenTitles.add(normTitle);
-      combinedDeals.push(d);
+
+      // Validação se já foi avaliado clinicamente com anúncio real
+      const hasRealMlAd = Boolean(
+        d.clinical_evaluated ||
+        (d.ml_url &&
+          (d.ml_url.includes('produto.mercadolivre.com.br') ||
+            d.ml_url.includes('/p/MLB') ||
+            d.ml_url.includes('/MLB-')))
+      );
+
+      combinedDeals.push({
+        ...d,
+        clinical_evaluated: hasRealMlAd,
+        // Limpa URLs de busca genérica para que apenas links diretos reais sejam acessados
+        ml_url: hasRealMlAd ? d.ml_url : null,
+        ml_price: hasRealMlAd ? d.ml_price : null,
+        net_profit: hasRealMlAd ? d.net_profit : null,
+        roi_percent: hasRealMlAd ? d.roi_percent : null,
+      });
     }
 
     // Adiciona ofertas identificadas pela extensão e registradas no backend
@@ -210,7 +194,7 @@ export async function GET(req: NextRequest) {
       return timeB - timeA;
     });
 
-    // Limitação de histórico para até 100 itens (FIFO)
+    // Limitação de histórico para até 100 itens
     const finalDeals = combinedDeals.slice(0, 100);
 
     return NextResponse.json({ success: true, data: finalDeals });

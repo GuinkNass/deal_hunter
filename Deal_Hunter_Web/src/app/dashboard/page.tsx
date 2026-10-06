@@ -125,6 +125,13 @@ export default function DashboardPage() {
     }
   }
 
+  function handleUpdateDeal(updated: DealAnalysis) {
+    setDeals((prev) =>
+      prev.map((d) => (d.id === updated.id ? { ...d, ...updated } : d))
+    );
+    setSelectedDealForDetail(updated);
+  }
+
   async function handleSignOut() {
     await supabase.auth.signOut();
     router.push('/');
@@ -603,38 +610,75 @@ export default function DashboardPage() {
                       </div>
 
                       {/* Match no Mercado Livre */}
-                      <div className="p-3.5 rounded-2xl bg-[#090d16] border border-gray-800/80 space-y-2">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-gray-400">Preço de Venda no ML:</span>
-                          <span className="font-black text-emerald-400">
-                            R$ {Number(deal.ml_price || 0).toFixed(2)}
-                          </span>
-                        </div>
+                      {(() => {
+                        const isEvaluated = Boolean(
+                          deal.clinical_evaluated ||
+                          (deal.ml_url &&
+                            (deal.ml_url.includes('produto.mercadolivre.com.br') ||
+                              deal.ml_url.includes('/p/MLB') ||
+                              deal.ml_url.includes('/MLB-')))
+                        );
 
-                        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-gray-800/60 text-xs">
-                          <div>
-                            <span className="text-[10px] text-gray-500 block">Lucro Líquido:</span>
-                            <span className="font-bold text-white">
-                              R$ {Number(deal.net_profit || 0).toFixed(2)}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] text-gray-500 block">ROI Projetado:</span>
-                            <span className="font-bold text-indigo-400">
-                              {Number(deal.roi_percent || 0).toFixed(1)}%
-                            </span>
-                          </div>
-                        </div>
+                        return (
+                          <div className="p-3.5 rounded-2xl bg-[#090d16] border border-gray-800/80 space-y-2">
+                            {isEvaluated ? (
+                              <>
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="font-semibold text-gray-400">Preço Vencedor ML:</span>
+                                  <span className="font-black text-emerald-400">
+                                    R$ {Number(deal.ml_price || 0).toFixed(2)}
+                                  </span>
+                                </div>
 
-                        {deal.gemini_analysis && (
-                          <div className="mt-2 pt-2 border-t border-gray-800/60 flex items-start gap-1.5 text-[11px] text-violet-300">
-                            <Sparkles className="w-3.5 h-3.5 flex-shrink-0 text-violet-400 mt-0.5" />
-                            <p className="line-clamp-2">
-                              {deal.gemini_analysis.justification || deal.gemini_analysis.verdict}
-                            </p>
+                                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-gray-800/60 text-xs">
+                                  <div>
+                                    <span className="text-[10px] text-gray-500 block">Lucro Líquido:</span>
+                                    <span className="font-bold text-white">
+                                      R$ {Number(deal.net_profit || 0).toFixed(2)}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] text-gray-500 block">ROI Projetado:</span>
+                                    <span className="font-bold text-indigo-400">
+                                      {Number(deal.roi_percent || 0).toFixed(1)}%
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {deal.ml_seller_name && (
+                                  <div className="pt-1 border-t border-gray-800/60 flex items-center justify-between text-[11px] text-gray-400">
+                                    <span>Vendedor:</span>
+                                    <span
+                                      className="font-bold text-white uppercase truncate max-w-[130px]"
+                                      title={deal.ml_seller_name}
+                                    >
+                                      {deal.ml_seller_name}
+                                    </span>
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div className="py-2 text-center space-y-1">
+                                <span className="text-[11px] text-amber-400 font-bold flex items-center justify-center gap-1">
+                                  <Sparkles className="w-3.5 h-3.5" /> Aguardando Avaliação ML
+                                </span>
+                                <span className="text-[10px] text-gray-500 block">
+                                  Clique em <strong>Avaliar ML</strong> para varrer dados reais
+                                </span>
+                              </div>
+                            )}
+
+                            {deal.gemini_analysis && (
+                              <div className="mt-2 pt-2 border-t border-gray-800/60 flex items-start gap-1.5 text-[11px] text-violet-300">
+                                <Sparkles className="w-3.5 h-3.5 flex-shrink-0 text-violet-400 mt-0.5" />
+                                <p className="line-clamp-2">
+                                  {deal.gemini_analysis.justification || deal.gemini_analysis.verdict}
+                                </p>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
+                        );
+                      })()}
 
                       {/* Ações */}
                       <div
@@ -671,17 +715,21 @@ export default function DashboardPage() {
                           </a>
                         )}
 
-                        {deal.ml_url && (
-                          <a
-                            href={deal.ml_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="py-2 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold flex items-center justify-center gap-1 transition-colors"
-                            title="Ver no Mercado Livre"
-                          >
-                            <ArrowUpRight className="w-3.5 h-3.5" />
-                          </a>
-                        )}
+                        {deal.ml_url &&
+                          (deal.clinical_evaluated ||
+                            deal.ml_url.includes('produto.mercadolivre.com.br') ||
+                            deal.ml_url.includes('/p/MLB') ||
+                            deal.ml_url.includes('/MLB-')) && (
+                            <a
+                              href={deal.ml_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="py-2 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold flex items-center justify-center gap-1 transition-colors"
+                              title="Abrir Anúncio Vencedor no Mercado Livre"
+                            >
+                              <ArrowUpRight className="w-3.5 h-3.5" />
+                            </a>
+                          )}
                       </div>
                     </div>
                   );
@@ -757,6 +805,7 @@ export default function DashboardPage() {
           analysis={selectedDealForDetail}
           onClose={() => setSelectedDealForDetail(null)}
           onOpenCalculator={handleOpenCalculatorForDeal}
+          onUpdateDeal={handleUpdateDeal}
           autoEvaluate={true}
         />
       )}

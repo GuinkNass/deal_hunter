@@ -20,11 +20,12 @@ import {
   Flame,
   AlertTriangle,
   Loader2,
-  SearchCode,
+  Layers,
   ShieldCheck,
+  Package,
 } from 'lucide-react';
 import { getProductFallbackImage } from '@/lib/ml-radar/imageFallback';
-import { ClinicalEvaluationResult } from '@/lib/ml-radar/clinicalAudit';
+import { ClinicalEvaluationResult, ClinicalCandidatePayload } from '@/lib/ml-radar/clinicalAudit';
 
 export interface DealAnalysis {
   id?: string;
@@ -64,6 +65,7 @@ export interface DealAnalysis {
   margin_percent?: number | null;
   verdict?: string | null;
   gemini_analysis?: any;
+  clinical_evaluated?: boolean;
   clinical_result?: ClinicalEvaluationResult;
   created_at?: string;
 }
@@ -72,11 +74,12 @@ interface AnalysisDetailModalProps {
   analysis: DealAnalysis | null;
   onClose: () => void;
   onOpenCalculator: (item: DealAnalysis) => void;
+  onUpdateDeal?: (updated: DealAnalysis) => void;
   autoEvaluate?: boolean;
 }
 
 /**
- * Garante link direto ao Anúncio Vencedor no Mercado Livre
+ * Garante link direto e canônico ao Anúncio Vencedor no Mercado Livre (NUNCA busca genérica)
  */
 function getSafeMlUrl(item: DealAnalysis, realWinner?: any): string {
   if (
@@ -90,7 +93,6 @@ function getSafeMlUrl(item: DealAnalysis, realWinner?: any): string {
   if (!item) return '#';
   const url = item.ml_url;
 
-  // Se já é um link direto de produto ou listagem oficial do Mercado Livre
   if (
     url &&
     (url.includes('produto.mercadolivre.com.br') ||
@@ -100,34 +102,23 @@ function getSafeMlUrl(item: DealAnalysis, realWinner?: any): string {
     return url;
   }
 
-  const title = item.ml_title || item.title || item.source_title || '';
-  const coreQuery = title
-    .split(',')[0]
-    .replace(/\b[0-9]{6,}[A-Z0-9]*\b/gi, '')
-    .replace(/\b(?:Cerâmica|Cinza|Preto|Branco|Azul|Novo|Original|Lacrado)\b/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  const cleanSlug = (coreQuery || title)
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-
-  return `https://lista.mercadolivre.com.br/${encodeURIComponent(cleanSlug)}_OrderId_PRICE_ASC`;
+  return '#';
 }
 
 export default function AnalysisDetailModal({
   analysis,
   onClose,
   onOpenCalculator,
+  onUpdateDeal,
   autoEvaluate = true,
 }: AnalysisDetailModalProps) {
   const [projectionDays, setProjectionDays] = useState<number>(30);
   const [geminiData, setGeminiData] = useState<any>(analysis?.gemini_analysis || null);
   const [clinicalResult, setClinicalResult] = useState<ClinicalEvaluationResult | null>(
     analysis?.clinical_result || null
+  );
+  const [candidates, setCandidates] = useState<ClinicalCandidatePayload['produto_candidato'][]>(
+    analysis?.clinical_result?.candidates_evaluated || []
   );
   const [cleanedQuery, setCleanedQuery] = useState<string>('');
   const [realMlWinner, setRealMlWinner] = useState<any>(null);
@@ -141,7 +132,8 @@ export default function AnalysisDetailModal({
   const originalPrice = analysis?.original_price || analysis?.source_original_price;
 
   const winnerPrice = Number(
-    analysis?.ml_winner_price ||
+    realMlWinner?.price ||
+      analysis?.ml_winner_price ||
       mlPrice ||
       (sourcePrice > 0 ? (sourcePrice * 1.45).toFixed(2) : 129.9)
   );
@@ -156,6 +148,7 @@ export default function AnalysisDetailModal({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          dealId: analysis.id,
           title: productTitle,
           sourcePrice,
           mlPrice: winnerPrice,
@@ -171,7 +164,27 @@ export default function AnalysisDetailModal({
         if (data.audit) setGeminiData(data.audit);
         if (data.mlWinner) setRealMlWinner(data.mlWinner);
         if (data.clinicalResult) setClinicalResult(data.clinicalResult);
+        if (data.candidates && Array.isArray(data.candidates)) setCandidates(data.candidates);
         if (data.cleanedQuery) setCleanedQuery(data.cleanedQuery);
+
+        // Notifica o componente pai (Dashboard) para atualizar os cards imediatamente
+        if (onUpdateDeal && data.mlWinner) {
+          onUpdateDeal({
+            ...analysis,
+            ml_title: data.mlWinner.title,
+            ml_price: data.mlWinner.price,
+            ml_url: data.mlWinner.permalink,
+            ml_seller_name: data.mlWinner.seller_nickname,
+            ml_sold_quantity: data.mlWinner.sold_quantity,
+            ml_available_quantity: data.mlWinner.available_quantity,
+            net_profit: data.financials?.netProfit ?? data.audit?.netProfit,
+            roi_percent: data.financials?.roiPercent ?? data.audit?.roiPercent,
+            margin_percent: data.financials?.marginPercent ?? data.audit?.marginPercent,
+            clinical_evaluated: true,
+            clinical_result: data.clinicalResult,
+            gemini_analysis: data.audit,
+          });
+        }
       } else {
         setAuditError(data.error || 'Não foi possível completar a avaliação.');
       }
@@ -181,13 +194,16 @@ export default function AnalysisDetailModal({
     } finally {
       setIsAuditing(false);
     }
-  }, [analysis, isAuditing, productTitle, sourcePrice, winnerPrice]);
+  }, [analysis, isAuditing, productTitle, sourcePrice, winnerPrice, onUpdateDeal]);
 
   // Dispara a avaliação em segundo plano apenas sob demanda (quando o modal é aberto pelo botão "Avaliar ML")
   React.useEffect(() => {
     if (!analysis) return;
     if (analysis.clinical_result) {
       setClinicalResult(analysis.clinical_result);
+      if (analysis.clinical_result.candidates_evaluated) {
+        setCandidates(analysis.clinical_result.candidates_evaluated);
+      }
       return;
     }
     if (autoEvaluate) {
@@ -204,18 +220,13 @@ export default function AnalysisDetailModal({
       (gemini.realMarketPrice && gemini.realMarketPrice < winnerPrice * 0.85)
   );
 
-  // Preço de referência corrigido pela auditoria da IA
   const effectiveWinnerPrice =
-    isInflatedAnchor && gemini.realMarketPrice
-      ? Number(gemini.realMarketPrice)
-      : realMlWinner?.price
-      ? Number(realMlWinner.price)
-      : winnerPrice;
+    realMlWinner?.price ? Number(realMlWinner.price) : winnerPrice;
 
   const sellerName =
     realMlWinner?.seller_nickname || analysis.ml_seller_name || 'Vendedor Mercado Livre';
 
-  // 1. Dados Reais de Mercado (Menor Preço, Anúncio Campeão e Data Mais Antiga)
+  // 1. Dados Reais de Mercado
   const minPrice = Number(
     realMlWinner?.min_price ||
       analysis.ml_min_price ||
@@ -224,8 +235,11 @@ export default function AnalysisDetailModal({
         : (sourcePrice * 1.35).toFixed(2))
   );
 
-  const soldQty = Number(realMlWinner?.sold_quantity || analysis.ml_sold_quantity || 1500);
-  const daysActive = Number(analysis.ml_days_active || 85);
+  const soldQty = Number(realMlWinner?.sold_quantity || analysis.ml_sold_quantity || 0);
+  const availableStock = Number(
+    realMlWinner?.available_quantity || analysis.ml_available_quantity || 0
+  );
+  const daysActive = Number(analysis.ml_days_active || 90);
 
   const oldestDateObj = analysis.ml_oldest_date
     ? new Date(analysis.ml_oldest_date)
@@ -233,11 +247,10 @@ export default function AnalysisDetailModal({
 
   const formattedOldestDate = !isNaN(oldestDateObj.getTime())
     ? oldestDateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-    : '85 dias atrás';
+    : '90 dias atrás';
 
   // Velocidade de vendas real comprovada pelo anúncio líder (unidades por dia)
-  const salesVelocityWinner = Math.max(0.5, Number((soldQty / Math.max(1, daysActive)).toFixed(2)));
-  // No menor valor encontrado, aceleração de buybox com giro de +38%
+  const salesVelocityWinner = Math.max(0.5, Number((Math.max(1, soldQty) / Math.max(1, daysActive)).toFixed(2)));
   const salesVelocityMin = Math.max(0.7, Number((salesVelocityWinner * 1.38).toFixed(2)));
 
   // Projeções para o horizonte selecionado (30 ou 120 dias)
@@ -247,8 +260,8 @@ export default function AnalysisDetailModal({
   const projectedUnitsMin = Math.round(salesVelocityMin * projectionDays);
   const projectedRevenueMin = projectedUnitsMin * minPrice;
 
-  const visits = analysis.ml_visits || Math.round(soldQty * 16);
-  const conversionRate = visits > 0 ? ((soldQty / visits) * 100).toFixed(2) : '6.25';
+  const visits = analysis.ml_visits || Math.round(Math.max(1, soldQty) * 16);
+  const conversionRate = visits > 0 ? ((Math.max(1, soldQty) / visits) * 100).toFixed(2) : '6.25';
   const visitsPerSale = Math.max(1, Math.round(100 / parseFloat(conversionRate)));
 
   const revenueNum = soldQty * effectiveWinnerPrice;
@@ -272,23 +285,15 @@ export default function AnalysisDetailModal({
   const bulletPoints: string[] =
     gemini.alerts && Array.isArray(gemini.alerts) && gemini.alerts.length > 0
       ? gemini.alerts
-      : isInflatedAnchor
-      ? [
-          `⚠️ AUDITORIA IA: Preço de R$ ${winnerPrice.toFixed(2)} foi identificado como âncora inflada de loja.`,
-          `Preço real de concorrência no Mercado Livre estimado pela IA: R$ ${effectiveWinnerPrice.toFixed(2)}.`,
-          `Menor valor encontrado no Mercado Livre: R$ ${minPrice.toFixed(2)}.`,
-          `Veredito da Inteligência Artificial: ${gemini.verdict || 'Evitar'} (${gemini.riskLevel || 'Alto'} Risco).`,
-          `Justificativa: ${gemini.justification || 'Margem de lucro inconsistente com os preços reais do ML.'}`,
-        ]
       : [
           `Anúncio vencedor ativo com ${soldQty.toLocaleString('pt-BR')} unidades vendidas comprovadas no ML.`,
+          `Estoque ativo restante: ${availableStock.toLocaleString('pt-BR')} unidades no anúncio campeão.`,
           `Menor valor encontrado no Mercado Livre: R$ ${minPrice.toFixed(2)} (excelente parâmetro de entrada).`,
           `Giro diário estimado em ${salesVelocityWinner} unidades/dia na liderança de vendas.`,
           `Margem líquida estimada de R$ ${Number(analysis.net_profit || (effectiveWinnerPrice - sourcePrice) * 0.7).toFixed(2)} (${Number(analysis.roi_percent || 35).toFixed(1)}% ROI).`,
-          `Taxa de conversão estimada em ${conversionRate}% (${visitsPerSale} visitas por venda).`,
         ];
 
-  // 2. Coordenadas do Gráfico SVG Real
+  // Coordenadas do Gráfico SVG Real
   const chartW = 760;
   const chartH = 170;
   const padLeft = 65;
@@ -299,7 +304,7 @@ export default function AnalysisDetailModal({
   const innerW = chartW - padLeft - padRight;
   const innerH = chartH - padTop - padBottom;
 
-  const maxUnits = Math.max(projectedUnitsMin, projectedUnitsWinner) * 1.15;
+  const maxUnits = Math.max(projectedUnitsMin, projectedUnitsWinner, 10) * 1.15;
 
   const intervals = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
   const pointsWinner = intervals.map((ratio) => {
@@ -328,6 +333,9 @@ export default function AnalysisDetailModal({
     { label: '0 un', y: padTop + innerH },
   ];
 
+  const canonicalWinnerUrl = getSafeMlUrl(analysis, realMlWinner);
+  const hasDirectWinnerUrl = canonicalWinnerUrl && canonicalWinnerUrl !== '#';
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200 font-sans">
       <div
@@ -339,7 +347,7 @@ export default function AnalysisDetailModal({
           <div className="flex items-center gap-2.5">
             <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
             <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-              Avaliação Clínica ML • Deal Hunter Pro
+              Avaliação Clínica Mercado Livre • Deal Hunter Pro
             </span>
           </div>
 
@@ -391,17 +399,18 @@ export default function AnalysisDetailModal({
                   Varrendo Mercado Livre e Avaliando Concorrência...
                 </h4>
                 <p className="text-xs text-slate-400">
-                  Higienizando título com Gemini, buscando 2 páginas no Mercado Livre no servidor (100% invisível) e enriquecendo com a API oficial.
+                  Higienizando termo com Gemini, buscando as 2 primeiras páginas no ML em segundo plano no servidor (invisível), enriquecendo os top 3 candidatos na API oficial e elegendo o vencedor.
                 </p>
               </div>
             </div>
           )}
 
-          {/* 1. TOP PRODUCT CARD */}
+          {/* 1. TOP PRODUCT CARD (ANÚNCIO VENCEDOR ELEITO) */}
           <div className="bg-[#12151f] border border-slate-800/80 rounded-2xl p-5 flex flex-col md:flex-row gap-5 items-start">
             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl bg-white p-1.5 flex-shrink-0 flex items-center justify-center shadow-md overflow-hidden">
               <img
                 src={
+                  realMlWinner?.thumbnail ||
                   analysis.ml_image_url ||
                   analysis.image_url ||
                   getProductFallbackImage(productTitle, analysis.store)
@@ -417,15 +426,22 @@ export default function AnalysisDetailModal({
 
             <div className="flex-1 min-w-0 space-y-2.5">
               <div className="flex items-start justify-between gap-3">
-                <a
-                  href={getSafeMlUrl(analysis, realMlWinner)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-bold text-base sm:text-lg text-white hover:text-amber-300 transition-colors inline-flex items-center gap-1.5 leading-snug"
-                >
-                  <span>{realMlWinner?.title || productTitle}</span>
-                  <ExternalLink className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                </a>
+                {hasDirectWinnerUrl ? (
+                  <a
+                    href={canonicalWinnerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-bold text-base sm:text-lg text-white hover:text-amber-300 transition-colors inline-flex items-center gap-1.5 leading-snug"
+                    title="Abre o anúncio do vencedor diretamente no Mercado Livre"
+                  >
+                    <span>{realMlWinner?.title || productTitle}</span>
+                    <ExternalLink className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                  </a>
+                ) : (
+                  <span className="font-bold text-base sm:text-lg text-white leading-snug">
+                    {productTitle}
+                  </span>
+                )}
               </div>
 
               {/* Badges */}
@@ -454,16 +470,11 @@ export default function AnalysisDetailModal({
                       isInflatedAnchor ? 'text-amber-400' : 'text-emerald-400'
                     }`}
                   >
-                    R$ {effectiveWinnerPrice > 0 ? effectiveWinnerPrice.toFixed(2) : 'A definir'}
+                    R$ {effectiveWinnerPrice > 0 ? effectiveWinnerPrice.toFixed(2) : 'Aguardando Avaliação'}
                   </span>
-                  {isInflatedAnchor && (
-                    <span className="text-xs text-rose-400/80 font-semibold line-through">
-                      R$ {winnerPrice.toFixed(2)} (âncora)
-                    </span>
-                  )}
                 </div>
 
-                {originalPrice && originalPrice > effectiveWinnerPrice && !isInflatedAnchor && (
+                {originalPrice && originalPrice > effectiveWinnerPrice && (
                   <span className="text-sm text-slate-500 line-through">
                     R$ {Number(originalPrice).toFixed(2)}
                   </span>
@@ -475,50 +486,24 @@ export default function AnalysisDetailModal({
                   {sellerName}
                 </span>
 
-                {/* 5-bar green reputation block */}
-                <div className="flex items-center gap-0.5" title="Reputação do vendedor no Mercado Livre">
-                  <span className="w-2.5 h-3 bg-emerald-500 rounded-[1px]" />
-                  <span className="w-2.5 h-3 bg-emerald-500 rounded-[1px]" />
-                  <span className="w-2.5 h-3 bg-emerald-500 rounded-[1px]" />
-                  <span className="w-2.5 h-3 bg-emerald-500 rounded-[1px]" />
-                  <span className="w-2.5 h-3 bg-emerald-500 rounded-[1px]" />
-                </div>
-
                 <Award className="w-4 h-4 text-amber-400" title="MercadoLíder" />
-                <span>• {analysis.ml_seller_location || 'Brasil'}</span>
-                <span>• Frete Est.: R$ {Number(analysis.shipping_cost || 19.9).toFixed(2)}</span>
+                <span>• Estoque: <strong className="text-white">{availableStock} un</strong></span>
+                <span>• Vendas: <strong className="text-emerald-400">{soldQty.toLocaleString('pt-BR')} un</strong></span>
               </div>
-
-              {/* Alerta de Âncora Falsa Detectada pela Auditoria Gemini */}
-              {isInflatedAnchor && (
-                <div className="bg-rose-950/40 border border-rose-500/50 rounded-xl p-3 flex items-start gap-2.5 text-xs text-rose-200 mt-2">
-                  <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-rose-300">Âncora Falsa Detectada pela IA (Gemini)</span>
-                      <span className="px-2 py-0.5 rounded bg-rose-900/80 text-rose-200 font-bold text-[10px]">
-                        {gemini.verdict || 'Evitar'}
-                      </span>
-                    </div>
-                    <p className="text-slate-300 text-[11px] leading-relaxed">
-                      {gemini.justification ||
-                        `O valor inicial informado (R$ ${winnerPrice.toFixed(2)}) foi inflado pela loja parceira. No Mercado Livre, o produto é comercializado pelos líderes por cerca de R$ ${effectiveWinnerPrice.toFixed(2)}.`}
-                    </p>
-                  </div>
-                </div>
-              )}
 
               {/* Action Buttons */}
               <div className="pt-2 flex flex-wrap items-center gap-3">
-                <a
-                  href={getSafeMlUrl(analysis, realMlWinner)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-amber-500/20 active:scale-[0.98]"
-                  title="Abre o anúncio do vendedor campeão diretamente no Mercado Livre"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" /> Abrir Anúncio Vencedor no ML
-                </a>
+                {hasDirectWinnerUrl && (
+                  <a
+                    href={canonicalWinnerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-amber-500/20 active:scale-[0.98]"
+                    title="Abre o anúncio do vendedor campeão diretamente no Mercado Livre"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" /> Abrir Anúncio Vencedor no ML
+                  </a>
+                )}
 
                 {analysis.product_url && (
                   <a
@@ -541,7 +526,7 @@ export default function AnalysisDetailModal({
             </div>
           </div>
 
-          {/* CARD DE AVALIAÇÃO CLÍNICA & BENCHMARKING (GEMINI + ML API) */}
+          {/* 2. CARD DE AVALIAÇÃO CLÍNICA & BENCHMARKING (GEMINI AI + ML API) */}
           {clinicalResult && (
             <div className="bg-[#12151f] border border-cyan-500/30 rounded-2xl p-5 space-y-4 shadow-lg shadow-cyan-950/20">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
@@ -606,16 +591,143 @@ export default function AnalysisDetailModal({
               </div>
 
               {/* Parecer Clínico Estrito */}
-              <div className="bg-[#0b0e17] p-3.5 rounded-xl border border-slate-800/80 text-xs leading-relaxed space-y-1">
-                <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">
-                  Diagnóstico e Parecer Clínico:
-                </span>
-                <p className="text-slate-200">{clinicalResult.motivo_clinico}</p>
+              <div className="bg-[#0b0e17] p-3.5 rounded-xl border border-slate-800/80 text-xs leading-relaxed space-y-2">
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider mb-0.5">
+                    Diagnóstico Clínico do Concorrente:
+                  </span>
+                  <p className="text-slate-200">{clinicalResult.motivo_clinico}</p>
+                </div>
+
+                {clinicalResult.justificativa_escolha && (
+                  <div className="pt-2 border-t border-slate-800/60">
+                    <span className="text-amber-400 font-semibold block text-[11px] uppercase tracking-wider mb-0.5">
+                      Critério de Escolha do Vencedor (Gemini):
+                    </span>
+                    <p className="text-slate-300">{clinicalResult.justificativa_escolha}</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* 2. AD SCORE & STRENGTH SECTION */}
+          {/* 3. CONCORRENTES AVALIADOS (TOP 1 A 3 CANDIDATOS DO ML) */}
+          {candidates && candidates.length > 0 && (
+            <div className="bg-[#12151f] border border-slate-800/80 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-amber-400" />
+                  <h3 className="text-sm sm:text-base font-bold text-white tracking-wide">
+                    Anúncios Concorrentes Avaliados ({candidates.length} Analisados)
+                  </h3>
+                </div>
+                <span className="text-[11px] text-slate-400">
+                  Elegibilidade e dados extraídos via API oficial
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {candidates.map((cand, idx) => {
+                  const isWinner = idx === (clinicalResult?.vencedor_index ?? 0);
+                  return (
+                    <div
+                      key={cand.item_id || idx}
+                      className={`p-4 rounded-xl border relative flex flex-col justify-between transition-all ${
+                        isWinner
+                          ? 'bg-amber-950/20 border-amber-500/50 shadow-md shadow-amber-500/10 ring-1 ring-amber-500/30'
+                          : 'bg-[#0b0e17] border-slate-800/80 hover:border-slate-700'
+                      }`}
+                    >
+                      {isWinner && (
+                        <span className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-sm">
+                          🏆 Eleito Vencedor
+                        </span>
+                      )}
+
+                      <div className="space-y-2">
+                        <span className="text-[10px] text-slate-500 block font-mono">
+                          {cand.item_id}
+                        </span>
+                        <h4
+                          className="text-xs font-bold text-white line-clamp-2 leading-snug"
+                          title={cand.titulo}
+                        >
+                          {cand.titulo}
+                        </h4>
+
+                        <div className="flex items-baseline gap-2 pt-1">
+                          <span
+                            className={`text-lg font-black ${
+                              isWinner ? 'text-amber-400' : 'text-slate-200'
+                            }`}
+                          >
+                            R$ {Number(cand.preco_atual).toFixed(2)}
+                          </span>
+                          {cand.preco_tabela && cand.preco_tabela > cand.preco_atual && (
+                            <span className="text-xs text-slate-500 line-through">
+                              R$ {Number(cand.preco_tabela).toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="space-y-1 text-[11px] text-slate-400 pt-1 border-t border-slate-800/60">
+                          <div className="flex justify-between">
+                            <span>Vendas Comprovadas:</span>
+                            <strong className="text-emerald-400">
+                              {Number(cand.total_vendas).toLocaleString('pt-BR')} un
+                            </strong>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Estoque Ativo:</span>
+                            <strong className="text-white">
+                              {Number(cand.estoque_disponivel).toLocaleString('pt-BR')} un
+                            </strong>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Logística:</span>
+                            <strong
+                              className={
+                                cand.logistica === 'fulfillment' ? 'text-cyan-300' : 'text-slate-300'
+                              }
+                            >
+                              {cand.logistica === 'fulfillment' ? 'Full ML' : 'Própria'}
+                            </strong>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Vendedor:</span>
+                            <span
+                              className="text-white font-medium truncate max-w-[120px]"
+                              title={cand.vendedor_nome}
+                            >
+                              {cand.vendedor_nome}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 mt-3 border-t border-slate-800/80">
+                        <a
+                          href={cand.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${
+                            isWinner
+                              ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-black'
+                              : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                          }`}
+                        >
+                          <span>Ver Anúncio Real</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 4. AD SCORE & STRENGTH SECTION */}
           <div className="bg-[#12151f] border border-slate-800/80 rounded-2xl p-6 flex flex-col md:flex-row gap-8 items-start">
             <div className="w-full md:w-56 flex-shrink-0 space-y-3">
               <div className="flex items-baseline gap-1">
@@ -681,24 +793,24 @@ export default function AnalysisDetailModal({
             </div>
           </div>
 
-          {/* 3. FOUR METRIC CARDS */}
+          {/* 5. FOUR METRIC CARDS */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-[#12151f] border border-slate-800/80 p-4 rounded-xl space-y-1">
               <div className="flex items-center gap-1.5 text-xs text-slate-400">
                 <Box className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Vendas Estimadas</span>
+                <span>Vendas Comprovadas</span>
               </div>
               <p className="text-2xl font-black text-white">{soldQty.toLocaleString('pt-BR')}</p>
-              <p className="text-[11px] text-slate-500">unidades registradas</p>
+              <p className="text-[11px] text-slate-500">unidades no anúncio eleito</p>
             </div>
 
             <div className="bg-[#12151f] border border-slate-800/80 p-4 rounded-xl space-y-1">
               <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                <Eye className="w-3.5 h-3.5 text-purple-400" />
-                <span>Visitas em 30 dias</span>
+                <Package className="w-3.5 h-3.5 text-purple-400" />
+                <span>Estoque Ativo</span>
               </div>
-              <p className="text-2xl font-black text-white">{visits.toLocaleString('pt-BR')}</p>
-              <p className="text-[11px] text-slate-500">audiência ativa</p>
+              <p className="text-2xl font-black text-white">{availableStock.toLocaleString('pt-BR')}</p>
+              <p className="text-[11px] text-slate-500">unidades disponíveis</p>
             </div>
 
             <div className="bg-[#12151f] border border-slate-800/80 p-4 rounded-xl space-y-1">
@@ -720,7 +832,7 @@ export default function AnalysisDetailModal({
             </div>
           </div>
 
-          {/* 4. PROJEÇÃO DE VENDAS DINÂMICA & GRÁFICO REAL */}
+          {/* 6. PROJEÇÃO DE VENDAS DINÂMICA & GRÁFICO REAL */}
           <div className="bg-[#12151f] border border-slate-800/80 p-5 rounded-2xl space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="space-y-1">
@@ -778,7 +890,7 @@ export default function AnalysisDetailModal({
 
               <div className="bg-[#0b0e17] p-3 rounded-xl border border-amber-500/20 space-y-1">
                 <span className="text-[11px] text-amber-400 font-bold flex items-center gap-1 uppercase tracking-wider">
-                  <Flame className="w-3 h-3" /> Preço do Mais Vendido
+                  <Flame className="w-3 h-3" /> Preço do Vencedor Eleito
                 </span>
                 <p className="text-lg font-black text-amber-300">R$ {winnerPrice.toFixed(2)}</p>
                 <p className="text-[10px] text-slate-400">
@@ -847,7 +959,6 @@ export default function AnalysisDetailModal({
 
                 {/* Área sob a curva Menor Preço */}
                 <path d={areaMin} fill="url(#gradMin)" />
-                {/* Linha Menor Preço */}
                 <path
                   d={pathMin}
                   fill="none"
@@ -859,7 +970,6 @@ export default function AnalysisDetailModal({
 
                 {/* Área sob a curva Anúncio Vencedor */}
                 <path d={areaWinner} fill="url(#gradWinner)" />
-                {/* Linha Anúncio Vencedor */}
                 <path
                   d={pathWinner}
                   fill="none"
@@ -869,7 +979,7 @@ export default function AnalysisDetailModal({
                   strokeLinejoin="round"
                 />
 
-                {/* Marcadores de Pontos (Dots) com Rótulos de Unidades */}
+                {/* Marcadores de Pontos (Dots) */}
                 {pointsMin.map((pt, idx) => (
                   <g key={`min-${idx}`}>
                     <circle cx={pt.x} cy={pt.y} r="3.5" fill="#06b6d4" />
@@ -941,72 +1051,6 @@ export default function AnalysisDetailModal({
                 Calculado com dados extraídos do Mercado Livre
               </span>
             </div>
-          </div>
-
-          {/* 5. GOOGLE GEMINI AI BLOCK */}
-          <div className="bg-[#12151f] border border-purple-900/40 rounded-2xl p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-purple-400" />
-                <h3 className="text-sm font-bold text-white tracking-wide">
-                  Inteligência Estratégica (Google Gemini AI)
-                </h3>
-              </div>
-              {isAuditing && (
-                <div className="flex items-center gap-1.5 text-xs text-purple-300 font-medium animate-pulse">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Auditando mercado com Gemini...</span>
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div className="bg-[#0e1015] p-3 rounded-lg border border-slate-800">
-                <span className="text-slate-400 block mb-0.5">Demanda de Mercado:</span>
-                <span className="font-bold text-slate-200">
-                  {gemini.demandTrend || 'Alta Procura'}
-                </span>
-              </div>
-
-              <div className="bg-[#0e1015] p-3 rounded-lg border border-slate-800">
-                <span className="text-slate-400 block mb-0.5">
-                  {gemini.realMarketPrice ? 'Preço Real Auditado (ML):' : 'Sazonalidade Ideal:'}
-                </span>
-                <span className="font-bold text-slate-200">
-                  {gemini.realMarketPrice
-                    ? `R$ ${Number(gemini.realMarketPrice).toFixed(2)}`
-                    : gemini.bestSeason || 'Ano todo'}
-                </span>
-              </div>
-
-              <div className="bg-[#0e1015] p-3 rounded-lg border border-slate-800">
-                <span className="text-slate-400 block mb-0.5">Nível de Risco:</span>
-                <span
-                  className={`font-bold ${
-                    gemini.riskLevel === 'Alto'
-                      ? 'text-rose-400'
-                      : gemini.riskLevel === 'Médio'
-                      ? 'text-amber-400'
-                      : 'text-emerald-400'
-                  }`}
-                >
-                  {gemini.riskLevel || 'Baixo'}
-                </span>
-              </div>
-            </div>
-
-            {(gemini.justification || gemini.verdict) && (
-              <p
-                className={`text-xs p-3 rounded-lg border leading-relaxed ${
-                  isInflatedAnchor
-                    ? 'bg-rose-950/30 border-rose-500/40 text-rose-200'
-                    : 'bg-[#0e1015] border-slate-800 text-slate-300'
-                }`}
-              >
-                <strong>{gemini.verdict ? `[Veredito: ${gemini.verdict}] ` : ''}</strong>
-                {gemini.justification}
-              </p>
-            )}
           </div>
         </div>
       </div>

@@ -92,37 +92,35 @@ export async function POST(req: NextRequest) {
       imageUrl,
     });
 
-    const bestMl = (mlCandidates && mlCandidates.length > 0) ? mlCandidates[0] : {
-      id: `MLB-EST-${Date.now()}`,
-      title: `${title} (Referência)`,
-      permalink: cleanProductUrl,
-      price: numOriginalPrice || (numPrice * 1.35),
-      original_price: Number(((numOriginalPrice || (numPrice * 1.35)) * 1.15).toFixed(2)),
-      thumbnail: imageUrl || null,
-      listing_type_id: 'gold_special',
-      free_shipping: (numOriginalPrice || numPrice * 1.35) >= 79.0,
-      is_full: false,
-      sold_quantity: 10,
-      seller_nickname: 'Vendedor Mercado Livre',
-      seller_reputation_level: '5_green',
-    };
+    const hasRealMlMatch = Boolean(
+      mlCandidates &&
+        mlCandidates.length > 0 &&
+        mlCandidates[0]?.permalink &&
+        (mlCandidates[0].permalink.includes('produto.mercadolivre.com.br') ||
+          mlCandidates[0].permalink.includes('/p/MLB') ||
+          mlCandidates[0].permalink.includes('MLB'))
+    );
 
-    // 3. Calcula ROI e viabilidade financeira com taxas do usuário
-    const roi = calculateROI({
-      salePrice: bestMl.price,
-      productCost: numPrice,
-      listingType: bestMl.listing_type_id,
-      freeShipping: bestMl.free_shipping,
-      desiredMargin: userCredentials.desired_margin ? Number(userCredentials.desired_margin) : 20,
-      feeClassicoPercent: userCredentials.fee_classico_percent ? Number(userCredentials.fee_classico_percent) : 12,
-      feePremiumPercent: userCredentials.fee_premium_percent ? Number(userCredentials.fee_premium_percent) : 17,
-      fixedFeeUnderThreshold: userCredentials.fixed_fee_under_79 ? Number(userCredentials.fixed_fee_under_79) : 6,
-      packagingCost: userCredentials.packaging_cost ? Number(userCredentials.packaging_cost) : 3.5,
-      taxPercent: userCredentials.tax_percent ? Number(userCredentials.tax_percent) : 6,
-    });
+    const bestMl = hasRealMlMatch ? mlCandidates[0] : null;
 
-    // 4. REGRA DE ALERTA: "O aviso ao telegram cadastrado no ml radar, deve ser enviado apenas quando
-    //    tiver ótima oportunidade conforme configuração pré-estabelecida pelo usuário."
+    // 3. Calcula ROI apenas se houver correspondência real
+    let roi = { netProfit: 0, roiPercent: 0, marginPercent: 0 };
+    if (bestMl && bestMl.price) {
+      roi = calculateROI({
+        salePrice: bestMl.price,
+        productCost: numPrice,
+        listingType: bestMl.listing_type_id,
+        freeShipping: bestMl.free_shipping,
+        desiredMargin: userCredentials.desired_margin ? Number(userCredentials.desired_margin) : 20,
+        feeClassicoPercent: userCredentials.fee_classico_percent ? Number(userCredentials.fee_classico_percent) : 12,
+        feePremiumPercent: userCredentials.fee_premium_percent ? Number(userCredentials.fee_premium_percent) : 17,
+        fixedFeeUnderThreshold: userCredentials.fixed_fee_under_79 ? Number(userCredentials.fixed_fee_under_79) : 6,
+        packagingCost: userCredentials.packaging_cost ? Number(userCredentials.packaging_cost) : 3.5,
+        taxPercent: userCredentials.tax_percent ? Number(userCredentials.tax_percent) : 6,
+      });
+    }
+
+    // 4. REGRA DE ALERTA
     const minRoiThreshold = Number(userCredentials.min_roi_alert ?? 25);
     const minMarginThreshold = Number(userCredentials.desired_margin ?? 20);
     const minPriceFilter = Number(userCredentials.min_price_filter ?? 0);
@@ -141,6 +139,7 @@ export async function POST(req: NextRequest) {
     const isPriceInRange = numPrice >= minPriceFilter && numPrice <= maxPriceFilter;
 
     const isGreatOpportunity =
+      Boolean(bestMl) &&
       roi.netProfit > 0 &&
       roi.roiPercent >= minRoiThreshold &&
       roi.marginPercent >= minMarginThreshold &&
@@ -150,8 +149,8 @@ export async function POST(req: NextRequest) {
     let geminiAnalysis: any = null;
     let telegramAlertSent = false;
 
-    if (isGreatOpportunity) {
-      // 4.1 Enriquecimento sob demanda com Google Gemini (apenas para ótimas oportunidades)
+    if (isGreatOpportunity && bestMl) {
+      // 4.1 Enriquecimento sob demanda com Google Gemini
       const geminiApiKey = userCredentials.gemini_api_key || process.env.GEMINI_API_KEY || '';
       if (geminiApiKey) {
         geminiAnalysis = await analyzeOpportunityWithGemini({
@@ -193,31 +192,33 @@ export async function POST(req: NextRequest) {
 
     // 5. Salva na tabela ml_radar_deals (Supabase) atrelada ao usuário ou como público geral
     let savedDeal = null;
-    const finalVerdict = isGreatOpportunity ? 'Viável' : roi.netProfit > 0 ? 'Atenção' : 'Evitar';
+    const finalVerdict = bestMl
+      ? (isGreatOpportunity ? 'Viável' : roi.netProfit > 0 ? 'Atenção' : 'Evitar')
+      : 'Aguardando Avaliação';
 
     try {
       const dealRecord: any = {
         title,
         price: numPrice,
         original_price: numOriginalPrice,
-        image_url: imageUrl || bestMl.thumbnail || null,
+        image_url: imageUrl || bestMl?.thumbnail || null,
         product_url: cleanProductUrl,
         store: cleanStore,
-        ml_title: bestMl.title,
-        ml_price: bestMl.price,
-        ml_url: bestMl.permalink,
-        ml_image_url: bestMl.thumbnail,
-        ml_min_price: bestMl.min_price || null,
-        ml_winner_price: bestMl.winner_price || bestMl.price,
-        ml_sold_quantity: bestMl.sold_quantity || 1500,
-        ml_days_active: bestMl.days_active || 85,
-        ml_oldest_date: bestMl.oldest_date || null,
-        net_profit: roi.netProfit,
-        roi_percent: roi.roiPercent,
-        margin_percent: roi.marginPercent,
+        ml_title: bestMl?.title || null,
+        ml_price: bestMl?.price || null,
+        ml_url: bestMl?.permalink || null,
+        ml_image_url: bestMl?.thumbnail || null,
+        ml_min_price: bestMl?.min_price || null,
+        ml_winner_price: bestMl?.winner_price || bestMl?.price || null,
+        ml_sold_quantity: bestMl?.sold_quantity || null,
+        ml_days_active: bestMl?.days_active || null,
+        ml_oldest_date: bestMl?.oldest_date || null,
+        net_profit: bestMl ? roi.netProfit : null,
+        roi_percent: bestMl ? roi.roiPercent : null,
+        margin_percent: bestMl ? roi.marginPercent : null,
         verdict: finalVerdict,
         gemini_analysis: geminiAnalysis,
-        status: 'completed',
+        status: bestMl ? 'completed' : 'pending_evaluation',
       };
 
       if (targetUserId) {
