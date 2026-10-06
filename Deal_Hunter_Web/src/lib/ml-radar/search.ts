@@ -169,35 +169,50 @@ export async function searchMercadoLivre(
   // 1. Se o usuário forneceu Token da API Mercado Livre
   if (options.mlApiKey && options.mlApiKey.length > 10) {
     try {
-      const apiUrl = `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(query)}&limit=30`;
-      const res = await fetch(apiUrl, {
-        headers: {
-          Authorization: `Bearer ${options.mlApiKey}`,
-          Accept: 'application/json',
-        },
-        signal: AbortSignal.timeout(6000),
-      });
+      let dataResults: any[] = [];
+      const queriesToTry = [query];
+      const core = extractCoreQuery(query);
+      if (core && core.toLowerCase() !== query.toLowerCase()) {
+        queriesToTry.push(core);
+      }
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.results && data.results.length > 0) {
-          const rawItems: MLMatchItem[] = data.results.map((it: any) => ({
-            id: it.id,
-            title: it.title,
-            permalink: it.permalink, // Link DIRETO e real do anúncio no ML
-            price: Number(it.price),
-            original_price: it.original_price ? Number(it.original_price) : undefined,
-            thumbnail: it.thumbnail,
-            condition: it.condition,
-            listing_type_id: it.listing_type_id || 'gold_pro',
-            free_shipping: Boolean(it.shipping?.free_shipping),
-            is_full: Boolean(it.shipping?.logistic_type === 'fulfillment'),
-            sold_quantity: it.sold_quantity || 0,
-            date_created: it.date_created || it.stop_time,
-            seller_nickname: it.seller?.nickname || 'Vendedor ML',
-            seller_reputation_level: it.seller?.seller_reputation?.level_id || '5_green',
-            catalog_product_id: it.catalog_product_id || null,
-          }));
+      for (const q of queriesToTry) {
+        const apiUrl = `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(q)}&limit=30`;
+        const res = await fetch(apiUrl, {
+          headers: {
+            Authorization: `Bearer ${options.mlApiKey}`,
+            Accept: 'application/json',
+          },
+          signal: AbortSignal.timeout(6000),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.results && data.results.length > 0) {
+            dataResults = data.results;
+            break;
+          }
+        }
+      }
+
+      if (dataResults.length > 0) {
+        const rawItems: MLMatchItem[] = dataResults.map((it: any) => ({
+          id: it.id,
+          title: it.title,
+          permalink: it.permalink, // Link DIRETO e real do anúncio no ML
+          price: Number(it.price),
+          original_price: it.original_price ? Number(it.original_price) : undefined,
+          thumbnail: it.thumbnail,
+          condition: it.condition,
+          listing_type_id: it.listing_type_id || 'gold_pro',
+          free_shipping: Boolean(it.shipping?.free_shipping),
+          is_full: Boolean(it.shipping?.logistic_type === 'fulfillment'),
+          sold_quantity: it.sold_quantity || 0,
+          date_created: it.date_created || it.stop_time,
+          seller_nickname: it.seller?.nickname || 'Vendedor ML',
+          seller_reputation_level: it.seller?.seller_reputation?.level_id || '5_green',
+          catalog_product_id: it.catalog_product_id || null,
+        }));
 
           const { winner } = rankWinningSeller(rawItems, options.sourcePrice);
 
@@ -242,7 +257,6 @@ export async function searchMercadoLivre(
           const filtered = rawItems.filter((it) => it.id !== winner.id);
           return [winner, ...filtered];
         }
-      }
     } catch (err: any) {
       console.warn('[searchMercadoLivre] Erro na API oficial do ML:', err.message);
     }
@@ -309,8 +323,8 @@ export async function searchMercadoLivre(
             price = parseFloat(`${frac[1].replace(/\./g, '')}.${cents ? cents[1] : '00'}`);
           }
         }
-
-        if (price <= 15) continue;
+        const minPriceThreshold = options.sourcePrice && options.sourcePrice > 0 ? Math.max(1.5, options.sourcePrice * 0.25) : 2.0;
+        if (price < minPriceThreshold) continue;
 
         const sellerMatch = block.match(/class=["']poly-component__seller["'][^>]*>(.*?)<\/span>/is);
         const sellerNickname = sellerMatch ? sellerMatch[1].replace(/<[^>]+>/g, '').trim() : 'Vendedor Mercado Livre';

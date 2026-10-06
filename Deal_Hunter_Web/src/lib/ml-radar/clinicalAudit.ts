@@ -79,7 +79,12 @@ export async function cleanProductTitleWithGemini(
     .replace(/\s+/g, ' ')
     .trim();
 
-  if (!apiKey || apiKey.length < 10) {
+  let cleanKey = apiKey ? apiKey.trim() : '';
+  if (cleanKey && !cleanKey.startsWith('AIzaSy') && !cleanKey.startsWith('AQ.')) {
+    cleanKey = `AQ.${cleanKey}`;
+  }
+
+  if (!cleanKey || cleanKey.length < 15) {
     return fallbackClean;
   }
 
@@ -91,11 +96,11 @@ Título Original: "${rawTitle}"
 
 Responda APENAS o termo de busca limpo e direto em 1 linha, sem aspas e sem explicações:`;
 
-  const models = ['gemini-flash-latest', 'gemini-2.5-flash-lite', 'gemini-pro-latest'];
+  const models = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash'];
 
   for (const model of models) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cleanKey}`;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -155,7 +160,7 @@ export async function scrapeMercadoLivreSearch(
 
   const items: ScrapedMlItem[] = [];
   const seenIds = new Set<string>();
-  const minAllowedPrice = sourcePrice && sourcePrice > 35 ? sourcePrice * 0.35 : 10;
+  const minAllowedPrice = sourcePrice && sourcePrice > 0 ? Math.max(1.5, sourcePrice * 0.25) : 3.0;
 
   for (let page = 1; page <= maxPages; page++) {
     try {
@@ -542,7 +547,12 @@ export async function decideBestCandidateWithGemini(
 
   const defaultWinner = candidates[fallbackWinnerIdx];
 
-  if (!apiKey || apiKey.length < 10) {
+  let cleanKey = apiKey ? apiKey.trim() : '';
+  if (cleanKey && !cleanKey.startsWith('AIzaSy') && !cleanKey.startsWith('AQ.')) {
+    cleanKey = `AQ.${cleanKey}`;
+  }
+
+  if (!cleanKey || cleanKey.length < 15) {
     return {
       aprovado_para_benchmarking: defaultWinner.total_vendas >= 50 || defaultWinner.preco_atual > 0,
       score_competitividade: defaultWinner.total_vendas >= 500 ? 92 : 82,
@@ -579,13 +589,13 @@ CRITÉRIOS CLÍNICOS:
   "categoria_logistica": "Fulfillment / Própria",
   "motivo_clinico": "Resumo clínico detalhado explicando a correspondência do produto e métricas.",
   "justificativa_escolha": "Por que este anúncio específico superou os outros concorrentes."
-}`;
+} `;
 
-  const models = ['gemini-flash-latest', 'gemini-2.5-flash-lite', 'gemini-pro-latest'];
+  const models = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash'];
 
   for (const model of models) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cleanKey}`;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

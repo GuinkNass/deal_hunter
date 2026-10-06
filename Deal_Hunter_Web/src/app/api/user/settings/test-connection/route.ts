@@ -8,11 +8,31 @@ export async function POST(req: NextRequest) {
     // 1. Teste Mercado Livre
     if (service === 'mercadolivre') {
       try {
+        let activeMlKey = ml_api_key?.trim() || '';
+
+        // Se não veio no body, busca do perfil do usuário logado
+        if (!activeMlKey) {
+          const authHeader = req.headers.get('authorization') || '';
+          const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+          if (token) {
+            try {
+              const { createAdminClient } = await import('@/lib/supabase/admin');
+              const supabase = createAdminClient();
+              const { data: { user } } = await supabase.auth.getUser(token);
+              if (user) {
+                const { data: profile } = await supabase.from('profiles').select('ml_api_key, ml_access_token').eq('id', user.id).maybeSingle();
+                if (profile?.ml_api_key) activeMlKey = profile.ml_api_key.trim();
+                else if (profile?.ml_access_token) activeMlKey = profile.ml_access_token.trim();
+              }
+            } catch {}
+          }
+        }
+
         // Se possui access_token oficial, valida diretamente com /users/me
-        if (ml_api_key) {
+        if (activeMlKey) {
           const userRes = await fetch('https://api.mercadolibre.com/users/me', {
             headers: {
-              Authorization: `Bearer ${ml_api_key.trim()}`,
+              Authorization: `Bearer ${activeMlKey}`,
               Accept: 'application/json',
             },
             signal: AbortSignal.timeout(6000),
@@ -27,33 +47,15 @@ export async function POST(req: NextRequest) {
           } else {
             return NextResponse.json({
               success: false,
-              message: `⚠️ Token ML expirado ou inválido (HTTP ${userRes.status}). Clique no botão "Conectar Mercado Livre" para gerar um novo token.`,
+              message: `⚠️ Token ML expirado ou revogado (HTTP ${userRes.status}). Clique no botão "Conectar Mercado Livre" para gerar um novo token.`,
             });
           }
         }
 
-        const pingRes = await fetch('https://api.mercadolibre.com/categories/MLB1672', {
-          headers: { Accept: 'application/json' },
-          signal: AbortSignal.timeout(6000),
-        });
-
-        if (!pingRes.ok) {
-          return NextResponse.json({
-            success: false,
-            message: 'Não foi possível conectar aos servidores do Mercado Livre.',
-          });
-        }
-
-        if (ml_client_id && ml_client_secret) {
-          return NextResponse.json({
-            success: true,
-            message: `✅ Credenciais ML registradas (Client ID: ${ml_client_id.substring(0, 6)}...). Clique no botão "Conectar Mercado Livre" para autenticar e obter dados reais de concorrentes.`,
-          });
-        }
-
+        // Se NÃO possui access_token oficial, alerta o usuário claramente
         return NextResponse.json({
-          success: true,
-          message: '✅ Conexão com Mercado Livre (MLB) operacional.',
+          success: false,
+          message: '⚠️ CONTA MERCADO LIVRE NÃO AUTORIZADA! As credenciais estão salvas, mas você precisa clicar no botão amarelo "CONECTAR MERCADO LIVRE" para fazer login e liberar a busca de concorrentes.',
         });
       } catch (err: any) {
         return NextResponse.json({
@@ -128,7 +130,13 @@ export async function POST(req: NextRequest) {
         activeKey = process.env.GEMINI_API_KEY?.trim() || '';
       }
 
-      if (!activeKey || activeKey.length < 10) {
+      // Normalização automática de chaves do Google AI Studio:
+      // Se não começa com 'AIzaSy' nem 'AQ.', adiciona 'AQ.' automaticamente.
+      if (activeKey && !activeKey.startsWith('AIzaSy') && !activeKey.startsWith('AQ.')) {
+        activeKey = `AQ.${activeKey}`;
+      }
+
+      if (!activeKey || activeKey.length < 15) {
         return NextResponse.json({
           success: false,
           message: '❌ Chave de API do Gemini não informada ou incompleta. Obtenha sua chave grátis em aistudio.google.com/app/apikey.',
@@ -138,11 +146,11 @@ export async function POST(req: NextRequest) {
       const requestedModel = gemini_model?.trim() || '';
       const candidateModels = [
         requestedModel,
+        'gemini-flash-latest',
         'gemini-3.8-flash',
         'gemini-3.5-flash',
-        'gemini-flash-latest',
         'gemini-flash-lite-latest',
-      ].filter((m, i, arr) => m && arr.indexOf(m) === i && !m.includes('1.5') && !m.includes('2.5'));
+      ].filter((m, i, arr) => m && arr.indexOf(m) === i && !m.includes('1.5') && !m.includes('2.0') && !m.includes('2.5'));
 
       let lastError = '';
       let connectedModel = '';
@@ -175,6 +183,7 @@ export async function POST(req: NextRequest) {
       if (connectedModel) {
         return NextResponse.json({
           success: true,
+          normalizedKey: activeKey,
           message: `✅ Google Gemini AI conectado com sucesso via ${connectedModel} e pronto para auditorias de mercado!`,
         });
       } else {

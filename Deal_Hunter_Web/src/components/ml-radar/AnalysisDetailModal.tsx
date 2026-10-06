@@ -393,9 +393,19 @@ export default function AnalysisDetailModal({
         <div className="p-6 overflow-y-auto space-y-5 bg-[#0b0d13]">
           {/* Alerta de Erro se houver */}
           {auditError && (
-            <div className="bg-rose-950/40 border border-rose-500/40 rounded-xl p-3 flex items-center gap-2 text-xs text-rose-300">
-              <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
-              <span>{auditError}</span>
+            <div className="bg-rose-950/40 border border-rose-500/40 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-rose-300">
+              <div className="flex items-center gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                <span>{auditError}</span>
+              </div>
+              {auditError.toLowerCase().includes('mercado livre') && (
+                <a
+                  href="/dashboard?tab=settings"
+                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs whitespace-nowrap transition-all shadow-md shadow-amber-500/20"
+                >
+                  Ir para Configurações
+                </a>
+              )}
             </div>
           )}
 

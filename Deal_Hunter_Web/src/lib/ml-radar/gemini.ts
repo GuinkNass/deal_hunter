@@ -17,7 +17,12 @@ export async function analyzeOpportunityWithGemini(params: {
 }): Promise<GeminiAnalysis> {
   const { apiKey, sourceTitle, store, sourcePrice, mlTitle, mlPrice, netProfit, roiPercent, marginPercent } = params;
 
-  if (!apiKey || apiKey.length < 10) {
+  let cleanKey = apiKey ? apiKey.trim() : '';
+  if (cleanKey && !cleanKey.startsWith('AIzaSy') && !cleanKey.startsWith('AQ.')) {
+    cleanKey = `AQ.${cleanKey}`;
+  }
+
+  if (!cleanKey || cleanKey.length < 15) {
     return {
       score: roiPercent >= 30 ? 85 : 65,
       demandTrend: 'Alta (Mercado Livre Brasil)',
@@ -43,11 +48,11 @@ CRITÉRIO CRÍTICO DE AUDITORIA:
 Responda EXCLUSIVAMENTE um JSON minificado de uma linha sem blocos markdown:
 {"score":<0-100>,"realMarketPrice":<numero>,"demandTrend":"<curto>","bestSeason":"<curto>","riskLevel":"<Baixo|Médio|Alto>","verdict":"<Excelente|Viável|Atenção|Evitar>","justification":"<1 frase concisa informando se a oportunidade é real ou âncora inflada>"}`;
 
-  const models = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-flash-lite-latest'];
+  const models = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash'];
 
   for (const model of models) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cleanKey}`;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

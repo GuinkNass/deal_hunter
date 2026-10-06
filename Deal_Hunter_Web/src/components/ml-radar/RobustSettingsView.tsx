@@ -180,6 +180,9 @@ export default function RobustSettingsView({ authToken, userId }: RobustSettings
         }),
       });
       const json = await res.json();
+      if (service === 'gemini' && json.normalizedKey) {
+        setGeminiApiKey(json.normalizedKey);
+      }
       setTestResults((prev) => ({
         ...prev,
         [service]: { success: Boolean(json.success), message: json.message || '' },

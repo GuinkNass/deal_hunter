@@ -104,10 +104,16 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    if (gemini_api_key !== undefined) updates.gemini_api_key = gemini_api_key ? String(gemini_api_key).trim() : null;
+    if (gemini_api_key !== undefined) {
+      let k = gemini_api_key ? String(gemini_api_key).trim() : null;
+      if (k && !k.startsWith('AIzaSy') && !k.startsWith('AQ.')) {
+        k = `AQ.${k}`;
+      }
+      updates.gemini_api_key = k;
+    }
     if (gemini_model !== undefined) {
       const m = gemini_model ? String(gemini_model).trim() : '';
-      updates.gemini_model = (!m.includes('1.5') && !m.includes('2.5') && m.length > 0) ? m : 'gemini-3.8-flash';
+      updates.gemini_model = (!m.includes('1.5') && !m.includes('2.0') && !m.includes('2.5') && m.length > 0) ? m : 'gemini-3.8-flash';
     }
     if (ml_api_key !== undefined) updates.ml_api_key = ml_api_key ? String(ml_api_key).trim() : null;
     if (ml_client_id !== undefined) updates.ml_client_id = ml_client_id ? String(ml_client_id).trim() : null;

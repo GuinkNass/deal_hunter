@@ -140,11 +140,16 @@ export async function POST(req: NextRequest) {
         topThree.map((cand) => enrichCandidateWithMlApi(cand, mlApiKey))
       );
     } else {
+      const isNotConnected = !mlApiKey || mlApiKey.length < 10;
       return NextResponse.json({
         success: false,
-        error: 'Nenhum anúncio correspondente autêntico foi localizado no Mercado Livre para este produto.',
+        error: isNotConnected
+          ? '⚠️ Sua conta do Mercado Livre ainda não está autorizada! Acesse a aba Configurações e clique no botão amarelo "CONECTAR MERCADO LIVRE" para liberar a busca oficial em tempo real.'
+          : `Nenhum anúncio correspondente autêntico foi localizado no Mercado Livre para "${cleanedQuery || title}".`,
+        requiresMlConnect: isNotConnected,
         debug: {
           cleanedQuery,
+          hasMlApiKey: Boolean(mlApiKey),
           scrapedCandidatesCount: scrapedCandidates.length,
           lastDebug: (globalThis as any).__lastScrapeDebug || null,
         },
