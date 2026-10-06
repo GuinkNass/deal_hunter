@@ -643,10 +643,11 @@ export default function DashboardPage() {
                       >
                         <button
                           onClick={() => setSelectedDealForDetail(deal)}
-                          className="flex-1 py-2 px-3 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/50 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors"
+                          className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                          title="Avaliar produto e concorrência no Mercado Livre"
                         >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>Raio-X</span>
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Avaliar ML</span>
                         </button>
 
                         <button
@@ -750,12 +751,13 @@ export default function DashboardPage() {
         )}
       </main>
 
-      {/* MODAL: Raio-X de Inteligência */}
+      {/* MODAL: Avaliação Clínica ML */}
       {selectedDealForDetail && (
         <AnalysisDetailModal
           analysis={selectedDealForDetail}
           onClose={() => setSelectedDealForDetail(null)}
           onOpenCalculator={handleOpenCalculatorForDeal}
+          autoEvaluate={true}
         />
       )}
 

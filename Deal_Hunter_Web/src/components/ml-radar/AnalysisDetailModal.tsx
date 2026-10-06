@@ -20,8 +20,11 @@ import {
   Flame,
   AlertTriangle,
   Loader2,
+  SearchCode,
+  ShieldCheck,
 } from 'lucide-react';
 import { getProductFallbackImage } from '@/lib/ml-radar/imageFallback';
+import { ClinicalEvaluationResult } from '@/lib/ml-radar/clinicalAudit';
 
 export interface DealAnalysis {
   id?: string;
@@ -61,6 +64,7 @@ export interface DealAnalysis {
   margin_percent?: number | null;
   verdict?: string | null;
   gemini_analysis?: any;
+  clinical_result?: ClinicalEvaluationResult;
   created_at?: string;
 }
 
@@ -68,20 +72,31 @@ interface AnalysisDetailModalProps {
   analysis: DealAnalysis | null;
   onClose: () => void;
   onOpenCalculator: (item: DealAnalysis) => void;
+  autoEvaluate?: boolean;
 }
 
 /**
  * Garante link direto ao Anúncio Vencedor no Mercado Livre
  */
 function getSafeMlUrl(item: DealAnalysis, realWinner?: any): string {
-  if (realWinner?.permalink && (realWinner.permalink.includes('produto.mercadolivre.com.br') || realWinner.permalink.includes('/p/MLB') || realWinner.permalink.includes('MLB-'))) {
+  if (
+    realWinner?.permalink &&
+    (realWinner.permalink.includes('produto.mercadolivre.com.br') ||
+      realWinner.permalink.includes('/p/MLB') ||
+      realWinner.permalink.includes('MLB'))
+  ) {
     return realWinner.permalink;
   }
   if (!item) return '#';
   const url = item.ml_url;
-  
+
   // Se já é um link direto de produto ou listagem oficial do Mercado Livre
-  if (url && (url.includes('produto.mercadolivre.com.br') || url.includes('/p/MLB') || url.includes('MLB-'))) {
+  if (
+    url &&
+    (url.includes('produto.mercadolivre.com.br') ||
+      url.includes('/p/MLB') ||
+      url.includes('MLB-'))
+  ) {
     return url;
   }
 
@@ -103,13 +118,24 @@ function getSafeMlUrl(item: DealAnalysis, realWinner?: any): string {
   return `https://lista.mercadolivre.com.br/${encodeURIComponent(cleanSlug)}_OrderId_PRICE_ASC`;
 }
 
-export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculator }: AnalysisDetailModalProps) {
+export default function AnalysisDetailModal({
+  analysis,
+  onClose,
+  onOpenCalculator,
+  autoEvaluate = true,
+}: AnalysisDetailModalProps) {
   const [projectionDays, setProjectionDays] = useState<number>(30);
   const [geminiData, setGeminiData] = useState<any>(analysis?.gemini_analysis || null);
+  const [clinicalResult, setClinicalResult] = useState<ClinicalEvaluationResult | null>(
+    analysis?.clinical_result || null
+  );
+  const [cleanedQuery, setCleanedQuery] = useState<string>('');
   const [realMlWinner, setRealMlWinner] = useState<any>(null);
   const [isAuditing, setIsAuditing] = useState<boolean>(false);
+  const [auditError, setAuditError] = useState<string | null>(null);
 
-  const productTitle = analysis?.ml_title || analysis?.title || analysis?.source_title || 'Produto sem título';
+  const productTitle =
+    analysis?.ml_title || analysis?.title || analysis?.source_title || 'Produto sem título';
   const sourcePrice = Number(analysis?.price || analysis?.source_price || 0);
   const mlPrice = Number(analysis?.ml_price || 0);
   const originalPrice = analysis?.original_price || analysis?.source_original_price;
@@ -120,69 +146,82 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
       (sourcePrice > 0 ? (sourcePrice * 1.45).toFixed(2) : 129.9)
   );
 
-  // Executa auditoria em tempo real com Gemini 3.8 e busca dados oficiais do ML
-  React.useEffect(() => {
-    if (!analysis) return;
-    if (analysis.gemini_analysis && analysis.gemini_analysis.realMarketPrice) {
-      setGeminiData(analysis.gemini_analysis);
-      return;
-    }
-
-    let isMounted = true;
+  const runClinicalEvaluation = React.useCallback(async () => {
+    if (!analysis || isAuditing) return;
     setIsAuditing(true);
+    setAuditError(null);
 
-    fetch('/api/ml-radar/audit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: productTitle,
-        sourcePrice,
-        mlPrice: winnerPrice,
-        store: analysis.store || 'Amazon',
-        netProfit: analysis.net_profit,
-        roiPercent: analysis.roi_percent,
-        marginPercent: analysis.margin_percent,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (isMounted && data.success) {
-          if (data.audit) setGeminiData(data.audit);
-          if (data.mlWinner) setRealMlWinner(data.mlWinner);
-        }
-      })
-      .catch((err) => console.error('[AnalysisDetailModal] Erro na auditoria Gemini:', err))
-      .finally(() => {
-        if (isMounted) setIsAuditing(false);
+    try {
+      const res = await fetch('/api/ml-radar/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: productTitle,
+          sourcePrice,
+          mlPrice: winnerPrice,
+          store: analysis.store || 'Amazon',
+          netProfit: analysis.net_profit,
+          roiPercent: analysis.roi_percent,
+          marginPercent: analysis.margin_percent,
+        }),
       });
 
-    return () => {
-      isMounted = false;
-    };
-  }, [analysis?.id, productTitle, sourcePrice, winnerPrice]);
+      const data = await res.json();
+      if (data.success) {
+        if (data.audit) setGeminiData(data.audit);
+        if (data.mlWinner) setRealMlWinner(data.mlWinner);
+        if (data.clinicalResult) setClinicalResult(data.clinicalResult);
+        if (data.cleanedQuery) setCleanedQuery(data.cleanedQuery);
+      } else {
+        setAuditError(data.error || 'Não foi possível completar a avaliação.');
+      }
+    } catch (err: any) {
+      console.error('[AnalysisDetailModal] Erro na avaliação clínica:', err);
+      setAuditError('Erro ao comunicar com o servidor de avaliação.');
+    } finally {
+      setIsAuditing(false);
+    }
+  }, [analysis, isAuditing, productTitle, sourcePrice, winnerPrice]);
+
+  // Dispara a avaliação em segundo plano apenas sob demanda (quando o modal é aberto pelo botão "Avaliar ML")
+  React.useEffect(() => {
+    if (!analysis) return;
+    if (analysis.clinical_result) {
+      setClinicalResult(analysis.clinical_result);
+      return;
+    }
+    if (autoEvaluate) {
+      runClinicalEvaluation();
+    }
+  }, [analysis?.id]);
 
   if (!analysis) return null;
 
   const gemini = geminiData || analysis.gemini_analysis || {};
   const isInflatedAnchor = Boolean(
     gemini.verdict === 'Evitar' ||
-    gemini.riskLevel === 'Alto' ||
-    (gemini.realMarketPrice && gemini.realMarketPrice < winnerPrice * 0.85)
+      gemini.riskLevel === 'Alto' ||
+      (gemini.realMarketPrice && gemini.realMarketPrice < winnerPrice * 0.85)
   );
 
-  // Preço de referência corrigido pela auditoria da IA caso a loja parceira tenha inflado a âncora
+  // Preço de referência corrigido pela auditoria da IA
   const effectiveWinnerPrice =
     isInflatedAnchor && gemini.realMarketPrice
       ? Number(gemini.realMarketPrice)
-      : (realMlWinner?.price ? Number(realMlWinner.price) : winnerPrice);
+      : realMlWinner?.price
+      ? Number(realMlWinner.price)
+      : winnerPrice;
 
-  const sellerName = realMlWinner?.seller_nickname || analysis.ml_seller_name || 'Vendedor Mercado Livre';
+  const sellerName =
+    realMlWinner?.seller_nickname || analysis.ml_seller_name || 'Vendedor Mercado Livre';
 
   // 1. Dados Reais de Mercado (Menor Preço, Anúncio Campeão e Data Mais Antiga)
   const minPrice = Number(
     realMlWinner?.min_price ||
-    analysis.ml_min_price ||
-      (effectiveWinnerPrice > 0 ? (effectiveWinnerPrice * 0.89).toFixed(2) : (sourcePrice * 1.35).toFixed(2))
+      analysis.ml_min_price ||
+      (effectiveWinnerPrice > 0
+        ? (effectiveWinnerPrice * 0.89).toFixed(2)
+        : (sourcePrice * 1.35).toFixed(2))
   );
 
   const soldQty = Number(realMlWinner?.sold_quantity || analysis.ml_sold_quantity || 1500);
@@ -224,7 +263,10 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
       ? `R$ ${(revenuePerMonth / 1000000).toFixed(1)} mi`
       : `R$ ${revenuePerMonth.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`;
 
-  const score = gemini.score ?? Math.min(100, Math.max(0, Math.round((analysis.roi_percent || 30) * 1.5 + 40)));
+  const score =
+    clinicalResult?.score_competitividade ??
+    gemini.score ??
+    Math.min(100, Math.max(0, Math.round((analysis.roi_percent || 30) * 1.5 + 40)));
   const scoreTitle = score >= 76 ? 'Anúncio forte' : score >= 45 ? 'Anúncio mediano' : 'Anúncio fraco';
 
   const bulletPoints: string[] =
@@ -239,7 +281,7 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
           `Justificativa: ${gemini.justification || 'Margem de lucro inconsistente com os preços reais do ML.'}`,
         ]
       : [
-          `Anúncio vencedor ativo há ${daysActive} dias com ${soldQty.toLocaleString('pt-BR')} unidades vendidas comprovadas.`,
+          `Anúncio vencedor ativo com ${soldQty.toLocaleString('pt-BR')} unidades vendidas comprovadas no ML.`,
           `Menor valor encontrado no Mercado Livre: R$ ${minPrice.toFixed(2)} (excelente parâmetro de entrada).`,
           `Giro diário estimado em ${salesVelocityWinner} unidades/dia na liderança de vendas.`,
           `Margem líquida estimada de R$ ${Number(analysis.net_profit || (effectiveWinnerPrice - sourcePrice) * 0.7).toFixed(2)} (${Number(analysis.roi_percent || 35).toFixed(1)}% ROI).`,
@@ -292,30 +334,78 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
         className="bg-[#101218] border border-slate-800 rounded-2xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden text-slate-100"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Sticky Header with Close */}
+        {/* Sticky Header with Action & Close */}
         <div className="px-6 py-3.5 border-b border-slate-800/80 flex items-center justify-between bg-[#12141c]">
           <div className="flex items-center gap-2.5">
-            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
             <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-              Raio-X de Inteligência do Anúncio • Deal Hunter Pro
+              Avaliação Clínica ML • Deal Hunter Pro
             </span>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={runClinicalEvaluation}
+              disabled={isAuditing}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition-all disabled:opacity-50"
+              title="Executar varredura em segundo plano no Mercado Livre com Gemini"
+            >
+              {isAuditing ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Avaliando...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{clinicalResult ? 'Reavaliar ML' : 'Avaliar ML'}</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Content Body */}
         <div className="p-6 overflow-y-auto space-y-5 bg-[#0b0d13]">
+          {/* Alerta de Erro se houver */}
+          {auditError && (
+            <div className="bg-rose-950/40 border border-rose-500/40 rounded-xl p-3 flex items-center gap-2 text-xs text-rose-300">
+              <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+              <span>{auditError}</span>
+            </div>
+          )}
+
+          {/* Loading Banner Invisível */}
+          {isAuditing && (
+            <div className="bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-cyan-500/10 border border-amber-500/30 rounded-2xl p-5 flex items-center gap-4 animate-pulse">
+              <Loader2 className="w-6 h-6 text-amber-400 animate-spin flex-shrink-0" />
+              <div className="space-y-0.5">
+                <h4 className="text-sm font-bold text-white">
+                  Varrendo Mercado Livre e Avaliando Concorrência...
+                </h4>
+                <p className="text-xs text-slate-400">
+                  Higienizando título com Gemini, buscando 2 páginas no Mercado Livre no servidor (100% invisível) e enriquecendo com a API oficial.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* 1. TOP PRODUCT CARD */}
           <div className="bg-[#12151f] border border-slate-800/80 rounded-2xl p-5 flex flex-col md:flex-row gap-5 items-start">
             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl bg-white p-1.5 flex-shrink-0 flex items-center justify-center shadow-md overflow-hidden">
               <img
-                src={analysis.ml_image_url || analysis.image_url || getProductFallbackImage(productTitle, analysis.store)}
+                src={
+                  analysis.ml_image_url ||
+                  analysis.image_url ||
+                  getProductFallbackImage(productTitle, analysis.store)
+                }
                 alt={productTitle}
                 onError={(e) => {
                   e.currentTarget.onerror = null;
@@ -331,9 +421,9 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
                   href={getSafeMlUrl(analysis, realMlWinner)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-bold text-base sm:text-lg text-white hover:text-cyan-300 transition-colors inline-flex items-center gap-1.5 leading-snug"
+                  className="font-bold text-base sm:text-lg text-white hover:text-amber-300 transition-colors inline-flex items-center gap-1.5 leading-snug"
                 >
-                  <span>{productTitle}</span>
+                  <span>{realMlWinner?.title || productTitle}</span>
                   <ExternalLink className="w-4 h-4 text-slate-400 flex-shrink-0" />
                 </a>
               </div>
@@ -343,9 +433,9 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
                 <span className="px-2.5 py-0.5 text-xs font-semibold rounded bg-[#1c2233] text-slate-300 border border-slate-700/60">
                   {analysis.ml_listing_type === 'gold_pro' ? 'Premium (17%)' : 'Clássico (12%)'}
                 </span>
-                {analysis.ml_is_flex === 1 && (
-                  <span className="flex items-center gap-1 px-2.5 py-0.5 text-xs font-semibold rounded bg-[#1c2233] text-cyan-300 border border-slate-700/60">
-                    <Zap className="w-3 h-3 text-cyan-400 fill-cyan-400" /> Flex
+                {(realMlWinner?.is_full || analysis.ml_is_full === 1) && (
+                  <span className="flex items-center gap-1 px-2.5 py-0.5 text-xs font-bold rounded bg-emerald-950/40 text-emerald-300 border border-emerald-800/40">
+                    <Zap className="w-3 h-3 text-emerald-400 fill-emerald-400" /> Full (Fulfillment)
                   </span>
                 )}
                 <span className="px-2.5 py-0.5 text-xs font-bold rounded bg-emerald-950/40 text-emerald-400 border border-emerald-800/40">
@@ -359,7 +449,11 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
               {/* Price & Seller Metadata Line */}
               <div className="flex flex-wrap items-center gap-2.5 text-xs text-slate-400 pt-1">
                 <div className="flex items-baseline gap-2">
-                  <span className={`text-xl sm:text-2xl font-black ${isInflatedAnchor ? 'text-amber-400' : 'text-emerald-400'}`}>
+                  <span
+                    className={`text-xl sm:text-2xl font-black ${
+                      isInflatedAnchor ? 'text-amber-400' : 'text-emerald-400'
+                    }`}
+                  >
                     R$ {effectiveWinnerPrice > 0 ? effectiveWinnerPrice.toFixed(2) : 'A definir'}
                   </span>
                   {isInflatedAnchor && (
@@ -401,7 +495,7 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
                   <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-rose-300">Âncora Falsa Detectada pela IA (Gemini 3.8)</span>
+                      <span className="font-bold text-rose-300">Âncora Falsa Detectada pela IA (Gemini)</span>
                       <span className="px-2 py-0.5 rounded bg-rose-900/80 text-rose-200 font-bold text-[10px]">
                         {gemini.verdict || 'Evitar'}
                       </span>
@@ -421,6 +515,7 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-amber-500/20 active:scale-[0.98]"
+                  title="Abre o anúncio do vendedor campeão diretamente no Mercado Livre"
                 >
                   <ExternalLink className="w-3.5 h-3.5" /> Abrir Anúncio Vencedor no ML
                 </a>
@@ -446,11 +541,89 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
             </div>
           </div>
 
+          {/* CARD DE AVALIAÇÃO CLÍNICA & BENCHMARKING (GEMINI + ML API) */}
+          {clinicalResult && (
+            <div className="bg-[#12151f] border border-cyan-500/30 rounded-2xl p-5 space-y-4 shadow-lg shadow-cyan-950/20">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-cyan-400" />
+                  <h3 className="text-sm sm:text-base font-bold text-white tracking-wide">
+                    Validação Clínica de Concorrência (Gemini AI + ML API)
+                  </h3>
+                </div>
+                <div>
+                  {clinicalResult.aprovado_para_benchmarking ? (
+                    <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-950/60 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 shadow-sm">
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      Aprovado para Benchmarking
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-rose-950/60 text-rose-300 border border-rose-500/40 flex items-center gap-1.5 shadow-sm">
+                      <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                      Não Recomendado para Benchmarking
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Métricas Clínicas */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-[#0b0e17] p-3 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-[11px] text-slate-400 font-semibold block">Score de Competitividade:</span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span
+                      className={`text-2xl font-black ${
+                        clinicalResult.score_competitividade >= 75
+                          ? 'text-emerald-400'
+                          : clinicalResult.score_competitividade >= 50
+                          ? 'text-amber-400'
+                          : 'text-rose-400'
+                      }`}
+                    >
+                      {clinicalResult.score_competitividade}
+                    </span>
+                    <span className="text-xs text-slate-500 font-medium">/100</span>
+                  </div>
+                </div>
+
+                <div className="bg-[#0b0e17] p-3 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-[11px] text-slate-400 font-semibold block">Categoria Logística:</span>
+                  <span className="text-sm font-bold text-cyan-300 flex items-center gap-1">
+                    <Box className="w-3.5 h-3.5 text-cyan-400" />
+                    {clinicalResult.categoria_logistica || 'Fulfillment / Própria'}
+                  </span>
+                </div>
+
+                <div className="bg-[#0b0e17] p-3 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-[11px] text-slate-400 font-semibold block">Busca Cirúrgica (Higienizada):</span>
+                  <span
+                    className="text-xs font-mono text-amber-300 truncate block"
+                    title={cleanedQuery || productTitle}
+                  >
+                    {cleanedQuery || productTitle}
+                  </span>
+                </div>
+              </div>
+
+              {/* Parecer Clínico Estrito */}
+              <div className="bg-[#0b0e17] p-3.5 rounded-xl border border-slate-800/80 text-xs leading-relaxed space-y-1">
+                <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">
+                  Diagnóstico e Parecer Clínico:
+                </span>
+                <p className="text-slate-200">{clinicalResult.motivo_clinico}</p>
+              </div>
+            </div>
+          )}
+
           {/* 2. AD SCORE & STRENGTH SECTION */}
           <div className="bg-[#12151f] border border-slate-800/80 rounded-2xl p-6 flex flex-col md:flex-row gap-8 items-start">
             <div className="w-full md:w-56 flex-shrink-0 space-y-3">
               <div className="flex items-baseline gap-1">
-                <span className={`text-5xl font-black ${score <= 35 ? 'text-rose-400' : score < 75 ? 'text-amber-400' : 'text-white'}`}>
+                <span
+                  className={`text-5xl font-black ${
+                    score <= 35 ? 'text-rose-400' : score < 75 ? 'text-amber-400' : 'text-white'
+                  }`}
+                >
                   {score}
                 </span>
                 <span className="text-xl text-slate-400 font-semibold">/100</span>
@@ -487,7 +660,9 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
 
                 <div className="flex justify-between text-[11px] text-slate-400 font-medium">
                   <span className={score <= 35 ? 'text-rose-400 font-bold' : ''}>Fraco</span>
-                  <span className={score > 35 && score < 75 ? 'text-amber-400 font-bold' : ''}>Mediano</span>
+                  <span className={score > 35 && score < 75 ? 'text-amber-400 font-bold' : ''}>
+                    Mediano
+                  </span>
                   <span className={score >= 75 ? 'text-emerald-400 font-bold' : ''}>Forte</span>
                 </div>
               </div>
@@ -567,7 +742,9 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
                   type="button"
                   onClick={() => setProjectionDays(30)}
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                    projectionDays === 30 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-white'
+                    projectionDays === 30
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                      : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   <Calendar className="w-3.5 h-3.5" /> 30 Dias
@@ -576,7 +753,9 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
                   type="button"
                   onClick={() => setProjectionDays(120)}
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                    projectionDays === 120 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-white'
+                    projectionDays === 120
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                      : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   <Calendar className="w-3.5 h-3.5" /> 120 Dias
@@ -592,7 +771,8 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
                 </span>
                 <p className="text-lg font-black text-cyan-300">R$ {minPrice.toFixed(2)}</p>
                 <p className="text-[10px] text-slate-400">
-                  Proj.: <strong className="text-white">{projectedUnitsMin} un</strong> (R$ {projectedRevenueMin.toLocaleString('pt-BR', { maximumFractionDigits: 0 })})
+                  Proj.: <strong className="text-white">{projectedUnitsMin} un</strong> (R${' '}
+                  {projectedRevenueMin.toLocaleString('pt-BR', { maximumFractionDigits: 0 })})
                 </p>
               </div>
 
@@ -602,7 +782,8 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
                 </span>
                 <p className="text-lg font-black text-amber-300">R$ {winnerPrice.toFixed(2)}</p>
                 <p className="text-[10px] text-slate-400">
-                  Proj.: <strong className="text-white">{projectedUnitsWinner} un</strong> (R$ {projectedRevenueWinner.toLocaleString('pt-BR', { maximumFractionDigits: 0 })})
+                  Proj.: <strong className="text-white">{projectedUnitsWinner} un</strong> (R${' '}
+                  {projectedRevenueWinner.toLocaleString('pt-BR', { maximumFractionDigits: 0 })})
                 </p>
               </div>
 
@@ -619,7 +800,9 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
                   <Zap className="w-3 h-3 text-emerald-400" /> Velocidade de Giro
                 </span>
                 <p className="text-lg font-black text-emerald-400">{salesVelocityWinner} un/dia</p>
-                <p className="text-[10px] text-slate-400">{soldQty.toLocaleString('pt-BR')} unidades vendidas</p>
+                <p className="text-[10px] text-slate-400">
+                  {soldQty.toLocaleString('pt-BR')} unidades vendidas
+                </p>
               </div>
             </div>
 
@@ -699,7 +882,8 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
                         fontWeight="bold"
                         textAnchor="end"
                       >
-                        +{pt.units} un (R$ {projectedRevenueMin.toLocaleString('pt-BR', { maximumFractionDigits: 0 })})
+                        +{pt.units} un (R${' '}
+                        {projectedRevenueMin.toLocaleString('pt-BR', { maximumFractionDigits: 0 })})
                       </text>
                     )}
                   </g>
@@ -717,7 +901,8 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
                         fontWeight="bold"
                         textAnchor="end"
                       >
-                        +{pt.units} un (R$ {projectedRevenueWinner.toLocaleString('pt-BR', { maximumFractionDigits: 0 })})
+                        +{pt.units} un (R${' '}
+                        {projectedRevenueWinner.toLocaleString('pt-BR', { maximumFractionDigits: 0 })})
                       </text>
                     )}
                   </g>
@@ -728,7 +913,9 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
               <div className="flex justify-between text-[11px] text-slate-400 font-mono mt-2 px-2">
                 <span>Início (Hoje)</span>
                 <span>Dia {Math.round(projectionDays / 2)}</span>
-                <span className="text-amber-400 font-bold">Dia {projectionDays} (Horizonte Final)</span>
+                <span className="text-amber-400 font-bold">
+                  Dia {projectionDays} (Horizonte Final)
+                </span>
               </div>
             </div>
 
@@ -761,12 +948,14 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-purple-400" />
-                <h3 className="text-sm font-bold text-white tracking-wide">Inteligência Estratégica (Google Gemini AI)</h3>
+                <h3 className="text-sm font-bold text-white tracking-wide">
+                  Inteligência Estratégica (Google Gemini AI)
+                </h3>
               </div>
               {isAuditing && (
                 <div className="flex items-center gap-1.5 text-xs text-purple-300 font-medium animate-pulse">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Auditando mercado com Gemini 3.8...</span>
+                  <span>Auditando mercado com Gemini...</span>
                 </div>
               )}
             </div>
@@ -774,7 +963,9 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
               <div className="bg-[#0e1015] p-3 rounded-lg border border-slate-800">
                 <span className="text-slate-400 block mb-0.5">Demanda de Mercado:</span>
-                <span className="font-bold text-slate-200">{gemini.demandTrend || 'Alta Procura'}</span>
+                <span className="font-bold text-slate-200">
+                  {gemini.demandTrend || 'Alta Procura'}
+                </span>
               </div>
 
               <div className="bg-[#0e1015] p-3 rounded-lg border border-slate-800">
