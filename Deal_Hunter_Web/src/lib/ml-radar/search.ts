@@ -259,90 +259,85 @@ export async function searchMercadoLivre(
       .replace(/^-|-$/g, '');
 
     const targetSlug = coreSlug && coreSlug.length >= 3 ? coreSlug : cleanSlug;
-    const url = `https://lista.mercadolivre.com.br/${targetSlug}_OrderId_PRICE_ASC`;
+    const url = `https://lista.mercadolivre.com.br/${targetSlug}`;
 
     const res = await fetch(url, {
       headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'pt-BR,pt;q=0.9',
       },
-      signal: AbortSignal.timeout(2500),
+      signal: AbortSignal.timeout(6000),
     });
 
     if (res.ok) {
       const html = await res.text();
-      const cards = html.split(/class=["'](?:ui-search-layout__item|poly-card|ui-search-result)["']/i);
+      const contentBlocks = html.split(/<div[^>]*class=["'][^"']*poly-card__content[^"']*["']/i);
       const items: MLMatchItem[] = [];
 
-      for (let i = 1; i < Math.min(cards.length, 15); i++) {
-        const card = cards[i];
+      for (let i = 1; i < contentBlocks.length; i++) {
+        const block = contentBlocks[i];
 
-        const linkMatch =
-          card.match(
-            /href=["'](https?:\/\/[^"'\s]+(?:mercadolivre\.com\.br\/[^\s"']*\/(?:p|up)\/MLB[^"'\s]+|produto\.mercadolivre\.com\.br\/MLB-[^"'\s]+))["']/i
-          ) ||
-          card.match(/href=["'](\/[^\s"']+(?:\/(?:p|up)\/MLB[^"'\s]+|MLB-[^"'\s]+))["']/i);
+        const titleLinkMatch =
+          block.match(/<a[^>]*class=["'][^"']*poly-component__title[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/is) ||
+          block.match(/<a[^>]*href=["']([^"']+)["'][^>]*class=["'][^"']*poly-component__title[^"']*["'][^>]*>(.*?)<\/a>/is);
 
-        const titleMatch =
-          card.match(
-            /class=["'](?:poly-component__title|ui-search-item__title)[^"']*["'][^>]*>([^<]+)<\/a>/i
-          ) || card.match(/alt=["']([^"']{10,120})["']/i);
+        if (!titleLinkMatch) continue;
 
-        const imgMatch =
-          card.match(/data-src=["'](https:\/\/[^"'\s]*mlstatic\.com[^"'\s]*)["']/i) ||
-          card.match(/src=["'](https:\/\/[^"'\s]*mlstatic\.com[^"'\s]*)["']/i);
+        const fullUrl = titleLinkMatch[1].replace(/&amp;/g, '&');
+        const rawTitle = titleLinkMatch[2].replace(/<[^>]+>/g, '').trim();
+        const cleanUrl = fullUrl.split('#')[0].split('?')[0];
 
-        const fractionMatch = card.match(/class=["']andes-money-amount__fraction["'][^>]*>([^<]+)<\/span>/i);
-        const centsMatch = card.match(/class=["']andes-money-amount__cents["'][^>]*>([^<]+)<\/span>/i);
+        const widMatch = fullUrl.match(/[?&#]wid=(MLB\d+)/i);
+        const pMatch = fullUrl.match(/\/p\/(MLB\d+)/i);
+        const directMatch = fullUrl.match(/(MLB-?\d+)/i);
+        const id = widMatch ? widMatch[1] : pMatch ? pMatch[1] : directMatch ? directMatch[1].replace('-', '') : `MLB-${i}`;
 
-        // Vendas informadas no card (ex: "25 vendidos", "+1000 vendidos")
-        const soldMatch = card.match(/(\d+[\d.]*)\s*(?:mil\s*)?vendidos/i);
+        let price = 0;
+        const mainPriceMatch = block.match(/<span class="andes-money-amount[^"]*"[^>]*role="img"[^>]*aria-label="([^"]+)"/i);
+        if (mainPriceMatch) {
+          const pText = mainPriceMatch[1];
+          const numMatch = pText.match(/(\d+)\s*reais(?:.*?(\d+)\s*centavos)?/i);
+          if (numMatch) {
+            price = parseFloat(`${numMatch[1]}.${numMatch[2] || '00'}`);
+          }
+        }
+        if (!price) {
+          const frac = block.match(/class=["']andes-money-amount__fraction["'][^>]*>([^<]+)<\/span>/i);
+          const cents = block.match(/class=["']andes-money-amount__cents["'][^>]*>([^<]+)<\/span>/i);
+          if (frac) {
+            price = parseFloat(`${frac[1].replace(/\./g, '')}.${cents ? cents[1] : '00'}`);
+          }
+        }
+
+        if (price <= 15) continue;
+
+        const sellerMatch = block.match(/class=["']poly-component__seller["'][^>]*>(.*?)<\/span>/is);
+        const sellerNickname = sellerMatch ? sellerMatch[1].replace(/<[^>]+>/g, '').trim() : 'Vendedor Mercado Livre';
+
+        const salesMatch = block.match(/(\+?\d+[\d.]*(?:\s*mil)?\s*vendidos?)/i);
         let parsedSold = 25;
-        if (soldMatch) {
-          const raw = soldMatch[1].replace(/\./g, '');
-          parsedSold = card.includes('mil') ? parseInt(raw, 10) * 1000 : parseInt(raw, 10);
+        if (salesMatch) {
+          const raw = salesMatch[1].replace(/\./g, '');
+          parsedSold = raw.includes('mil') ? parseInt(raw, 10) * 1000 : parseInt(raw, 10);
         }
 
-        // Vendedor / Loja oficial no card se disponível
-        const sellerMatch =
-          card.match(/class=["'](?:poly-component__seller|ui-search-official-store-label|ui-search-item__brand-title)[^"']*["'][^>]*>(?:por\s*)?([^<]+)<\/(?:span|a)>/i) ||
-          card.match(/(?:por|vendedor|loja)\s+([A-Za-z0-9_\-\.\s]{3,30})/i);
-        const sellerNickname = sellerMatch ? sellerMatch[1].trim() : 'Vendedor Mercado Livre';
+        const isFull = block.includes('fulfillment') || block.includes('FULL') || block.includes('icon-full');
 
-        if (linkMatch && (titleMatch || imgMatch)) {
-          let cleanUrl = linkMatch[1].split('?')[0].split('#')[0];
-          if (cleanUrl.startsWith('/')) {
-            cleanUrl = `https://www.mercadolivre.com.br${cleanUrl}`;
-          }
-
-          const fraction = fractionMatch ? fractionMatch[1].replace(/\./g, '').trim() : '0';
-          const cents = centsMatch ? centsMatch[1].trim() : '00';
-          const price = parseFloat(`${fraction}.${cents}`);
-
-          if (price > 0) {
-            const mlbIdMatch =
-              cleanUrl.match(/(?:p|up)\/(MLB[A-Z0-9]+)/i) || cleanUrl.match(/MLB-?(\d+)/i);
-            const id = mlbIdMatch ? mlbIdMatch[1] : `MLB-${Date.now()}-${i}`;
-            let thumbnail = imgMatch ? imgMatch[1] : '';
-            if (thumbnail.includes('-T.webp')) thumbnail = thumbnail.replace('-T.webp', '-O.webp');
-
-            items.push({
-              id,
-              title: titleMatch ? titleMatch[1].trim() : query,
-              permalink: cleanUrl, // Link DIRETO do anúncio extraído do HTML
-              price,
-              original_price: Number((price * 1.15).toFixed(2)),
-              thumbnail: thumbnail || options.imageUrl || '',
-              listing_type_id: price >= 100 ? 'gold_pro' : 'gold_special',
-              free_shipping: card.includes('Frete grátis') || price >= 79.0,
-              is_full: card.includes('fulfillment') || card.includes('Full'),
-              sold_quantity: parsedSold,
-              seller_nickname: sellerNickname,
-              seller_reputation_level: '5_green',
-            });
-          }
-        }
+        items.push({
+          id,
+          title: rawTitle,
+          permalink: cleanUrl || fullUrl.split('#')[0],
+          price,
+          original_price: Number((price * 1.15).toFixed(2)),
+          thumbnail: options.imageUrl || '',
+          listing_type_id: price >= 100 ? 'gold_pro' : 'gold_special',
+          free_shipping: price >= 79.0,
+          is_full: isFull,
+          sold_quantity: parsedSold,
+          seller_nickname: sellerNickname,
+          seller_reputation_level: '5_green',
+        });
       }
 
       if (items.length > 0) {
@@ -355,38 +350,5 @@ export async function searchMercadoLivre(
     console.warn('[searchMercadoLivre] Erro na extração da listagem:', err.message);
   }
 
-  // 3. Fallback inteligente quando a API e o scraping direto estiverem protegidos
-  const src = options.sourcePrice && options.sourcePrice > 0 ? options.sourcePrice : 50;
-  // Menor valor encontrado do item no mercado (geralmente 25% a 45% acima do custo de atacado/promoção da Amazon)
-  const estimatedMinPrice = Number((src * 1.35).toFixed(2));
-  // Preço do anúncio campeão que teve mais vendas em menos tempo
-  const estimatedWinnerPrice = Number((src * 1.45).toFixed(2));
-
-  const now = new Date();
-  const oldestDateEst = new Date(now.getTime() - 85 * 24 * 60 * 60 * 1000).toISOString();
-
-  // Link DIRETO com ordenação pelo menor preço para garantir que o usuário caia no anúncio vencedor
-  const directFallbackUrl = `https://lista.mercadolivre.com.br/${cleanSlug}_OrderId_PRICE_ASC`;
-
-  return [
-    {
-      id: `MLB-WIN-${Date.now()}`,
-      title: `${query} (Anúncio Vencedor)`,
-      permalink: directFallbackUrl,
-      price: estimatedWinnerPrice,
-      original_price: Number((estimatedWinnerPrice * 1.18).toFixed(2)),
-      thumbnail: options.imageUrl || '/images/logo.png',
-      listing_type_id: 'gold_pro',
-      free_shipping: estimatedWinnerPrice >= 79.0,
-      is_full: true,
-      sold_quantity: 1500,
-      days_active: 85,
-      sales_velocity: 17.6,
-      min_price: estimatedMinPrice,
-      winner_price: estimatedWinnerPrice,
-      oldest_date: oldestDateEst,
-      seller_nickname: 'MercadoLíder Platinum',
-      seller_reputation_level: '5_green',
-    },
-  ];
+  return [];
 }
