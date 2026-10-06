@@ -34,6 +34,12 @@ export interface ClinicalEvaluationResult {
   vencedor_index?: number;
   raw_payload?: ClinicalCandidatePayload['produto_candidato'];
   candidates_evaluated?: ClinicalCandidatePayload['produto_candidato'][];
+  is_exact_match?: boolean;
+  match_type?: 'identical' | 'similar' | 'unrelated';
+  match_badge?: string;
+  brand_origin?: string;
+  brand_competitor?: string;
+  match_summary?: string;
 }
 
 /**
@@ -89,12 +95,16 @@ export async function cleanProductTitleWithGemini(
   }
 
   const prompt = `Você é um extrator de termos de busca cirúrgicos para o Mercado Livre Brasil.
-Receba o título de um produto e extraia EXCLUSIVAMENTE a Marca, Linha e Modelo exato para encontrar os anúncios concorrentes exatos no ML.
-Elimine ruídos como: voltagens repetidas, especificações técnicas secundárias, códigos longos de fabricante e termos promocionais.
+Receba o título de um produto e extraia EXCLUSIVAMENTE a Marca e o Modelo exato do fabricante para encontrar os anúncios idênticos no ML.
+
+REGRAS CRÍTICAS DE MARCA E MODELO:
+1. Identifique e preserve OBRIGATORIAMENTE o Nome da Marca real do fabricante (ex: "Cooler Master", "DM Toys", "Elgato", "Logitech", "Sony", etc.).
+2. NUNCA misture termos genéricos de concorrentes como marca. Se o título for "Stream Deck Cooler Master MasterHub", a marca é "Cooler Master" e o modelo é "MasterHub". Termos genéricos de categoria ("Stream Deck", "Mesa Controladora") devem ser mantidos apenas se forem a linha oficial daquela marca.
+3. Elimine ruídos: especificações secundárias (RGB, cabo 2m, voltagem), códigos de lote e termos promocionais (Novo, Original, NF, Lacrado).
 
 Título Original: "${rawTitle}"
 
-Responda APENAS o termo de busca limpo e direto em 1 linha, sem aspas e sem explicações:`;
+Responda APENAS o termo de busca limpo e direto (Marca + Modelo) em 1 linha, sem aspas:`;
 
   const models = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash'];
 
@@ -139,6 +149,8 @@ export interface ScrapedMlItem {
   sellerNickname: string;
   isFull: boolean;
   freeShipping: boolean;
+  isExactMatch?: boolean;
+  brand?: string;
 }
 
 /**
@@ -564,30 +576,53 @@ export async function decideBestCandidateWithGemini(
     };
   }
 
-  const prompt = `Atue como Analista Sênior de Pricing e Inteligência de Mercado E-commerce.
+  const prompt = `Atue como Auditor Clínico Sênior de Pricing e Identidade de Produto no E-commerce.
 
 PRODUTO DE ORIGEM CAPTURADO:
 - Título: "${sourceProduct.title}"
 - Loja: "${sourceProduct.store || 'Amazon'}"
-- Preço de Compra: R$ ${sourceProduct.price.toFixed(2)}
+- Preço de Compra/Origem: R$ ${sourceProduct.price.toFixed(2)}
 
 ANÚNCIOS CONCORRENTES EXTRAÍDOS DO MERCADO LIVRE (DADOS REAIS):
-${JSON.stringify(candidates, null, 2)}
+${JSON.stringify(
+  candidates.map((c, i) => ({
+    index: i,
+    titulo: c.titulo,
+    preco_atual: c.preco_atual,
+    total_vendas: c.total_vendas,
+    estoque_disponivel: c.estoque_disponivel,
+    vendedor_nome: c.vendedor_nome,
+    logistica: c.logistica,
+    url: c.url,
+  })),
+  null,
+  2
+)}
 
-CRITÉRIOS CLÍNICOS:
-1. Relevância Semântica: O concorrente corresponde exatamente ao mesmo produto ou é um acessório/variação?
-2. Anúncio Vencedor: Dentre os correspondentes exatos, decida qual é o MELHOR ANÚNCIO VENCEDOR considerando:
-   - Maior volume de vendas comprovadas (total_vendas)
-   - Menor preço competitivo viável (preco_atual)
-   - Presença de envio Full (fulfillment)
-   - Reputação do vendedor
-3. Retorne um JSON ESTRITO no seguinte formato:
+DIRETRIZES FUNDAMENTAIS DE COMPARAÇÃO CLÍNICA:
+1. IDENTIFICAÇÃO E COMPARAÇÃO DE MARCA E MODELO:
+   - Identifique a MARCA e MODELO do Produto de Origem.
+   - Compare com a MARCA e MODELO de cada candidato do Mercado Livre.
+   - ATENÇÃO CRÍTICA: Se o produto de origem for de uma marca (ex: "Cooler Master MasterHub") e o candidato for de outra marca (ex: "Elgato Stream Deck Mini"), eles NÃO SÃO O MESMO PRODUTO! São alternativas semelhantes da mesma categoria.
+   - Se for exatamente o MESMO produto (mesma marca e mesmo modelo): defina "is_exact_match": true e "match_type": "identical".
+   - Se for de OUTRA marca ou outro modelo: defina "is_exact_match": false e "match_type": "similar".
+
+2. ESCOLHA DO VENCEDOR:
+   - Priorize SEMPRE um candidato que seja IDÊNTICO ("is_exact_match": true).
+   - Somente escolha um produto semelhante ("is_exact_match": false) se NÃO houver nenhum produto idêntico na lista.
+   - Dentre os candidatos elegíveis, selecione o anúncio com maior tração de vendas e menor preço viável.
+
+3. RETORNE UM JSON NO FORMATO:
 {
   "vencedor_index": 0,
+  "is_exact_match": true,
+  "match_type": "identical",
+  "brand_origin": "Marca do produto de origem",
+  "brand_competitor": "Marca do concorrente eleito",
   "aprovado_para_benchmarking": true,
   "score_competitividade": 88,
   "categoria_logistica": "Fulfillment / Própria",
-  "motivo_clinico": "Resumo clínico detalhado explicando a correspondência do produto e métricas.",
+  "motivo_clinico": "Explicação clínica detalhada informando claramente se o produto é 100% idêntico ou uma alternativa semelhante de outra marca/modelo.",
   "justificativa_escolha": "Por que este anúncio específico superou os outros concorrentes."
 } `;
 
@@ -625,6 +660,15 @@ CRITÉRIOS CLÍNICOS:
             : fallbackWinnerIdx;
 
         const chosenCandidate = candidates[winIdx];
+        const isExact = typeof parsed.is_exact_match === 'boolean'
+          ? parsed.is_exact_match
+          : (parsed.match_type === 'identical');
+        const matchType = (parsed.match_type === 'identical' || isExact) ? 'identical' : 'similar';
+        const brandOrigin = String(parsed.brand_origin || '');
+        const brandCompetitor = String(parsed.brand_competitor || '');
+        const matchBadge = isExact
+          ? 'PRODUTO IDÊNTICO (MATCH EXATO)'
+          : 'PRODUTO SEMELHANTE (BENCHMARK DE CATEGORIA)';
 
         return {
           aprovado_para_benchmarking: Boolean(parsed.aprovado_para_benchmarking),
@@ -638,6 +682,14 @@ CRITÉRIOS CLÍNICOS:
           vencedor_index: winIdx,
           raw_payload: chosenCandidate,
           candidates_evaluated: candidates,
+          is_exact_match: isExact,
+          match_type: matchType,
+          match_badge: matchBadge,
+          brand_origin: brandOrigin,
+          brand_competitor: brandCompetitor,
+          match_summary: isExact
+            ? `Produto 100% idêntico confirmado: mesma marca (${brandOrigin || 'Original'}) e mesmo modelo.`
+            : `Atenção: Produto semelhante selecionado para referência de categoria (${brandOrigin || 'Origem'} vs ${brandCompetitor || 'Concorrente'}). Não é o mesmo modelo.`,
         };
       }
     } catch {}
@@ -651,6 +703,9 @@ CRITÉRIOS CLÍNICOS:
     vencedor_index: fallbackWinnerIdx,
     raw_payload: defaultWinner,
     candidates_evaluated: candidates,
+    is_exact_match: true,
+    match_type: 'identical',
+    match_badge: 'PRODUTO IDÊNTICO (MATCH EXATO)',
   };
 }
 
@@ -669,13 +724,21 @@ export async function searchMercadoLivreWithGeminiGrounding(
   if (!cleanKey || cleanKey.length < 15) return [];
 
   const prompt = `Busque no site mercadolivre.com.br e liste de 3 a 5 anúncios reais do produto '${query}'.
+
+DIRETRIZES RIGOROSAS DE IDENTIDADE E MARCA:
+1. Priorize anúncios que correspondam EXATAMENTE À MESMA MARCA E MESMO MODELO do produto pesquisado.
+2. Identifique a marca do fabricante. Se o produto for da marca 'Cooler Master', NÃO traga anúncios de marcas rivais (como 'Elgato').
+3. Para cada anúncio, informe o campo 'is_exact_match' (true se for exatamente a mesma marca e modelo, false se for similar).
+
 Retorne APENAS um JSON array válido no formato:
 [
   {
     "title": "título exato do anúncio",
     "price": 123.45,
     "url": "link do produto no mercadolivre.com.br",
-    "seller": "nome do vendedor"
+    "seller": "nome do vendedor",
+    "brand": "marca identificada",
+    "is_exact_match": true
   }
 ]`;
 

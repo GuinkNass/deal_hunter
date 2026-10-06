@@ -433,6 +433,29 @@ export default function AnalysisDetailModal({
             </div>
           )}
 
+          {/* Banner de Aviso: Produto Semelhante vs Idêntico */}
+          {clinicalResult && (clinicalResult.is_exact_match === false || clinicalResult.match_type === 'similar') && (
+            <div className="bg-amber-950/40 border border-amber-500/40 rounded-2xl p-4 flex items-start gap-3 text-xs text-amber-200 animate-in fade-in">
+              <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-black text-amber-300 uppercase tracking-wide">
+                    Aviso Clínico: Concorrente Semelhante (Não é o mesmo modelo)
+                  </span>
+                  {clinicalResult.brand_origin && clinicalResult.brand_competitor && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-900/60 border border-amber-500/30 text-amber-300">
+                      {clinicalResult.brand_origin} vs {clinicalResult.brand_competitor}
+                    </span>
+                  )}
+                </div>
+                <p className="text-slate-300 leading-relaxed">
+                  Não foi localizado um anúncio idêntico no Mercado Livre para <strong>&ldquo;{productTitle}&rdquo;</strong>.
+                  O anúncio eleito abaixo é uma <strong>alternativa semelhante da mesma categoria</strong> para servir como parâmetro de referência de mercado.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* 1. TOP PRODUCT CARD (ANÚNCIO VENCEDOR ELEITO) */}
           <div className="bg-[#12151f] border border-slate-800/80 rounded-2xl p-5 flex flex-col md:flex-row gap-5 items-start">
             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl bg-white p-1.5 flex-shrink-0 flex items-center justify-center shadow-md overflow-hidden">
@@ -453,27 +476,50 @@ export default function AnalysisDetailModal({
             </div>
 
             <div className="flex-1 min-w-0 space-y-2.5">
-              <div className="flex items-start justify-between gap-3">
-                {hasDirectWinnerUrl ? (
-                  <a
-                    href={canonicalWinnerUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-bold text-base sm:text-lg text-white hover:text-amber-300 transition-colors inline-flex items-center gap-1.5 leading-snug"
-                    title="Abre o anúncio do vencedor diretamente no Mercado Livre"
-                  >
-                    <span>{realMlWinner?.title || productTitle}</span>
-                    <ExternalLink className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                  </a>
-                ) : (
+              <div className="space-y-1">
+                <div className="flex items-start justify-between gap-3">
                   <span className="font-bold text-base sm:text-lg text-white leading-snug">
                     {productTitle}
                   </span>
+                </div>
+
+                {realMlWinner && realMlWinner.title && (
+                  <div className="text-xs text-slate-400 flex items-center gap-1.5 flex-wrap pt-0.5">
+                    <span className="text-slate-500 font-semibold">Anúncio Mercado Livre:</span>
+                    {hasDirectWinnerUrl ? (
+                      <a
+                        href={canonicalWinnerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-cyan-400 hover:text-cyan-300 hover:underline inline-flex items-center gap-1 font-medium"
+                        title="Abrir anúncio oficial do vencedor no Mercado Livre"
+                      >
+                        <span>{realMlWinner.title}</span>
+                        <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+                      </a>
+                    ) : (
+                      <span className="text-slate-300">{realMlWinner.title}</span>
+                    )}
+                  </div>
                 )}
               </div>
 
               {/* Badges */}
               <div className="flex flex-wrap items-center gap-2">
+                {clinicalResult && (
+                  clinicalResult.is_exact_match !== false && clinicalResult.match_type !== 'similar' ? (
+                    <span className="px-2.5 py-0.5 text-xs font-black rounded bg-emerald-950/60 text-emerald-300 border border-emerald-500/50 flex items-center gap-1 shadow-sm">
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      PRODUTO IDÊNTICO (MATCH EXATO)
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 text-xs font-black rounded bg-amber-950/60 text-amber-300 border border-amber-500/50 flex items-center gap-1 shadow-sm">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                      PRODUTO SEMELHANTE (BENCHMARK DE CATEGORIA)
+                    </span>
+                  )
+                )}
+
                 <span className="px-2.5 py-0.5 text-xs font-semibold rounded bg-[#1c2233] text-slate-300 border border-slate-700/60">
                   {analysis.ml_listing_type === 'gold_pro' ? 'Premium (17%)' : 'Clássico (12%)'}
                 </span>
@@ -667,15 +713,22 @@ export default function AnalysisDetailModal({
                       }`}
                     >
                       {isWinner && (
-                        <span className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-sm">
-                          🏆 Eleito Vencedor
+                        <span className="absolute -top-2.5 right-3 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-sm">
+                          {clinicalResult?.is_exact_match ? '🏆 Eleito Vencedor (Idêntico)' : '⚡ Eleito Vencedor (Similar)'}
                         </span>
                       )}
 
                       <div className="space-y-2">
-                        <span className="text-[10px] text-slate-500 block font-mono">
-                          {cand.item_id}
-                        </span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            {cand.item_id}
+                          </span>
+                          {cand.marca && (
+                            <span className="text-[10px] font-bold text-slate-400 bg-slate-800/80 px-1.5 py-0.5 rounded">
+                              {cand.marca}
+                            </span>
+                          )}
+                        </div>
                         <h4
                           className="text-xs font-bold text-white line-clamp-2 leading-snug"
                           title={cand.titulo}
