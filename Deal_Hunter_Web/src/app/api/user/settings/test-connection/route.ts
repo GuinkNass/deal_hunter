@@ -26,6 +26,22 @@ export async function POST(req: NextRequest) {
               }
             } catch {}
           }
+        // Se ainda não encontrou activeMlKey pelo token da sessão, busca no perfil mais recente com chave ativa
+        if (!activeMlKey) {
+          try {
+            const { createAdminClient } = await import('@/lib/supabase/admin');
+            const supabase = createAdminClient();
+            const { data: latestProf } = await supabase
+              .from('profiles')
+              .select('ml_api_key, ml_access_token')
+              .not('ml_api_key', 'is', null)
+              .order('updated_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (latestProf?.ml_api_key) activeMlKey = latestProf.ml_api_key.trim();
+            else if (latestProf?.ml_access_token) activeMlKey = latestProf.ml_access_token.trim();
+          } catch {}
         }
 
         // Se possui access_token oficial, valida diretamente com /users/me
@@ -42,6 +58,7 @@ export async function POST(req: NextRequest) {
             const userData = await userRes.json();
             return NextResponse.json({
               success: true,
+              activeMlKey,
               message: `✅ Token ML Oficial Ativo! Usuário Autenticado: "${userData.nickname || userData.id}". Busca de concorrentes vencedores e dados reais 100% liberados!`,
             });
           } else {

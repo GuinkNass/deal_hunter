@@ -140,16 +140,15 @@ export async function GET(req: NextRequest) {
       const expiresIn = tokenData.expires_in ? Number(tokenData.expires_in) : 21600;
       const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
-      if (targetUserId) {
-        const standardUpdates: Record<string, any> = {
-          ml_api_key: accessToken,
-          ml_client_id: clientId.trim(),
-          ml_client_secret: clientSecret.trim(),
-          updated_at: new Date().toISOString(),
-        };
+      const standardUpdates: Record<string, any> = {
+        ml_api_key: accessToken,
+        ml_client_id: clientId.trim(),
+        ml_client_secret: clientSecret.trim(),
+        updated_at: new Date().toISOString(),
+      };
 
-        // Tenta salvar com as colunas de refresh/expiração caso existam no schema
-        const { error: fullUpdateErr } = await supabase
+      if (targetUserId) {
+        await supabase
           .from('profiles')
           .update({
             ...standardUpdates,
@@ -159,15 +158,28 @@ export async function GET(req: NextRequest) {
           })
           .eq('id', targetUserId);
 
-        if (fullUpdateErr) {
-          console.warn('[ML OAuth Callback] Schema sem colunas estendidas, atualizando colunas padrão:', fullUpdateErr.message);
-          await supabase
-            .from('profiles')
-            .update(standardUpdates)
-            .eq('id', targetUserId);
-        }
+        await supabase
+          .from('profiles')
+          .update(standardUpdates)
+          .eq('id', targetUserId);
 
         console.log(`[ML OAuth Callback] ✅ Token oficial salvo com sucesso para o usuário ${targetUserId}!`);
+      }
+
+      // Garante que o perfil mais recente também receba as credenciais atualizadas
+      const { data: latestProf } = await supabase
+        .from('profiles')
+        .select('id')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestProf && latestProf.id !== targetUserId) {
+        await supabase
+          .from('profiles')
+          .update(standardUpdates)
+          .eq('id', latestProf.id);
+        console.log(`[ML OAuth Callback] ✅ Token também replicado para o perfil mais recente ${latestProf.id}!`);
       }
 
       return NextResponse.redirect(

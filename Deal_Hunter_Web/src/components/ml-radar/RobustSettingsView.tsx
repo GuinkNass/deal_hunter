@@ -61,6 +61,14 @@ export default function RobustSettingsView({ authToken, userId }: RobustSettings
   useEffect(() => {
     if (authToken) {
       loadSettings();
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('ml_connected') === 'true') {
+          setTimeout(() => {
+            loadSettings();
+          }, 1500);
+        }
+      }
     }
   }, [authToken]);
 
@@ -165,9 +173,14 @@ export default function RobustSettingsView({ authToken, userId }: RobustSettings
     setTestingService(service);
     setTestResults((prev) => ({ ...prev, [service]: null }));
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
       const res = await fetch('/api/user/settings/test-connection', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           service,
           ml_client_id: mlClientId,
@@ -182,6 +195,9 @@ export default function RobustSettingsView({ authToken, userId }: RobustSettings
       const json = await res.json();
       if (service === 'gemini' && json.normalizedKey) {
         setGeminiApiKey(json.normalizedKey);
+      }
+      if (service === 'mercadolivre' && json.activeMlKey) {
+        setMlApiKey(json.activeMlKey);
       }
       setTestResults((prev) => ({
         ...prev,

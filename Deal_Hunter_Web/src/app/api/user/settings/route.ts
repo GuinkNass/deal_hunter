@@ -30,14 +30,27 @@ export async function GET(req: NextRequest) {
       console.warn('[Settings GET] Aviso ao carregar perfil:', error.message);
     }
 
+    let activeMlToken = profile?.ml_api_key || profile?.ml_access_token || '';
+    if (!activeMlToken) {
+      const { data: latestProf } = await supabase
+        .from('profiles')
+        .select('ml_api_key, ml_access_token')
+        .not('ml_api_key', 'is', null)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (latestProf?.ml_api_key) activeMlToken = latestProf.ml_api_key;
+      else if (latestProf?.ml_access_token) activeMlToken = latestProf.ml_access_token;
+    }
+
     return NextResponse.json({
       success: true,
       data: {
         gemini_api_key: profile?.gemini_api_key || '',
         gemini_model: (profile?.gemini_model && !profile.gemini_model.includes('1.5') && !profile.gemini_model.includes('2.5')) ? profile.gemini_model : 'gemini-3.8-flash',
-        ml_api_key: profile?.ml_api_key || '',
-        ml_client_id: profile?.ml_client_id || '',
-        ml_client_secret: profile?.ml_client_secret || '',
+        ml_api_key: activeMlToken,
+        ml_client_id: profile?.ml_client_id || '226238620730357',
+        ml_client_secret: profile?.ml_client_secret || 'dsjLowWybTxjm2I3EKo6PThe3X4oCEMO',
         telegram_bot_token: profile?.telegram_bot_token || '',
         telegram_chat_id: profile?.telegram_chat_id || '',
         desired_margin: profile?.desired_margin ?? 20,

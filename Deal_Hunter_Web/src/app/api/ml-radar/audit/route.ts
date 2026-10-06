@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
         if (user) {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('gemini_api_key, ml_api_key')
+            .select('gemini_api_key, ml_api_key, ml_access_token')
             .eq('id', user.id)
             .maybeSingle();
 
@@ -37,6 +37,8 @@ export async function POST(req: NextRequest) {
           }
           if (profile?.ml_api_key) {
             mlApiKey = profile.ml_api_key;
+          } else if (profile?.ml_access_token) {
+            mlApiKey = profile.ml_access_token;
           }
         }
       } catch {}
@@ -47,14 +49,15 @@ export async function POST(req: NextRequest) {
       try {
         const { data: latestProfile } = await supabase
           .from('profiles')
-          .select('gemini_api_key, ml_api_key')
+          .select('gemini_api_key, ml_api_key, ml_access_token')
+          .not('ml_api_key', 'is', null)
           .order('updated_at', { ascending: false })
           .limit(1)
           .maybeSingle();
 
         if (latestProfile) {
           if (!geminiApiKey && latestProfile.gemini_api_key) geminiApiKey = latestProfile.gemini_api_key;
-          if (!mlApiKey && latestProfile.ml_api_key) mlApiKey = latestProfile.ml_api_key;
+          if (!mlApiKey) mlApiKey = latestProfile.ml_api_key || latestProfile.ml_access_token || '';
         }
       } catch {}
     }
