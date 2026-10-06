@@ -86,33 +86,17 @@ export async function POST(req: NextRequest) {
     console.log(`[Clinical Audit] Query limpa via Gemini: "${cleanedQuery}" (original: "${title}")`);
 
     // =========================================================================
-    // ETAPA 2: Varredura dos Candidatos no Mercado Livre
-    // Prioriza candidatos 100% autênticos capturados via aba secundária residencial da extensão.
-    // Se não fornecidos, tenta a raspagem invisível no servidor.
+    // ETAPA 2: Varredura de Candidatos no Mercado Livre
+    // Prioridade 1: API Oficial do Mercado Livre (se usuário tiver token autenticado)
+    // Prioridade 2: Raspagem invisível no servidor
     // =========================================================================
     let scrapedCandidates: any[] = [];
 
-    if (Array.isArray(providedCandidates) && providedCandidates.length > 0) {
-      console.log(
-        `[Clinical Audit] Utilizando ${providedCandidates.length} candidatos autênticos capturados via extensão/aba secundária.`
-      );
-      scrapedCandidates = providedCandidates;
-    } else {
-      scrapedCandidates = await scrapeMercadoLivreSearch(cleanedQuery, 2, numSourcePrice);
-
-      // Se a query limpa for excessivamente restrita ou não trouxer resultados, tenta a busca direta com o título original
-      if (!scrapedCandidates || scrapedCandidates.length === 0) {
-        console.log(`[Clinical Audit] Sem retorno para "${cleanedQuery}". Tentando busca direta com o título original...`);
-        scrapedCandidates = await scrapeMercadoLivreSearch(title, 2, numSourcePrice);
-      }
-    }
-
-    // Fallback defensivo com a busca oficial do ML caso Akamai bloqueie o scraping HTML
-    if (!scrapedCandidates || scrapedCandidates.length === 0) {
-      console.log('[Clinical Audit] Scraping HTML sem retorno direto. Acionando API oficial ML como fallback...');
+    if (mlApiKey && mlApiKey.length > 10) {
+      console.log('[Clinical Audit] Consultando API oficial autenticada do Mercado Livre...');
       try {
         const apiMatches = await searchMercadoLivre(cleanedQuery || title, {
-          mlApiKey: mlApiKey || null,
+          mlApiKey,
           sourcePrice: numSourcePrice,
         });
 
@@ -123,15 +107,25 @@ export async function POST(req: NextRequest) {
               title: m.title,
               url: m.permalink,
               price: Number(m.price || 0),
-              salesCount: Number(m.sold_quantity || 150),
+              salesCount: Number(m.sold_quantity || 0),
               sellerNickname: m.seller_nickname || 'Vendedor Mercado Livre',
-              isFull: m.is_full === 1,
-              freeShipping: m.free_shipping === 1,
+              isFull: m.is_full === 1 || Boolean(m.is_full),
+              freeShipping: m.free_shipping === 1 || Boolean(m.free_shipping),
             }))
             .filter((x: any) => Boolean(x.id && !x.url?.includes('lista.mercadolivre.com.br')));
         }
       } catch (err: any) {
-        console.warn('[Clinical Audit] Falha no fallback ML API:', err.message);
+        console.warn('[Clinical Audit] Falha na API oficial ML:', err.message);
+      }
+    }
+
+    if (!scrapedCandidates || scrapedCandidates.length === 0) {
+      scrapedCandidates = await scrapeMercadoLivreSearch(cleanedQuery, 2, numSourcePrice);
+
+      // Se a query limpa for excessivamente restrita ou não trouxer resultados, tenta a busca direta com o título original
+      if (!scrapedCandidates || scrapedCandidates.length === 0) {
+        console.log(`[Clinical Audit] Sem retorno para "${cleanedQuery}". Tentando busca com o título original...`);
+        scrapedCandidates = await scrapeMercadoLivreSearch(title, 2, numSourcePrice);
       }
     }
 
