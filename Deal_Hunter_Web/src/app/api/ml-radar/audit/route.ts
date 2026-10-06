@@ -129,6 +129,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: false,
         error: 'Nenhum anúncio correspondente autêntico foi localizado no Mercado Livre para este produto.',
+        debug: {
+          cleanedQuery,
+          scrapedCandidatesCount: scrapedCandidates.length,
+          lastDebug: (globalThis as any).__lastScrapeDebug || null,
+        },
       });
     }
 

@@ -91,7 +91,7 @@ Título Original: "${rawTitle}"
 
 Responda APENAS o termo de busca limpo e direto em 1 linha, sem aspas e sem explicações:`;
 
-  const models = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-flash-latest'];
+  const models = ['gemini-flash-latest', 'gemini-2.5-flash-lite', 'gemini-pro-latest'];
 
   for (const model of models) {
     try {
@@ -174,12 +174,22 @@ export async function scrapeMercadoLivreSearch(
         signal: AbortSignal.timeout(6000),
       });
 
-      if (!res.ok) break;
-
-      const html = await res.text();
-      if (html.includes('suspicious-traffic-frontend') || html.includes('robot check')) {
-        break;
+      let html = '';
+      if (res.ok) {
+        html = await res.text();
       }
+
+      const isBlocked = !res.ok || html.includes('suspicious-traffic-frontend') || html.includes('robot check') || html.includes('account-verification');
+
+      (globalThis as any).__lastScrapeDebug = {
+        searchUrl,
+        resStatus: res.status,
+        htmlLen: html.length,
+        isBlocked,
+        htmlSnippet: html.slice(0, 300),
+      };
+
+      if (isBlocked) break;
 
       // Divide pelos blocos reais de conteúdo de card
       const contentBlocks = html.split(/<div[^>]*class=["'][^"']*poly-card__content[^"']*["']/i);
@@ -546,7 +556,7 @@ CRITÉRIOS CLÍNICOS:
   "justificativa_escolha": "Por que este anúncio específico superou os outros concorrentes."
 }`;
 
-  const models = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-flash-latest'];
+  const models = ['gemini-flash-latest', 'gemini-2.5-flash-lite', 'gemini-pro-latest'];
 
   for (const model of models) {
     try {

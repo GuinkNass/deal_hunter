@@ -47,6 +47,21 @@ export async function GET(req: NextRequest) {
         }
       }
 
+      if (!clientId || !clientSecret) {
+        clientId = process.env.ML_CLIENT_ID || '226238620730357';
+        clientSecret = process.env.ML_CLIENT_SECRET || 'cZDc8xmkvXZqhtJqEncKmTKLDoMCIYRI';
+      }
+
+      if (!targetUserId) {
+        const { data: latestProf } = await supabase
+          .from('profiles')
+          .select('id')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (latestProf) targetUserId = latestProf.id;
+      }
+
       if (clientId && clientSecret) {
         const redirectUri = `${url.origin}/api/ml/callback`;
         const tokenRes = await fetch('https://api.mercadolibre.com/oauth/token', {
