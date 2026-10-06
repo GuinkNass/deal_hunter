@@ -257,17 +257,6 @@ export default function LandingPage() {
 
           {/* CTAs Principais da Hero */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
-            {/* Se logado: Botão DASHBOARD em destaque máximo */}
-            {user ? (
-              <Link
-                href="/dashboard"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 hover:from-cyan-300 hover:to-indigo-500 text-white font-black text-sm sm:text-base uppercase tracking-wider shadow-2xl shadow-cyan-500/40 hover:-translate-y-0.5 transition-all active:scale-[0.98] group border border-cyan-300/40"
-              >
-                <Radar className="w-5 h-5 text-cyan-100 animate-pulse group-hover:scale-110 transition-transform" />
-                <span>Acessar Dashboard</span>
-              </Link>
-            ) : null}
-
             {/* Botão Primário: Chrome Web Store Oficial (Lime Accent) */}
             <a
               href={chromeWebStoreUrl}

@@ -219,21 +219,19 @@ export async function searchMercadoLivre(
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
 
-    const slugs = [cleanSlug];
-    if (coreSlug && coreSlug !== cleanSlug) slugs.push(coreSlug);
+    const targetSlug = coreSlug && coreSlug.length >= 3 ? coreSlug : cleanSlug;
+    const url = `https://lista.mercadolivre.com.br/${targetSlug}_OrderId_PRICE_ASC`;
 
-    for (const slug of slugs) {
-      const url = `https://lista.mercadolivre.com.br/${slug}_OrderId_PRICE_ASC`;
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        },
-        signal: AbortSignal.timeout(5000),
-      });
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+      signal: AbortSignal.timeout(2500),
+    });
 
-      if (!res.ok) continue;
+    if (res.ok) {
       const html = await res.text();
       const cards = html.split(/class=["'](?:ui-search-layout__item|poly-card|ui-search-result)["']/i);
       const items: MLMatchItem[] = [];

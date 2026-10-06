@@ -118,15 +118,6 @@ async function runScanCycle() {
             productUrl: candidate.item.url,
             store: candidate.category.site_name,
           }).catch(() => {});
-        } else if (item.price && Number(item.price) > 0 && ((item.originalPrice && Number(item.originalPrice) > Number(item.price)) || (item.advertisedDiscount && Number(item.advertisedDiscount) >= 10))) {
-          sendToMLRadar({
-            title: item.name,
-            price: Number(item.price),
-            originalPrice: item.originalPrice ? Number(item.originalPrice) : null,
-            imageUrl: item.imageUrl || null,
-            productUrl: item.url,
-            store: category.site_name,
-          }).catch(() => {});
         }
       }
       logger.info(`${category.site_name} / ${category.category_name}: ${items.length} produto(s) lido(s).`);
@@ -282,16 +273,6 @@ async function processBrowserPagesCycle(pages, scanId, complete, userId = null) 
           imageUrl: candidate.item.imageUrl || candidate.product.thumbnail || null,
           productUrl: candidate.item.url,
           store: candidate.category.site_name,
-          userId,
-        }).catch(() => {});
-      } else if (item.price && Number(item.price) > 0 && ((item.originalPrice && Number(item.originalPrice) > Number(item.price)) || (item.advertisedDiscount && Number(item.advertisedDiscount) >= 10))) {
-        sendToMLRadar({
-          title: item.name,
-          price: Number(item.price),
-          originalPrice: item.originalPrice ? Number(item.originalPrice) : null,
-          imageUrl: item.imageUrl || null,
-          productUrl: item.url,
-          store: category.site_name,
           userId,
         }).catch(() => {});
       }

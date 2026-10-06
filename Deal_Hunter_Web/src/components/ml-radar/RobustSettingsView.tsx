@@ -77,16 +77,17 @@ export default function RobustSettingsView({ authToken }: RobustSettingsViewProp
         setTelegramChatId(d.telegram_chat_id || '');
         setGeminiApiKey(d.gemini_api_key || '');
         setGeminiModel(d.gemini_model || 'gemini-3.8-flash');
-        setDesiredMargin(d.desired_margin ?? 20);
-        setMinRoiAlert(d.min_roi_alert ?? 25);
-        setTaxPercent(d.tax_percent ?? 6);
-        setPackagingCost(d.packaging_cost ?? 3.5);
-        setFeeClassicoPercent(d.fee_classico_percent ?? 12);
-        setFeePremiumPercent(d.fee_premium_percent ?? 17);
-        setFixedFeeUnder79(d.fixed_fee_under_79 ?? 6);
-        setMinPriceFilter(d.min_price_filter ?? 15);
-        setMaxPriceFilter(d.max_price_filter ?? 50000);
-        setExcludedKeywords(d.excluded_keywords || '');
+        const localSettings = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('dealhunter_custom_settings') || '{}') : {};
+        setDesiredMargin(d.desired_margin ?? localSettings.desired_margin ?? 20);
+        setMinRoiAlert(d.min_roi_alert ?? localSettings.min_roi_alert ?? 25);
+        setTaxPercent(d.tax_percent ?? localSettings.tax_percent ?? 6);
+        setPackagingCost(d.packaging_cost ?? localSettings.packaging_cost ?? 3.5);
+        setFeeClassicoPercent(d.fee_classico_percent ?? localSettings.fee_classico_percent ?? 12);
+        setFeePremiumPercent(d.fee_premium_percent ?? localSettings.fee_premium_percent ?? 17);
+        setFixedFeeUnder79(d.fixed_fee_under_79 ?? localSettings.fixed_fee_under_79 ?? 6);
+        setMinPriceFilter(d.min_price_filter ?? localSettings.min_price_filter ?? 15);
+        setMaxPriceFilter(d.max_price_filter ?? localSettings.max_price_filter ?? 50000);
+        setExcludedKeywords(d.excluded_keywords || localSettings.excluded_keywords || '');
       }
     } catch (err: any) {
       console.error('Erro ao buscar configurações:', err);
@@ -127,6 +128,23 @@ export default function RobustSettingsView({ authToken }: RobustSettingsViewProp
 
       const json = await res.json();
       if (res.ok && json.success) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(
+            'dealhunter_custom_settings',
+            JSON.stringify({
+              desired_margin: desiredMargin,
+              min_roi_alert: minRoiAlert,
+              tax_percent: taxPercent,
+              packaging_cost: packagingCost,
+              fee_classico_percent: feeClassicoPercent,
+              fee_premium_percent: feePremiumPercent,
+              fixed_fee_under_79: fixedFeeUnder79,
+              min_price_filter: minPriceFilter,
+              max_price_filter: maxPriceFilter,
+              excluded_keywords: excludedKeywords,
+            })
+          );
+        }
         setSaveMessage({ type: 'success', text: 'Configurações salvas com sucesso no seu perfil!' });
         setTimeout(() => setSaveMessage(null), 4000);
       } else {

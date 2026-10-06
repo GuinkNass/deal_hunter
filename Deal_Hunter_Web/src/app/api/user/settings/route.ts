@@ -22,17 +22,12 @@ export async function GET(req: NextRequest) {
 
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select(`
-        gemini_api_key, gemini_model, ml_api_key, ml_client_id, ml_client_secret,
-        telegram_bot_token, telegram_chat_id,
-        desired_margin, min_roi_alert, tax_percent, fee_classico_percent, fee_premium_percent,
-        fixed_fee_under_79, packaging_cost, min_price_filter, max_price_filter, excluded_keywords
-      `)
+      .select('*')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (error && error.code !== 'PGRST116') {
-      throw error;
+      console.warn('[Settings GET] Aviso ao carregar perfil:', error.message);
     }
 
     return NextResponse.json({
@@ -130,13 +125,31 @@ export async function POST(req: NextRequest) {
     if (max_price_filter !== undefined) updates.max_price_filter = Number(max_price_filter);
     if (excluded_keywords !== undefined) updates.excluded_keywords = excluded_keywords ? String(excluded_keywords).trim() : null;
 
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', user.id);
+    let currentUpdates = { ...updates };
+    let success = false;
+    let attempts = 0;
 
-    if (updateError) {
-      throw updateError;
+    while (!success && attempts < 15) {
+      attempts++;
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update(currentUpdates)
+        .eq('id', user.id);
+
+      if (!updateError) {
+        success = true;
+        break;
+      }
+
+      // Detecta coluna ausente no schema do Supabase e remove defensivamente
+      const match = updateError.message?.match(/Could not find the '([^']+)' column of 'profiles'/i);
+      if (match && match[1]) {
+        const missingCol = match[1];
+        console.warn(`[Settings API] Coluna '${missingCol}' ausente em profiles. Removendo do update.`);
+        delete currentUpdates[missingCol];
+      } else {
+        throw updateError;
+      }
     }
 
     return NextResponse.json({
