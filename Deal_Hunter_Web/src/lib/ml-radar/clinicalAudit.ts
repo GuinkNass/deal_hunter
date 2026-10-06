@@ -172,6 +172,8 @@ export async function scrapeMercadoLivreSearch(
         'Twitterbot/1.0',
       ];
 
+      let lastStatus = 0;
+      let lastErr = '';
       for (const ua of crawlers) {
         try {
           const res = await fetch(searchUrl, {
@@ -180,10 +182,9 @@ export async function scrapeMercadoLivreSearch(
               Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
               'Accept-Language': 'pt-BR,pt;q=0.9',
             },
-            signal: AbortSignal.timeout(6000),
+            signal: AbortSignal.timeout(7000),
           });
-
-          if (!res.ok) continue;
+          lastStatus = res.status;
           const body = await res.text();
           if (
             body.includes('poly-card__content') &&
@@ -193,8 +194,12 @@ export async function scrapeMercadoLivreSearch(
           ) {
             html = body;
             break;
+          } else {
+            lastErr = `status=${res.status}, len=${body.length}, preview=${body.slice(0, 150)}`;
           }
-        } catch {}
+        } catch (e: any) {
+          lastErr = `catch: ${e?.message || String(e)}`;
+        }
       }
 
       const isBlocked = !html || html.length < 50000;
@@ -203,7 +208,8 @@ export async function scrapeMercadoLivreSearch(
         searchUrl,
         htmlLen: html ? html.length : 0,
         isBlocked,
-        htmlSnippet: html ? html.slice(0, 300) : 'vazio',
+        lastStatus,
+        lastErr,
       };
 
       if (isBlocked) break;
