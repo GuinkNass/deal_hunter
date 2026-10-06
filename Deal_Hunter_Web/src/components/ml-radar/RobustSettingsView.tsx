@@ -81,9 +81,10 @@ export default function RobustSettingsView({ authToken, userId }: RobustSettings
       const json = await res.json();
       if (json.success && json.data) {
         const d = json.data;
-        setMlClientId(d.ml_client_id || '');
-        setMlClientSecret(d.ml_client_secret || '');
-        setMlApiKey(d.ml_api_key || '');
+        const localCreds = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('dealhunter_ml_credentials') || '{}') : {};
+        setMlClientId(d.ml_client_id || localCreds.ml_client_id || '');
+        setMlClientSecret(d.ml_client_secret || localCreds.ml_client_secret || '');
+        setMlApiKey(d.ml_api_key || localCreds.ml_api_key || '');
         setTelegramBotToken(d.telegram_bot_token || '');
         setTelegramChatId(d.telegram_chat_id || '');
         setGeminiApiKey(d.gemini_api_key || '');
@@ -154,6 +155,14 @@ export default function RobustSettingsView({ authToken, userId }: RobustSettings
               min_price_filter: minPriceFilter,
               max_price_filter: maxPriceFilter,
               excluded_keywords: excludedKeywords,
+            })
+          );
+          localStorage.setItem(
+            'dealhunter_ml_credentials',
+            JSON.stringify({
+              ml_client_id: mlClientId,
+              ml_client_secret: mlClientSecret,
+              ml_api_key: mlApiKey,
             })
           );
         }
@@ -458,7 +467,7 @@ export default function RobustSettingsView({ authToken, userId }: RobustSettings
                 type={showMlApiKey ? 'text' : 'password'}
                 value={mlApiKey}
                 onChange={(e) => setMlApiKey(e.target.value)}
-                placeholder="APP_USR-..."
+                placeholder="Nenhum token salvo ainda. Clique em 'CONECTAR MERCADO LIVRE' acima para gerar."
                 className="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
               />
               <button
@@ -469,6 +478,15 @@ export default function RobustSettingsView({ authToken, userId }: RobustSettings
                 {showMlApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+            {mlApiKey ? (
+              <p className="text-[11px] text-emerald-400 flex items-center gap-1 font-semibold mt-1">
+                <Check className="w-3.5 h-3.5" /> Token oficial ativo e pronto para uso ({mlApiKey.substring(0, 16)}...)
+              </p>
+            ) : (
+              <p className="text-[11px] text-slate-400 mt-1">
+                O token é gerado e preenchido automaticamente ao clicar no botão amarelo &ldquo;Conectar Mercado Livre&rdquo;.
+              </p>
+            )}
           </div>
         </div>
       </section>

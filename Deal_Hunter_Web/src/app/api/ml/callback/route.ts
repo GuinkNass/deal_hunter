@@ -148,28 +148,40 @@ export async function GET(req: NextRequest) {
       };
 
       if (targetUserId) {
-        await supabase
+        let userEmail = 'user@dealhunterpro.com.br';
+        try {
+          const { data: authUser } = await supabase.auth.admin.getUserById(targetUserId);
+          if (authUser?.user?.email) userEmail = authUser.user.email;
+        } catch {}
+
+        const { error: upErr } = await supabase
           .from('profiles')
-          .update({
+          .upsert({
+            id: targetUserId,
+            email: userEmail,
             ...standardUpdates,
             ml_access_token: accessToken,
             ml_refresh_token: refreshToken,
             ml_token_expires_at: expiresAt,
-          })
-          .eq('id', targetUserId);
+          }, { onConflict: 'id' });
 
-        await supabase
-          .from('profiles')
-          .update(standardUpdates)
-          .eq('id', targetUserId);
+        if (upErr) {
+          await supabase
+            .from('profiles')
+            .upsert({
+              id: targetUserId,
+              email: userEmail,
+              ...standardUpdates,
+            }, { onConflict: 'id' });
+        }
 
-        console.log(`[ML OAuth Callback] ✅ Token oficial salvo com sucesso para o usuário ${targetUserId}!`);
+        console.log(`[ML OAuth Callback] ✅ Token oficial salvo com sucesso via upsert para ${targetUserId}!`);
       }
 
       // Garante que o perfil mais recente também receba as credenciais atualizadas
       const { data: latestProf } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, email')
         .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -177,8 +189,11 @@ export async function GET(req: NextRequest) {
       if (latestProf && latestProf.id !== targetUserId) {
         await supabase
           .from('profiles')
-          .update(standardUpdates)
-          .eq('id', latestProf.id);
+          .upsert({
+            id: latestProf.id,
+            email: latestProf.email || 'user@dealhunterpro.com.br',
+            ...standardUpdates,
+          }, { onConflict: 'id' });
         console.log(`[ML OAuth Callback] ✅ Token também replicado para o perfil mais recente ${latestProf.id}!`);
       }
 

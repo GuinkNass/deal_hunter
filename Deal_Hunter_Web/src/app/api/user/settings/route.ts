@@ -49,8 +49,8 @@ export async function GET(req: NextRequest) {
         gemini_api_key: profile?.gemini_api_key || '',
         gemini_model: (profile?.gemini_model && !profile.gemini_model.includes('1.5') && !profile.gemini_model.includes('2.5')) ? profile.gemini_model : 'gemini-3.8-flash',
         ml_api_key: activeMlToken,
-        ml_client_id: profile?.ml_client_id || '226238620730357',
-        ml_client_secret: profile?.ml_client_secret || 'dsjLowWybTxjm2I3EKo6PThe3X4oCEMO',
+        ml_client_id: profile?.ml_client_id || '',
+        ml_client_secret: profile?.ml_client_secret || '',
         telegram_bot_token: profile?.telegram_bot_token || '',
         telegram_chat_id: profile?.telegram_chat_id || '',
         desired_margin: profile?.desired_margin ?? 20,
@@ -148,30 +148,34 @@ export async function POST(req: NextRequest) {
     if (max_price_filter !== undefined) updates.max_price_filter = Number(max_price_filter);
     if (excluded_keywords !== undefined) updates.excluded_keywords = excluded_keywords ? String(excluded_keywords).trim() : null;
 
-    let currentUpdates = { ...updates };
+    const upsertRecord: Record<string, any> = {
+      id: user.id,
+      email: user.email || 'user@dealhunterpro.com.br',
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
     let success = false;
     let attempts = 0;
 
     while (!success && attempts < 15) {
       attempts++;
-      const { error: updateError } = await supabase
+      const { error: upsertError } = await supabase
         .from('profiles')
-        .update(currentUpdates)
-        .eq('id', user.id);
+        .upsert(upsertRecord, { onConflict: 'id' });
 
-      if (!updateError) {
+      if (!upsertError) {
         success = true;
         break;
       }
 
       // Detecta coluna ausente no schema do Supabase e remove defensivamente
-      const match = updateError.message?.match(/Could not find the '([^']+)' column of 'profiles'/i);
+      const match = upsertError.message?.match(/Could not find the '([^']+)' column of 'profiles'/i);
       if (match && match[1]) {
         const missingCol = match[1];
-        console.warn(`[Settings API] Coluna '${missingCol}' ausente em profiles. Removendo do update.`);
-        delete currentUpdates[missingCol];
+        console.warn(`[Settings API] Coluna '${missingCol}' ausente em profiles. Removendo do upsert.`);
+        delete upsertRecord[missingCol];
       } else {
-        throw updateError;
+        throw upsertError;
       }
     }
 

@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
               }
             } catch {}
           }
+        }
+
         // Se ainda não encontrou activeMlKey pelo token da sessão, busca no perfil mais recente com chave ativa
         if (!activeMlKey) {
           try {
