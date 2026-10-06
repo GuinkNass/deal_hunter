@@ -90,3 +90,13 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.redirect(new URL('/dashboard?tab=settings', req.url));
 }
+
+export async function POST(req: NextRequest) {
+  // Responde 200 OK imediatamente para validação de webhooks/notificações do Mercado Livre
+  return NextResponse.json({ status: 'ok', received: true }, { status: 200 });
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 200 });
+}
+
