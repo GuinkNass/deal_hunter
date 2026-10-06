@@ -165,28 +165,45 @@ export async function scrapeMercadoLivreSearch(
           ? `https://lista.mercadolivre.com.br/${encodeURIComponent(cleanSlug)}`
           : `https://lista.mercadolivre.com.br/${encodeURIComponent(cleanSlug)}_Desde_${offset}`;
 
-      const res = await fetch(searchUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'pt-BR,pt;q=0.9',
-        },
-        signal: AbortSignal.timeout(6000),
-      });
-
       let html = '';
-      if (res.ok) {
-        html = await res.text();
+      const crawlers = [
+        'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+        'WhatsApp/2.21.12.21 A',
+        'Twitterbot/1.0',
+      ];
+
+      for (const ua of crawlers) {
+        try {
+          const res = await fetch(searchUrl, {
+            headers: {
+              'User-Agent': ua,
+              Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'Accept-Language': 'pt-BR,pt;q=0.9',
+            },
+            signal: AbortSignal.timeout(6000),
+          });
+
+          if (!res.ok) continue;
+          const body = await res.text();
+          if (
+            body.includes('poly-card__content') &&
+            !body.includes('suspicious-traffic-frontend') &&
+            !body.includes('robot check') &&
+            !body.includes('account-verification')
+          ) {
+            html = body;
+            break;
+          }
+        } catch {}
       }
 
-      const isBlocked = !res.ok || html.includes('suspicious-traffic-frontend') || html.includes('robot check') || html.includes('account-verification');
+      const isBlocked = !html || html.length < 50000;
 
       (globalThis as any).__lastScrapeDebug = {
         searchUrl,
-        resStatus: res.status,
-        htmlLen: html.length,
+        htmlLen: html ? html.length : 0,
         isBlocked,
-        htmlSnippet: html.slice(0, 300),
+        htmlSnippet: html ? html.slice(0, 300) : 'vazio',
       };
 
       if (isBlocked) break;
@@ -387,11 +404,11 @@ export async function enrichCandidateWithMlApi(
     try {
       const pdpRes = await fetch(targetUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
           Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'pt-BR,pt;q=0.9',
         },
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(6000),
       });
 
       if (pdpRes.ok) {
