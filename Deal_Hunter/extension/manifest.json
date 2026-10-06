@@ -50,7 +50,10 @@
     "*://*.shein.com/*",
     "*://br.shein.com/*",
     "*://*.shopee.com.br/*",
-    "*://shopee.com.br/*"
+    "*://shopee.com.br/*",
+    "*://*.mercadolivre.com.br/*",
+    "*://mercadolivre.com.br/*",
+    "*://*.mercadolibre.com/*"
   ],
   "content_scripts": [
     {

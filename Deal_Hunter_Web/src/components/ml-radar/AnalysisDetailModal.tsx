@@ -139,6 +139,39 @@ export default function AnalysisDetailModal({
     setAuditError(null);
 
     try {
+      let providedCandidates: any[] = [];
+      const extensionId =
+        process.env.NEXT_PUBLIC_EXTENSION_ID || 'gdnmfnoccdcbpcnaafjcoapgmihmgbdo';
+
+      // Tenta varredura em segundo plano via extensão (abre e fecha aba secundária invisível em IP residencial)
+      if (typeof window !== 'undefined' && (window as any).chrome?.runtime?.sendMessage) {
+        try {
+          const extPromise = new Promise<any[]>((resolve) => {
+            const timeout = setTimeout(() => resolve([]), 8000);
+            (window as any).chrome.runtime.sendMessage(
+              extensionId,
+              {
+                type: 'SCAN_ML_PRODUCTS',
+                query: productTitle,
+                sourcePrice,
+                maxPages: 2,
+              },
+              (response: any) => {
+                clearTimeout(timeout);
+                if (response?.success && Array.isArray(response.items) && response.items.length > 0) {
+                  resolve(response.items);
+                } else {
+                  resolve([]);
+                }
+              }
+            );
+          });
+          providedCandidates = await extPromise;
+        } catch (e) {
+          console.warn('[AnalysisDetailModal] Extensão indisponível para varredura secundária:', e);
+        }
+      }
+
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
@@ -156,6 +189,7 @@ export default function AnalysisDetailModal({
           netProfit: analysis.net_profit,
           roiPercent: analysis.roi_percent,
           marginPercent: analysis.margin_percent,
+          providedCandidates: providedCandidates.length > 0 ? providedCandidates : undefined,
         }),
       });
 

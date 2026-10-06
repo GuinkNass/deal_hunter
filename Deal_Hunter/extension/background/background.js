@@ -98,8 +98,204 @@ chrome.runtime.onMessageExternal.addListener((message, _sender, sendResponse) =>
     })();
     return true;
   }
+
+  if (message?.type === 'SCAN_ML_PRODUCTS') {
+    const { query, maxPages = 2, sourcePrice = 0 } = message;
+    scanMercadoLivreSecondaryTab(query, maxPages, sourcePrice)
+      .then((items) => sendResponse({ success: true, items }))
+      .catch((err) => sendResponse({ success: false, error: err.message, items: [] }));
+    return true;
+  }
+
   return false;
 });
+
+/**
+ * Varredura cirúrgica do Mercado Livre em aba secundária em segundo plano.
+ * Abre a aba de busca invisível/inativa, extrai os cards reais e fecha a aba imediatamente.
+ */
+async function scanMercadoLivreSecondaryTab(query, maxPages = 2, sourcePrice = 0) {
+  if (!query) return [];
+
+  const cleanSlug = query
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  const targetPages = Math.min(Math.max(1, maxPages), 2);
+  const allResults = [];
+  const seenIds = new Set();
+
+  for (let page = 1; page <= targetPages; page++) {
+    const offset = (page - 1) * 50 + 1;
+    const url =
+      page === 1
+        ? `https://lista.mercadolivre.com.br/${encodeURIComponent(cleanSlug)}`
+        : `https://lista.mercadolivre.com.br/${encodeURIComponent(cleanSlug)}_Desde_${offset}`;
+
+    let tab = null;
+    try {
+      tab = await chrome.tabs.create({ url, active: false });
+
+      await new Promise((resolve) => {
+        let done = false;
+        const timer = setTimeout(() => {
+          if (!done) {
+            done = true;
+            chrome.tabs.onUpdated.removeListener(listener);
+            resolve();
+          }
+        }, 10000);
+
+        const listener = (tabId, info) => {
+          if (tabId === tab.id && info.status === 'complete') {
+            if (!done) {
+              done = true;
+              clearTimeout(timer);
+              chrome.tabs.onUpdated.removeListener(listener);
+              setTimeout(resolve, 600);
+            }
+          }
+        };
+        chrome.tabs.onUpdated.addListener(listener);
+      });
+
+      const execResult = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          const cards = Array.from(
+            document.querySelectorAll(
+              'li.ui-search-layout__item, div.ui-search-result__wrapper, div[class*="poly-card"]'
+            )
+          );
+          const extracted = [];
+          const seen = new Set();
+
+          for (const card of cards) {
+            const titleEl =
+              card.querySelector('a.poly-component__title') ||
+              card.querySelector('a[href*="/p/MLB"]') ||
+              card.querySelector('a[href*="produto.mercadolivre"]');
+            if (!titleEl) continue;
+
+            const rawHref = titleEl.getAttribute('href') || '';
+            if (!rawHref) continue;
+
+            const fullUrl = rawHref.startsWith('http')
+              ? rawHref
+              : `https://www.mercadolivre.com.br${rawHref}`;
+            const cleanUrl = fullUrl.split('#')[0].split('?')[0];
+
+            const widMatch = fullUrl.match(/[?&#]wid=(MLB\d+)/i);
+            const pMatch = fullUrl.match(/\/p\/(MLB\d+)/i);
+            const directMatch = fullUrl.match(/(MLB-?\d+)/i);
+            const mlbId = widMatch
+              ? widMatch[1]
+              : pMatch
+              ? pMatch[1]
+              : directMatch
+              ? directMatch[1].replace('-', '')
+              : '';
+
+            if (!mlbId || seen.has(mlbId)) continue;
+            seen.add(mlbId);
+
+            const title = (titleEl.textContent || titleEl.getAttribute('title') || '').trim();
+
+            let price = 0;
+            const fracEl = card.querySelector('.andes-money-amount__fraction');
+            const centsEl = card.querySelector('.andes-money-amount__cents');
+            if (fracEl) {
+              price = parseFloat(
+                `${fracEl.textContent.replace(/\./g, '')}.${centsEl ? centsEl.textContent : '00'}`
+              );
+            } else {
+              const priceAria = card.querySelector('[aria-label*="reais"]');
+              if (priceAria) {
+                const pText = priceAria.getAttribute('aria-label') || '';
+                const numMatch = pText.match(/(\d+)\s*reais(?:.*?(\d+)\s*centavos)?/i);
+                if (numMatch) price = parseFloat(`${numMatch[1]}.${numMatch[2] || '00'}`);
+              }
+            }
+
+            const sellerEl =
+              card.querySelector('.poly-component__seller') ||
+              card.querySelector('[class*="seller"]');
+            const sellerNickname = sellerEl
+              ? sellerEl.textContent.replace(/por\s+/i, '').trim()
+              : 'Vendedor Mercado Livre';
+
+            const salesEl =
+              card.querySelector('.poly-component__review-compacted') ||
+              card.querySelector('.andes-visually-hidden');
+            let salesRaw = salesEl ? salesEl.textContent.trim() : '';
+            if (!salesRaw || !salesRaw.includes('vendido')) {
+              const anySales = card.innerText.match(/(\+?\d+[\d.]*(?:\s*mil)?\s*vendidos?)/i);
+              if (anySales) salesRaw = anySales[1];
+            }
+
+            let salesCount = 0;
+            if (salesRaw) {
+              const mil = salesRaw.match(/(\d+(?:[.,]\d+)?)\s*(?:mil|k)\b/i);
+              if (mil) {
+                salesCount = Math.round(parseFloat(mil[1].replace(',', '.')) * 1000);
+              } else {
+                const direct = salesRaw.match(/(\d[\d.]*)\s*(?:produtos\s*)?vendidos?/i);
+                if (direct) {
+                  salesCount = parseInt(direct[1].replace(/\./g, ''), 10) || 0;
+                } else {
+                  const anyNum = salesRaw.match(/\b\d+\b/);
+                  salesCount = anyNum ? parseInt(anyNum[0], 10) : 0;
+                }
+              }
+            }
+
+            const isFull =
+              card.innerHTML.includes('fulfillment') ||
+              card.innerHTML.includes('FULL') ||
+              card.innerHTML.includes('icon-full');
+            const freeShipping = card.innerText.includes('Frete grátis') || price >= 79.0;
+
+            extracted.push({
+              id: mlbId,
+              title,
+              url: cleanUrl,
+              price,
+              salesCount,
+              sellerNickname,
+              isFull,
+              freeShipping,
+            });
+          }
+
+          return extracted;
+        },
+      });
+
+      if (execResult && execResult[0]?.result) {
+        const pageItems = execResult[0].result;
+        for (const it of pageItems) {
+          if (!seenIds.has(it.id)) {
+            seenIds.add(it.id);
+            allResults.push(it);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Deal Hunter: erro ao varrer aba secundária do Mercado Livre:', e.message);
+    } finally {
+      if (tab && tab.id) {
+        chrome.tabs.remove(tab.id).catch(() => {});
+      }
+    }
+
+    if (allResults.length >= 10) break;
+  }
+
+  return allResults;
+}
 
 async function closeExistingScanWindows() {
   try {
