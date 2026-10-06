@@ -5,7 +5,7 @@
   "description": "Backend local do Deal Hunter (monitoramento de categorias por leitura de páginas)",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node --max-old-space-size=384 src/index.js",
     "dev": "node --watch src/index.js",
     "test": "node --check src/index.js && node --test test/*.test.js"
   },

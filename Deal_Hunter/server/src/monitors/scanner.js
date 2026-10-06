@@ -65,6 +65,19 @@ let activeScan = null;
 const browserScanSessions = new Map();
 const cancelledBrowserScans = new Set();
 
+// Limpeza preventiva periódica a cada 5 minutos para evitar acúmulo de memória no Render 512MB
+setInterval(() => {
+  const now = Date.now();
+  for (const [scanId, session] of browserScanSessions.entries()) {
+    if (now - (session.lastActivity || 0) > 30 * 60 * 1000) {
+      browserScanSessions.delete(scanId);
+    }
+  }
+  if (cancelledBrowserScans.size > 200) {
+    cancelledBrowserScans.clear();
+  }
+}, 5 * 60 * 1000).unref();
+
 function cancelBrowserScan(scanId) {
   const session = browserScanSessions.get(scanId);
   if (session) session.cancelled = true;
@@ -231,9 +244,12 @@ async function processBrowserPagesCycle(pages, scanId, complete, userId = null) 
   const categories = new Map(categoriesList.map((category) => [category.id, category]));
   if (!categories.size) return { status: 'skipped', message: 'Selecione ao menos uma loja/categoria.' };
   const session = scanId
-    ? browserScanSessions.get(scanId) || { itemsScanned: 0, candidatesFound: 0, alertsSent: 0, alertsAttempted: 0, alertsByCategory: {}, errors: [], seen: new Set(), seenDeals: new Set(), cancelled: cancelledBrowserScans.has(scanId) }
-    : { itemsScanned: 0, candidatesFound: 0, alertsSent: 0, alertsAttempted: 0, alertsByCategory: {}, errors: [], seen: new Set(), seenDeals: new Set(), cancelled: false };
-  if (scanId) browserScanSessions.set(scanId, session);
+    ? browserScanSessions.get(scanId) || { itemsScanned: 0, candidatesFound: 0, alertsSent: 0, alertsAttempted: 0, alertsByCategory: {}, errors: [], seen: new Set(), seenDeals: new Set(), cancelled: cancelledBrowserScans.has(scanId), lastActivity: Date.now() }
+    : { itemsScanned: 0, candidatesFound: 0, alertsSent: 0, alertsAttempted: 0, alertsByCategory: {}, errors: [], seen: new Set(), seenDeals: new Set(), cancelled: false, lastActivity: Date.now() };
+  if (scanId) {
+    session.lastActivity = Date.now();
+    browserScanSessions.set(scanId, session);
+  }
   const candidates = [];
   const offers = [];
 
@@ -305,84 +321,80 @@ async function processBrowserPagesCycle(pages, scanId, complete, userId = null) 
   const candidatesToSend = [...bestCandidates]
     .sort((a, b) => a.discountPercent - b.discountPercent || a.score - b.score);
 
-  let batchCounter = 0;
-  for (let i = 0; i < candidatesToSend.length; i += 1) {
-    const candidate = candidatesToSend[i];
-    if (session.cancelled) break;
-    if (candidate.category.keyword_filter && !validateKeywordFilter({ name: candidate.item.name, title: candidate.item.name, description: candidate.item.description }, candidate.category.keyword_filter)) {
-      continue;
+  const dispatchTelegramAlerts = async () => {
+    let batchCounter = 0;
+    for (let i = 0; i < candidatesToSend.length; i += 1) {
+      const candidate = candidatesToSend[i];
+      if (session.cancelled) break;
+      if (candidate.category.keyword_filter && !validateKeywordFilter({ name: candidate.item.name, title: candidate.item.name, description: candidate.item.description }, candidate.category.keyword_filter)) {
+        continue;
+      }
+
+      if (batchCounter > 0 && batchCounter % TELEGRAM_BATCH_SIZE === 0) {
+        logger.info(`Deal Hunter Telegram: lote de ${TELEGRAM_BATCH_SIZE} produtos enviado; aguardando ${TELEGRAM_BATCH_PAUSE_MS / 1000}s...`);
+        await delay(TELEGRAM_BATCH_PAUSE_MS);
+      } else if (i > 0) {
+        await delay(TELEGRAM_MESSAGE_PAUSE_MS);
+      }
+      if (session.cancelled) break;
+
+      const message = opportunityMessage({
+        siteName: candidate.category.site_name,
+        title: candidate.item.name,
+        currentPrice: candidate.item.price,
+        referencePrice: candidate.referencePrice,
+        referencePriceSource: candidate.referencePriceSource,
+        discountPercent: candidate.discountPercent,
+        score: candidate.score,
+        sampleSize: candidate.sampleSize,
+        url: candidate.item.url,
+      });
+      const candidateImage = candidate.item.imageUrl || candidate.product.thumbnail || '';
+      const imageUrl = /^https?:\/\//i.test(candidateImage) ? candidateImage : null;
+
+      let sent = imageUrl ? await sendPhoto(message.text, imageUrl, { inlineButton: message.inlineButton, referer: candidate.item.url }) : await sendMessage(message.text, { inlineButton: message.inlineButton });
+      if (!sent.ok && imageUrl && sent.photoRejected) {
+        sent = await sendMessage(`${message.text}\n\n${candidate.item.url}`, { inlineButton: message.inlineButton });
+      }
+      await stmts.insertAlert.run(
+        candidate.category.site_id, candidate.product.id, candidate.discountPercent,
+        candidate.score, sent.ok ? 1 : 0, candidate.fingerprint, message.text
+      );
+      candidate._alertSaved = true;
+      session.alertsAttempted += 1;
+      session.alertsByCategory[candidate.category.id] = (session.alertsByCategory[candidate.category.id] || 0) + 1;
+      batchCounter += 1;
+      if (sent.ok) session.alertsSent += 1;
     }
 
-    if (batchCounter > 0 && batchCounter % TELEGRAM_BATCH_SIZE === 0) {
-      logger.info(`Deal Hunter Telegram: lote de ${TELEGRAM_BATCH_SIZE} produtos enviado; aguardando ${TELEGRAM_BATCH_PAUSE_MS / 1000}s...`);
-      await delay(TELEGRAM_BATCH_PAUSE_MS);
-    } else if (i > 0) {
-      await delay(TELEGRAM_MESSAGE_PAUSE_MS);
+    for (const candidate of candidates) {
+      if (candidate._alertSaved) continue;
+      const message = opportunityMessage({
+        siteName: candidate.category.site_name,
+        title: candidate.item.name,
+        currentPrice: candidate.item.price,
+        referencePrice: candidate.referencePrice,
+        referencePriceSource: candidate.referencePriceSource,
+        discountPercent: candidate.discountPercent,
+        score: candidate.score,
+        sampleSize: candidate.sampleSize,
+        url: candidate.item.url,
+      });
+      await stmts.insertAlert.run(
+        candidate.category.site_id, candidate.product.id, candidate.discountPercent,
+        candidate.score, 0, candidate.fingerprint, message.text
+      );
     }
-    if (session.cancelled) break;
-
-    const message = opportunityMessage({
-      siteName: candidate.category.site_name,
-      title: candidate.item.name,
-      currentPrice: candidate.item.price,
-      referencePrice: candidate.referencePrice,
-      referencePriceSource: candidate.referencePriceSource,
-      discountPercent: candidate.discountPercent,
-      score: candidate.score,
-      sampleSize: candidate.sampleSize,
-      url: candidate.item.url,
-    });
-    const candidateImage = candidate.item.imageUrl || candidate.product.thumbnail || '';
-    const imageUrl = /^https?:\/\//i.test(candidateImage) ? candidateImage : null;
-
-    // Encaminha dados higienizados para o ML Radar (Etapa 1.3)
-    sendToMLRadar({
-      title: candidate.item.name,
-      price: candidate.item.price,
-      originalPrice: candidate.referencePrice || candidate.item.originalPrice || null,
-      imageUrl,
-      productUrl: candidate.item.url,
-      store: candidate.category.site_name,
-      userId,
-    }).catch(() => {});
-
-    let sent = imageUrl ? await sendPhoto(message.text, imageUrl, { inlineButton: message.inlineButton, referer: candidate.item.url }) : await sendMessage(message.text, { inlineButton: message.inlineButton });
-    if (!sent.ok && imageUrl && sent.photoRejected) {
-      sent = await sendMessage(`${message.text}\n\n${candidate.item.url}`, { inlineButton: message.inlineButton });
-    }
-    await stmts.insertAlert.run(
-      candidate.category.site_id, candidate.product.id, candidate.discountPercent,
-      candidate.score, sent.ok ? 1 : 0, candidate.fingerprint, message.text
-    );
-    candidate._alertSaved = true;
-    session.alertsAttempted += 1;
-    session.alertsByCategory[candidate.category.id] = (session.alertsByCategory[candidate.category.id] || 0) + 1;
-    batchCounter += 1;
-    if (sent.ok) session.alertsSent += 1;
-  }
-
-  for (const candidate of candidates) {
-    if (candidate._alertSaved) continue;
-    const message = opportunityMessage({
-      siteName: candidate.category.site_name,
-      title: candidate.item.name,
-      currentPrice: candidate.item.price,
-      referencePrice: candidate.referencePrice,
-      referencePriceSource: candidate.referencePriceSource,
-      discountPercent: candidate.discountPercent,
-      score: candidate.score,
-      sampleSize: candidate.sampleSize,
-      url: candidate.item.url,
-    });
-    await stmts.insertAlert.run(
-      candidate.category.site_id, candidate.product.id, candidate.discountPercent,
-      candidate.score, 0, candidate.fingerprint, message.text
-    );
-  }
+  };
 
   if (!complete) {
+    // Para chunks intermediários da extensão, inicia o envio Telegram em background e responde imediatamente (<300ms)
+    dispatchTelegramAlerts().catch((err) => logger.warn(`Aviso no envio assíncrono Telegram: ${err.message}`));
     return { status: session.cancelled ? 'cancelled' : 'running', itemsScanned: session.itemsScanned, candidatesFound: session.candidatesFound, alertsSent: session.alertsSent, errors: session.errors, offers };
   }
+
+  // Quando complete === true (finalização da varredura), aguarda o lote final
+  await dispatchTelegramAlerts().catch((err) => logger.warn(`Aviso no envio Telegram final: ${err.message}`));
   const status = session.cancelled ? 'cancelled' : !session.errors.length ? 'success' : session.itemsScanned ? 'partial' : 'error';
   const errorMessage = session.errors.length ? session.errors.slice(0, 10).join(' | ') : null;
   await stmts.insertRun.run(status, session.itemsScanned, session.candidatesFound, session.alertsSent, errorMessage);
@@ -394,6 +406,7 @@ async function processBrowserPagesCycle(pages, scanId, complete, userId = null) 
 
 async function fetchCategory(category, pages) {
   const products = new Map();
+  let emptyPageCount = 0;
   for (let page = 1; page <= pages; page += 1) {
     const pageUrl = page === 1 ? category.url : getPageUrl(category.url, category.domain, page);
     const html = await fetchHtml(pageUrl, category.domain);
@@ -411,11 +424,19 @@ async function fetchCategory(category, pages) {
     const globalStockExhausted = /(?:todos\s*os\s*produtos\s*esgotados|estoque\s*totalmente\s*esgotado|nenhum\s*produto\s*encontrado)/i.test(html)
       && !pageProducts.some((p) => !p.outOfStock);
 
-    if (!pageProducts.length || allOutOfStock || globalStockExhausted) {
-      if (allOutOfStock || globalStockExhausted) {
-        logger.info(`${category.site_name} / ${category.category_name}: produtos esgotados detectados na página ${page}. Interrompendo loop da categoria.`);
-      }
+    if (allOutOfStock || globalStockExhausted) {
+      logger.info(`${category.site_name} / ${category.category_name}: produtos esgotados detectados na página ${page}. Interrompendo loop da categoria.`);
       break;
+    }
+
+    if (!pageProducts.length) {
+      emptyPageCount = (emptyPageCount || 0) + 1;
+      if (emptyPageCount >= 2) {
+        logger.info(`${category.site_name} / ${category.category_name}: catálogo finalizado na página ${page}.`);
+        break;
+      }
+    } else {
+      emptyPageCount = 0;
     }
     if (page < pages) await delay(PAGE_PAUSE_MS);
   }

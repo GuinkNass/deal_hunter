@@ -25,20 +25,24 @@ router.post('/browser-pages/cancel', (req, res) => {
 
 router.post('/browser-pages', async (req, res) => {
   const pages = req.body?.pages;
-  if (!Array.isArray(pages) || pages.length > 50) {
-    return res.status(400).json({ error: 'Envie pages como uma lista de até 50 páginas.' });
+  if (!Array.isArray(pages) || pages.length > 150) {
+    return res.status(400).json({ error: 'Envie pages como uma lista de até 150 páginas.' });
   }
   const cleanPages = pages
     .filter((page) => page && typeof page.categoryId === 'string')
-    .map((page) => ({
-      ...page,
-      html: typeof page.html === 'string' ? page.html.slice(0, 2_000_000) : '',
-      products: Array.isArray(page.products)
-        ? page.products.filter(
-            (p) => p && typeof p === 'object' && (p.name || p.titulo) && Number(p.price || p.preco_atual) > 0
-          )
-        : [],
-    }));
+    .map((page) => {
+      const hasProducts = Array.isArray(page.products) && page.products.length > 0;
+      return {
+        ...page,
+        // Se a extensão já extraiu os produtos estruturados do DOM, descarta o HTML bruto para economizar até 95% de memória RAM
+        html: hasProducts ? '' : (typeof page.html === 'string' ? page.html.slice(0, 1_500_000) : ''),
+        products: hasProducts
+          ? page.products.filter(
+              (p) => p && typeof p === 'object' && (p.name || p.titulo) && Number(p.price || p.preco_atual) > 0
+            )
+          : [],
+      };
+    });
 
   const scanId = req.body?.scanId == null ? null : String(req.body.scanId);
   if (scanId && !/^[a-zA-Z0-9-]{8,80}$/.test(scanId)) {

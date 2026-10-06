@@ -21,7 +21,7 @@ async function bootstrap() {
   app.use(corsMiddleware);
   app.options('*', corsMiddleware);
 
-  app.use(express.json({ limit: '15mb' }));
+  app.use(express.json({ limit: '35mb' }));
 
   // Endpoint de health-check para monitoramento do Render / uptime monitors (responde 200 imediatamente)
   app.get('/health', (req, res) => {
