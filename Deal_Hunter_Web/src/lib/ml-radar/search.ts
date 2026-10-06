@@ -265,6 +265,12 @@ export async function searchMercadoLivre(
           parsedSold = card.includes('mil') ? parseInt(raw, 10) * 1000 : parseInt(raw, 10);
         }
 
+        // Vendedor / Loja oficial no card se disponível
+        const sellerMatch =
+          card.match(/class=["'](?:poly-component__seller|ui-search-official-store-label|ui-search-item__brand-title)[^"']*["'][^>]*>(?:por\s*)?([^<]+)<\/(?:span|a)>/i) ||
+          card.match(/(?:por|vendedor|loja)\s+([A-Za-z0-9_\-\.\s]{3,30})/i);
+        const sellerNickname = sellerMatch ? sellerMatch[1].trim() : 'Vendedor Mercado Livre';
+
         if (linkMatch && (titleMatch || imgMatch)) {
           let cleanUrl = linkMatch[1].split('?')[0].split('#')[0];
           if (cleanUrl.startsWith('/')) {
@@ -293,7 +299,7 @@ export async function searchMercadoLivre(
               free_shipping: card.includes('Frete grátis') || price >= 79.0,
               is_full: card.includes('fulfillment') || card.includes('Full'),
               sold_quantity: parsedSold,
-              seller_nickname: 'Vendedor Mercado Livre',
+              seller_nickname: sellerNickname,
               seller_reputation_level: '5_green',
             });
           }

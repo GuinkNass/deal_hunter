@@ -67,6 +67,11 @@ export default function DashboardPage() {
       if (tab === 'calculator' || tab === 'manual' || tab === 'settings' || tab === 'status' || tab === 'radar') {
         setActiveTab(tab as any);
       }
+      if (params.get('ml_connected') === 'true') {
+        setNotification('✅ Mercado Livre conectado com sucesso! Token oficial ativo para busca de concorrentes líderes.');
+      } else if (params.get('ml_error')) {
+        setNotification(`⚠️ Erro ao conectar Mercado Livre: ${params.get('ml_error')}`);
+      }
     }
 
     supabase.auth.getSession().then(({ data: { session } }) => {

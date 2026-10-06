@@ -23,7 +23,7 @@ interface RobustSettingsViewProps {
   userId?: string | null;
 }
 
-export default function RobustSettingsView({ authToken }: RobustSettingsViewProps) {
+export default function RobustSettingsView({ authToken, userId }: RobustSettingsViewProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -33,12 +33,14 @@ export default function RobustSettingsView({ authToken }: RobustSettingsViewProp
 
   // Sensitive field masks
   const [showMlSecret, setShowMlSecret] = useState(false);
+  const [showMlApiKey, setShowMlApiKey] = useState(false);
   const [showTelegramToken, setShowTelegramToken] = useState(false);
   const [showGeminiKey, setShowGeminiKey] = useState(false);
 
   // Form states
   const [mlClientId, setMlClientId] = useState('');
   const [mlClientSecret, setMlClientSecret] = useState('');
+  const [mlApiKey, setMlApiKey] = useState('');
   const [telegramBotToken, setTelegramBotToken] = useState('');
   const [telegramChatId, setTelegramChatId] = useState('');
   const [geminiApiKey, setGeminiApiKey] = useState('');
@@ -73,6 +75,7 @@ export default function RobustSettingsView({ authToken }: RobustSettingsViewProp
         const d = json.data;
         setMlClientId(d.ml_client_id || '');
         setMlClientSecret(d.ml_client_secret || '');
+        setMlApiKey(d.ml_api_key || '');
         setTelegramBotToken(d.telegram_bot_token || '');
         setTelegramChatId(d.telegram_chat_id || '');
         setGeminiApiKey(d.gemini_api_key || '');
@@ -109,6 +112,7 @@ export default function RobustSettingsView({ authToken }: RobustSettingsViewProp
         body: JSON.stringify({
           ml_client_id: mlClientId,
           ml_client_secret: mlClientSecret,
+          ml_api_key: mlApiKey,
           telegram_bot_token: telegramBotToken,
           telegram_chat_id: telegramChatId,
           gemini_api_key: geminiApiKey,
@@ -168,6 +172,7 @@ export default function RobustSettingsView({ authToken }: RobustSettingsViewProp
           service,
           ml_client_id: mlClientId,
           ml_client_secret: mlClientSecret,
+          ml_api_key: mlApiKey,
           telegram_bot_token: telegramBotToken,
           telegram_chat_id: telegramChatId,
           gemini_api_key: geminiApiKey,
@@ -191,12 +196,15 @@ export default function RobustSettingsView({ authToken }: RobustSettingsViewProp
 
   async function handleConnectML() {
     try {
-      const res = await fetch('/api/ml/auth-url');
+      const params = new URLSearchParams();
+      if (mlClientId) params.set('clientId', mlClientId.trim());
+      if (userId) params.set('userId', userId.trim());
+      const res = await fetch(`/api/ml/auth-url?${params.toString()}`);
       const json = await res.json();
       if (json.success && json.url) {
         window.location.href = json.url;
       } else {
-        alert('Configure primeiro o ML Client ID antes de conectar.');
+        alert(json.error || 'Configure primeiro o ML Client ID antes de conectar.');
       }
     } catch (err: any) {
       alert(err.message);
@@ -374,6 +382,50 @@ export default function RobustSettingsView({ authToken }: RobustSettingsViewProp
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
               >
                 {showMlSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Access Token / Token de Acesso */}
+          <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800/80 space-y-2 md:col-span-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-200">
+                Token de Acesso / Access Token (Preenchido via Conexão ou Manual)
+              </label>
+              <button
+                type="button"
+                onClick={() => toggleAccordion('ml_access_token')}
+                className="text-[11px] font-semibold text-cyan-400 hover:underline flex items-center gap-1"
+              >
+                <HelpCircle className="w-3.5 h-3.5" /> Como funciona?
+              </button>
+            </div>
+
+            {activeAccordion === 'ml_access_token' && (
+              <div className="p-3 bg-slate-900 border border-cyan-500/30 rounded-xl text-xs text-slate-300 space-y-1">
+                <p>
+                  O Mercado Livre exige um Bearer Token para permitir buscas cirúrgicas de concorrentes líderes e extrair o link direto do anúncio campeão.
+                </p>
+                <p>
+                  Ao clicar em <strong>&ldquo;CONECTAR MERCADO LIVRE&rdquo;</strong>, este token é gerado e salvo automaticamente. Você também pode colar um token gerado manualmente no painel de desenvolvedores do Mercado Livre (iniciado por <code>APP_USR-</code>).
+                </p>
+              </div>
+            )}
+
+            <div className="relative">
+              <input
+                type={showMlApiKey ? 'text' : 'password'}
+                value={mlApiKey}
+                onChange={(e) => setMlApiKey(e.target.value)}
+                placeholder="APP_USR-..."
+                className="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowMlApiKey(!showMlApiKey)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+              >
+                {showMlApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
           </div>

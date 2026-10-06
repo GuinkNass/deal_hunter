@@ -3,11 +3,35 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { service, gemini_api_key, gemini_model, ml_client_id, ml_client_secret, telegram_bot_token, telegram_chat_id } = body;
+    const { service, gemini_api_key, gemini_model, ml_api_key, ml_client_id, ml_client_secret, telegram_bot_token, telegram_chat_id } = body;
 
     // 1. Teste Mercado Livre
     if (service === 'mercadolivre') {
       try {
+        // Se possui access_token oficial, valida diretamente com /users/me
+        if (ml_api_key) {
+          const userRes = await fetch('https://api.mercadolibre.com/users/me', {
+            headers: {
+              Authorization: `Bearer ${ml_api_key.trim()}`,
+              Accept: 'application/json',
+            },
+            signal: AbortSignal.timeout(6000),
+          });
+
+          if (userRes.ok) {
+            const userData = await userRes.json();
+            return NextResponse.json({
+              success: true,
+              message: `✅ Token ML Oficial Ativo! Usuário Autenticado: "${userData.nickname || userData.id}". Busca de concorrentes vencedores e dados reais 100% liberados!`,
+            });
+          } else {
+            return NextResponse.json({
+              success: false,
+              message: `⚠️ Token ML expirado ou inválido (HTTP ${userRes.status}). Clique no botão "Conectar Mercado Livre" para gerar um novo token.`,
+            });
+          }
+        }
+
         const pingRes = await fetch('https://api.mercadolibre.com/categories/MLB1672', {
           headers: { Accept: 'application/json' },
           signal: AbortSignal.timeout(6000),
@@ -23,13 +47,13 @@ export async function POST(req: NextRequest) {
         if (ml_client_id && ml_client_secret) {
           return NextResponse.json({
             success: true,
-            message: `✅ Credenciais ML registradas com sucesso! Client ID: "${ml_client_id.substring(0, 6)}...". Busca oficial e catálogo MLB operacionais.`,
+            message: `✅ Credenciais ML registradas (Client ID: ${ml_client_id.substring(0, 6)}...). Clique no botão "Conectar Mercado Livre" para autenticar e obter dados reais de concorrentes.`,
           });
         }
 
         return NextResponse.json({
           success: true,
-          message: '✅ Conexão com Mercado Livre (MLB) operacional via busca pública e catálogo.',
+          message: '✅ Conexão com Mercado Livre (MLB) operacional.',
         });
       } catch (err: any) {
         return NextResponse.json({

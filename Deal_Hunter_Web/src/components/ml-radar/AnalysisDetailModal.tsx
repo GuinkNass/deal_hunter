@@ -73,7 +73,10 @@ interface AnalysisDetailModalProps {
 /**
  * Garante link direto ao Anúncio Vencedor no Mercado Livre
  */
-function getSafeMlUrl(item: DealAnalysis): string {
+function getSafeMlUrl(item: DealAnalysis, realWinner?: any): string {
+  if (realWinner?.permalink && (realWinner.permalink.includes('produto.mercadolivre.com.br') || realWinner.permalink.includes('/p/MLB') || realWinner.permalink.includes('MLB-'))) {
+    return realWinner.permalink;
+  }
   if (!item) return '#';
   const url = item.ml_url;
   
@@ -103,6 +106,7 @@ function getSafeMlUrl(item: DealAnalysis): string {
 export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculator }: AnalysisDetailModalProps) {
   const [projectionDays, setProjectionDays] = useState<number>(30);
   const [geminiData, setGeminiData] = useState<any>(analysis?.gemini_analysis || null);
+  const [realMlWinner, setRealMlWinner] = useState<any>(null);
   const [isAuditing, setIsAuditing] = useState<boolean>(false);
 
   const productTitle = analysis?.ml_title || analysis?.title || analysis?.source_title || 'Produto sem título';
@@ -116,7 +120,7 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
       (sourcePrice > 0 ? (sourcePrice * 1.45).toFixed(2) : 129.9)
   );
 
-  // Executa auditoria em tempo real com Gemini 3.8 se ainda não houver análise com realMarketPrice
+  // Executa auditoria em tempo real com Gemini 3.8 e busca dados oficiais do ML
   React.useEffect(() => {
     if (!analysis) return;
     if (analysis.gemini_analysis && analysis.gemini_analysis.realMarketPrice) {
@@ -142,8 +146,9 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
     })
       .then((res) => res.json())
       .then((data) => {
-        if (isMounted && data.success && data.audit) {
-          setGeminiData(data.audit);
+        if (isMounted && data.success) {
+          if (data.audit) setGeminiData(data.audit);
+          if (data.mlWinner) setRealMlWinner(data.mlWinner);
         }
       })
       .catch((err) => console.error('[AnalysisDetailModal] Erro na auditoria Gemini:', err))
@@ -167,15 +172,20 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
 
   // Preço de referência corrigido pela auditoria da IA caso a loja parceira tenha inflado a âncora
   const effectiveWinnerPrice =
-    isInflatedAnchor && gemini.realMarketPrice ? Number(gemini.realMarketPrice) : winnerPrice;
+    isInflatedAnchor && gemini.realMarketPrice
+      ? Number(gemini.realMarketPrice)
+      : (realMlWinner?.price ? Number(realMlWinner.price) : winnerPrice);
+
+  const sellerName = realMlWinner?.seller_nickname || analysis.ml_seller_name || 'Vendedor Mercado Livre';
 
   // 1. Dados Reais de Mercado (Menor Preço, Anúncio Campeão e Data Mais Antiga)
   const minPrice = Number(
+    realMlWinner?.min_price ||
     analysis.ml_min_price ||
       (effectiveWinnerPrice > 0 ? (effectiveWinnerPrice * 0.89).toFixed(2) : (sourcePrice * 1.35).toFixed(2))
   );
 
-  const soldQty = Number(analysis.ml_sold_quantity || 1500);
+  const soldQty = Number(realMlWinner?.sold_quantity || analysis.ml_sold_quantity || 1500);
   const daysActive = Number(analysis.ml_days_active || 85);
 
   const oldestDateObj = analysis.ml_oldest_date
@@ -318,7 +328,7 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
             <div className="flex-1 min-w-0 space-y-2.5">
               <div className="flex items-start justify-between gap-3">
                 <a
-                  href={getSafeMlUrl(analysis)}
+                  href={getSafeMlUrl(analysis, realMlWinner)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-bold text-base sm:text-lg text-white hover:text-cyan-300 transition-colors inline-flex items-center gap-1.5 leading-snug"
@@ -368,7 +378,7 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
                 <span className="text-slate-600">|</span>
 
                 <span className="font-bold text-white uppercase flex items-center gap-1">
-                  {analysis.ml_seller_name || 'Vendedor Mercado Livre'}
+                  {sellerName}
                 </span>
 
                 {/* 5-bar green reputation block */}
@@ -407,7 +417,7 @@ export default function AnalysisDetailModal({ analysis, onClose, onOpenCalculato
               {/* Action Buttons */}
               <div className="pt-2 flex flex-wrap items-center gap-3">
                 <a
-                  href={getSafeMlUrl(analysis)}
+                  href={getSafeMlUrl(analysis, realMlWinner)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-amber-500/20 active:scale-[0.98]"
