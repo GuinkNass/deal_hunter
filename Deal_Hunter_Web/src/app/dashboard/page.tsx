@@ -34,6 +34,7 @@ import ManualSearchModal from '@/components/ml-radar/ManualSearchModal';
 import MarginCalculatorView from '@/components/ml-radar/MarginCalculatorView';
 import RobustSettingsView from '@/components/ml-radar/RobustSettingsView';
 import StatusView from '@/components/ml-radar/StatusView';
+import DealProductCard from '@/components/ml-radar/DealProductCard';
 import { getProductFallbackImage } from '@/lib/ml-radar/imageFallback';
 
 export default function DashboardPage() {
@@ -715,248 +716,18 @@ export default function DashboardPage() {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {filteredDeals.map((deal) => {
-                  const isViable = deal.verdict === 'Viável';
-                  const isAttention = deal.verdict === 'Atenção';
-                  const itemTitle = deal.title || deal.source_title || 'Produto sem título';
-                  const itemPrice = Number(deal.price || deal.source_price || 0);
-                  const dealId = deal.id || '';
-
-                  return (
-                    <div
-                      key={deal.id || `deal-${deal.product_url}`}
-                      onClick={() => setSelectedDealForDetail(deal)}
-                      className="group bg-[#101420] border border-gray-800/80 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/5 rounded-3xl p-5 shadow-lg flex flex-col justify-between space-y-4 transition-all cursor-pointer"
-                    >
-                      {/* Header do Card */}
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={(e) => handleToggleSelectDeal(dealId, e)}
-                            className="p-1 rounded-lg text-gray-400 hover:text-white transition-colors"
-                            title={selectedDealIds.includes(dealId) ? 'Desmarcar' : 'Selecionar'}
-                          >
-                            {selectedDealIds.includes(dealId) ? (
-                              <CheckSquare className="w-4 h-4 text-cyan-400" />
-                            ) : (
-                              <Square className="w-4 h-4 text-gray-600 hover:text-gray-400" />
-                            )}
-                          </button>
-                          <span className="px-2.5 py-1 rounded-full bg-white/[0.06] text-gray-300 text-[10px] font-bold border border-white/10 uppercase">
-                            {deal.store}
-                          </span>
-                          <span
-                            className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${
-                              isViable
-                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                                : isAttention
-                                ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                                : 'bg-red-500/20 text-red-300 border-red-500/30'
-                            }`}
-                          >
-                            {deal.verdict || 'Análise'}
-                          </span>
-                          {deal.gemini_analysis?.score && (
-                            <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-bold border border-purple-500/30 flex items-center gap-1">
-                              <Sparkles className="w-2.5 h-2.5 text-purple-400" />
-                              Score {deal.gemini_analysis.score}
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                          <span className="text-[10px] text-gray-500 font-medium">
-                            {deal.created_at
-                              ? new Date(deal.created_at).toLocaleTimeString('pt-BR', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })
-                              : ''}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => handleDeleteSingleDeal(deal, e)}
-                            className="p-1.5 rounded-lg text-gray-600 hover:text-rose-400 hover:bg-rose-950/30 transition-colors"
-                            title="Excluir este anúncio do Radar"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Conteúdo Principal (Origem vs Mercado Livre) */}
-                      <div className="flex gap-4">
-                        <div className="w-20 h-20 rounded-2xl bg-white p-1 flex-shrink-0 flex items-center justify-center overflow-hidden border border-gray-800">
-                          <img
-                            src={
-                              deal.image_url ||
-                              deal.source_image_url ||
-                              getProductFallbackImage(itemTitle, deal.store)
-                            }
-                            alt={itemTitle}
-                            className="w-full h-full object-contain"
-                            onError={(e) => {
-                              e.currentTarget.onerror = null;
-                              e.currentTarget.src = getProductFallbackImage(itemTitle, deal.store);
-                            }}
-                          />
-                        </div>
-
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <h4 className="text-xs font-bold text-white line-clamp-2 leading-snug group-hover:text-cyan-300 transition-colors">
-                            {itemTitle}
-                          </h4>
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-base font-black text-cyan-400">
-                              R$ {itemPrice.toFixed(2)}
-                            </span>
-                            {deal.original_price && deal.original_price > itemPrice && (
-                              <span className="text-[11px] text-gray-500 line-through">
-                                R$ {Number(deal.original_price).toFixed(2)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Match no Mercado Livre */}
-                      {(() => {
-                        const isEvaluated = Boolean(
-                          deal.clinical_evaluated ||
-                          (deal.ml_url &&
-                            (deal.ml_url.includes('produto.mercadolivre.com.br') ||
-                              deal.ml_url.includes('/p/MLB') ||
-                              deal.ml_url.includes('/MLB-')))
-                        );
-
-                        return (
-                          <div className="p-3.5 rounded-2xl bg-[#090d16] border border-gray-800/80 space-y-2">
-                            {isEvaluated ? (
-                              <>
-                                <div className="flex items-center justify-between text-xs">
-                                  <span className="font-semibold text-gray-400">Preço Vencedor ML:</span>
-                                  <span className="font-black text-emerald-400">
-                                    R$ {Number(deal.ml_price || 0).toFixed(2)}
-                                  </span>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-gray-800/60 text-xs">
-                                  <div>
-                                    <span className="text-[10px] text-gray-500 block">Lucro Líquido:</span>
-                                    <span className="font-bold text-white">
-                                      R$ {Number(deal.net_profit || 0).toFixed(2)}
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <span className="text-[10px] text-gray-500 block">ROI Projetado:</span>
-                                    <span className="font-bold text-indigo-400">
-                                      {Number(deal.roi_percent || 0).toFixed(1)}%
-                                    </span>
-                                  </div>
-                                </div>
-
-                                {deal.ml_seller_name && (
-                                  <div className="pt-1 border-t border-gray-800/60 flex items-center justify-between text-[11px] text-gray-400">
-                                    <span>Vendedor:</span>
-                                    <span
-                                      className="font-bold text-white uppercase truncate max-w-[130px]"
-                                      title={deal.ml_seller_name}
-                                    >
-                                      {deal.ml_seller_name}
-                                    </span>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <div className="py-2 text-center space-y-1">
-                                <span className="text-[11px] text-amber-400 font-bold flex items-center justify-center gap-1">
-                                  <Sparkles className="w-3.5 h-3.5" /> Aguardando Avaliação ML
-                                </span>
-                                <span className="text-[10px] text-gray-500 block">
-                                  Clique em <strong>Avaliar ML</strong> para varrer dados reais
-                                </span>
-                              </div>
-                            )}
-
-                            {deal.gemini_analysis && (
-                              <div className="mt-2 pt-2 border-t border-gray-800/60 flex items-start gap-1.5 text-[11px] text-violet-300">
-                                <Sparkles className="w-3.5 h-3.5 flex-shrink-0 text-violet-400 mt-0.5" />
-                                <p className="line-clamp-2">
-                                  {deal.gemini_analysis.justification || deal.gemini_analysis.verdict}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()}
-
-                      {/* Ações */}
-                      <div
-                        className="flex items-center gap-2 pt-1"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          onClick={() => setSelectedDealForDetail(deal)}
-                          className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm"
-                          title="Avaliar produto e concorrência no Mercado Livre"
-                        >
-                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                          <span>Avaliar ML</span>
-                        </button>
-
-                        <button
-                          onClick={() => handleOpenCalculatorForDeal(deal)}
-                          className="py-2 px-3 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors"
-                          title="Simular na calculadora"
-                        >
-                          <Calculator className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">Calculadora</span>
-                        </button>
-
-                        {deal.product_url && (
-                          <a
-                            href={deal.product_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="py-2 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-white text-[11px] font-bold flex items-center justify-center gap-1 transition-colors"
-                            title="Ver na loja de origem"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        )}
-
-                        {deal.ml_url &&
-                          !deal.ml_url.includes('lista.mercadolivre.com.br') &&
-                          (deal.clinical_evaluated ||
-                            deal.ml_url.includes('produto.mercadolivre.com.br') ||
-                            deal.ml_url.includes('/p/MLB') ||
-                            deal.ml_url.includes('/up/MLB') ||
-                            deal.ml_url.includes('/MLB-')) && (
-                            <a
-                              href={deal.ml_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="py-2 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold flex items-center justify-center gap-1 transition-colors"
-                              title="Abrir Anúncio Vencedor no Mercado Livre"
-                            >
-                              <ArrowUpRight className="w-3.5 h-3.5" />
-                            </a>
-                          )}
-
-                        <button
-                          type="button"
-                          onClick={(e) => handleDeleteSingleDeal(deal, e)}
-                          className="py-2 px-2.5 rounded-xl bg-red-950/20 hover:bg-rose-900/40 text-gray-500 hover:text-rose-400 border border-transparent hover:border-rose-500/30 text-[11px] font-bold flex items-center justify-center transition-all"
-                          title="Excluir este anúncio do Radar"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+                {filteredDeals.map((deal) => (
+                  <DealProductCard
+                    key={deal.id || `deal-${deal.product_url}`}
+                    deal={deal}
+                    isSelected={Boolean(deal.id && selectedDealIds.includes(deal.id))}
+                    onToggleSelect={handleToggleSelectDeal}
+                    onDelete={handleDeleteSingleDeal}
+                    onEvaluate={setSelectedDealForDetail}
+                    onOpenCalculator={handleOpenCalculatorForDeal}
+                  />
+                ))}
               </div>
             )}
           </div>
