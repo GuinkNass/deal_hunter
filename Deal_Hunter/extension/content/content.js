@@ -335,33 +335,78 @@
         const origEl = card.querySelector('span[class*="line-through"], [class*="line-through"], [class*="oldPriceCard"], del');
         let precoOriginalNum = origEl ? parseCurrencyToNumber(origEl.innerText || origEl.textContent) : null;
 
-        // Preço Atual: Regex monetária card.innerText.match(/R\$\s?[\d.,]+/g) selecionando o valor promocional à vista
         const fullCardText = sanitizeText(card.innerText || card.textContent || '');
+
+        // 1. Extrai todos os valores identificados explicitamente como parcelas para expurgo
+        const installmentValues = new Set();
+        const installmentMatches = fullCardText.matchAll(/(?:\b\d+\s*x\s*(?:de\s*)?|em\s+at[ée]\s+\d+\s*x\s*(?:de\s*)?)R\$\s*([\d.,]+)/gi);
+        for (const m of installmentMatches) {
+          const val = parseCurrencyToNumber(m[1]);
+          if (val) installmentValues.add(val);
+        }
+        const suffixMatches = fullCardText.matchAll(/R\$\s*([\d.,]+)\s*(?:em\s+at[ée]\s+\d+x|\(?sem\s*juros\)?)/gi);
+        for (const m of suffixMatches) {
+          const val = parseCurrencyToNumber(m[1]);
+          if (val) installmentValues.add(val);
+        }
+
+        // 2. Extrai todos os preços brutos e remove valores de parcelas
         const moneyMatches = fullCardText.match(/R\$\s?[\d.,]+/g) || [];
         const extractedPrices = moneyMatches
           .map(parseCurrencyToNumber)
           .filter((p) => p && p > 0);
 
-        let precoAtualNum = null;
-        const curEl = card.querySelector('[class*="finalPrice"], [class*="priceCard"], [class*="text-gray-800"][class*="font-semibold"], [class*="priceText"]');
-        if (curEl && !isInstallmentElement(curEl)) {
-          precoAtualNum = parseCurrencyToNumber(curEl.innerText || curEl.textContent);
-        }
+        const nonInstallmentPrices = extractedPrices.filter(
+          (p) => !Array.from(installmentValues).some((iv) => Math.abs(iv - p) < 0.05)
+        );
 
-        // Seleciona o menor valor que não seja parcela como preço promocional à vista
-        if (!precoAtualNum && extractedPrices.length > 0) {
-          const validCandidates = extractedPrices.filter((p) => !precoOriginalNum || p < precoOriginalNum);
-          if (validCandidates.length > 0) {
-            precoAtualNum = Math.min(...validCandidates);
-          } else {
-            precoAtualNum = Math.min(...extractedPrices);
+        let precoAtualNum = null;
+
+        // 3. Prioridade 1: Preço explícito à vista / no PIX
+        const pixMatch = fullCardText.match(/(?:R\$\s*([\d.,]+)\s*(?:à\s*vista|no\s*Pix|no\s*PIX|em\s*1x)|(?:à\s*vista|no\s*Pix|no\s*PIX)\s*(?:por\s*)?R\$\s*([\d.,]+))/i);
+        if (pixMatch) {
+          const candPix = parseCurrencyToNumber(pixMatch[1] || pixMatch[2]);
+          if (candPix && !Array.from(installmentValues).some((iv) => Math.abs(iv - candPix) < 0.05)) {
+            precoAtualNum = candPix;
           }
         }
 
-        if (extractedPrices.length >= 2 && (!precoOriginalNum || precoOriginalNum <= precoAtualNum)) {
-          const maxVal = Math.max(...extractedPrices);
+        // 4. Prioridade 2: Elemento específico de preço final que não seja parcela
+        if (!precoAtualNum) {
+          const curEl = card.querySelector('[class*="finalPrice"], [class*="priceCard"], h4[class*="text-"], [class*="preco_desconto_a_vista"]');
+          if (curEl && !isInstallmentElement(curEl)) {
+            const parsed = parseCurrencyToNumber(curEl.innerText || curEl.textContent);
+            if (parsed && !Array.from(installmentValues).some((iv) => Math.abs(iv - parsed) < 0.05)) {
+              precoAtualNum = parsed;
+            }
+          }
+        }
+
+        // 5. Prioridade 3: Menor valor não-parcelado
+        if (!precoAtualNum && nonInstallmentPrices.length > 0) {
+          const validCandidates = nonInstallmentPrices.filter((p) => !precoOriginalNum || p < precoOriginalNum);
+          if (validCandidates.length > 0) {
+            precoAtualNum = Math.min(...validCandidates);
+          } else {
+            precoAtualNum = Math.min(...nonInstallmentPrices);
+          }
+        }
+
+        // 6. Preço Original: maior valor não-parcelado
+        if (nonInstallmentPrices.length >= 2 && (!precoOriginalNum || precoOriginalNum <= precoAtualNum)) {
+          const maxVal = Math.max(...nonInstallmentPrices);
           if (maxVal > precoAtualNum) {
             precoOriginalNum = maxVal;
+          }
+        }
+
+        // 7. Trava de segurança anti-parcela KaBuM
+        if (precoOriginalNum && precoAtualNum && precoOriginalNum > precoAtualNum) {
+          const ratio = Math.round(precoOriginalNum / precoAtualNum);
+          if ((ratio >= 2 && ratio <= 24 && new RegExp(`\\b${ratio}\\s*x\\b`, 'i').test(fullCardText)) ||
+              Array.from(installmentValues).some((iv) => Math.abs(iv - precoAtualNum) < 0.05)) {
+            precoAtualNum = precoOriginalNum;
+            precoOriginalNum = null;
           }
         }
 

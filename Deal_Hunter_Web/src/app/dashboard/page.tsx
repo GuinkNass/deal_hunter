@@ -337,8 +337,12 @@ export default function DashboardPage() {
 
   function handleManualSearchSuccess(newDeal: any) {
     setNotification('✅ Análise manual concluída e salva no seu histórico do Radar ML!');
-    if (authToken) loadDeals(authToken);
+    if (newDeal) {
+      setDeals((prev) => [newDeal, ...prev.filter((d) => d.id !== newDeal.id)]);
+      setSelectedDealForDetail(newDeal);
+    }
     setActiveTab('radar');
+    if (authToken) loadDeals(authToken);
     setTimeout(() => setNotification(null), 5000);
   }
 

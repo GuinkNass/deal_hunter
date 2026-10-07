@@ -29,24 +29,30 @@ async function sendToMLRadar({ title, price, originalPrice, imageUrl, productUrl
     store: String(store || 'Online').trim(),
   };
 
-  const primaryUrl = process.env.ML_RADAR_INGEST_URL || 'https://dealhunterpro.com.br/api/ml-radar/ingest';
+  const candidateUrls = [
+    process.env.ML_RADAR_INGEST_URL,
+    `${(config.webAuthUrl || 'https://deal-hunter-guilhermernascimento-9353s-projects.vercel.app').replace(/\/+$/, '')}/api/ml-radar/ingest`,
+    'https://deal-hunter-web.onrender.com/api/ml-radar/ingest',
+  ].filter(Boolean);
 
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3500);
-    const res = await fetch(primaryUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    }).finally(() => clearTimeout(timeout));
+  for (const targetUrl of candidateUrls) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4500);
+      const res = await fetch(targetUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeout));
 
-    if (res.ok) {
-      logger.info(`[ML Radar Pipeline] Oferta sincronizada com sucesso: "${payload.title}" (R$ ${payload.price})`);
-      return true;
+      if (res.ok) {
+        logger.info(`[ML Radar Pipeline] Oferta sincronizada com sucesso no Web (${targetUrl}): "${payload.title}" (R$ ${payload.price})`);
+        return true;
+      }
+    } catch (err) {
+      // Tenta a próxima URL disponível
     }
-  } catch (err) {
-    // Falha silenciosa para manter a varredura e alertas ultra-rápidos
   }
 
   return false;

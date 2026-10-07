@@ -63,35 +63,59 @@ function parseKabum(html, pageUrl) {
   const isOutOfStock = $('[class*="unavailable"], [class*="produtoIndisponivel"], [id*="indisponivel"]').length > 0
     || /(?:produto indisponível|esgotado|avise-me quando chegar|ops! produto esgotado)/i.test(bodyText);
 
-  // 1. Preço à vista / PIX
-  let currentPrice = null;
-  const priceElements = $('[class*="finalPrice"], [class*="priceText"], [class*="priceCard"], h4[class*="text-"], [class*="font-semibold"], [class*="font-bold"], .preco_desconto_a_vista, [data-testid*="price"]');
-  priceElements.each((_, el) => {
-    if (currentPrice) return;
-    if (isInstallmentElement($, el)) return;
-    // Não confunde preço riscado com preço atual
-    const cls = $(el).attr('class') || '';
-    if (/line-through|oldprice/i.test(cls) || $(el).is('del, s')) return;
-    const val = parsePrice($(el).text());
-    if (val > 0) currentPrice = val;
-  });
-
-  if (!currentPrice) {
-    const matchPix = bodyText.match(/R\$\s*([\d.]+,\d{2})\s*(?:no\s+Pix|à\s+vista|em\s+1x)/i);
-    if (matchPix) currentPrice = parsePrice(matchPix[1]);
+  // 1. Extração preventiva de todos os valores de parcelas para expurgo
+  const installmentValues = new Set();
+  const instMatches = bodyText.matchAll(/(?:\b\d+\s*x\s*(?:de\s*)?|em\s+at[ée]\s+\d+\s*x\s*(?:de\s*)?)R\$\s*([\d.,]+)/gi);
+  for (const m of instMatches) {
+    const val = parsePrice(m[1]);
+    if (val) installmentValues.add(val);
+  }
+  const suffixMatches = bodyText.matchAll(/R\$\s*([\d.,]+)\s*(?:em\s+at[ée]\s+\d+x|\(?sem\s*juros\)?)/gi);
+  for (const m of suffixMatches) {
+    const val = parsePrice(m[1]);
+    if (val) installmentValues.add(val);
   }
 
-  // 2. Preço original "De" (prioriza elemento riscado line-through)
+  // 2. Preço à vista / PIX
+  let currentPrice = null;
+
+  // Prioridade 1: Preço explícito com tag PIX / à vista no texto
+  const matchPix = bodyText.match(/(?:R\$\s*([\d.]+,\d{2})\s*(?:no\s+Pix|à\s+vista|em\s+1x)|(?:no\s+Pix|à\s+vista)\s*(?:por\s*)?R\$\s*([\d.]+,\d{2}))/i);
+  if (matchPix) {
+    const candPix = parsePrice(matchPix[1] || matchPix[2]);
+    if (candPix && !Array.from(installmentValues).some((iv) => Math.abs(iv - candPix) < 0.05)) {
+      currentPrice = candPix;
+    }
+  }
+
+  if (!currentPrice) {
+    const priceElements = $('[class*="finalPrice"], [class*="priceText"], [class*="priceCard"], h4[class*="text-"], [class*="font-semibold"], [class*="font-bold"], .preco_desconto_a_vista, [data-testid*="price"]');
+    priceElements.each((_, el) => {
+      if (currentPrice) return;
+      if (isInstallmentElement($, el)) return;
+      // Não confunde preço riscado com preço atual
+      const cls = $(el).attr('class') || '';
+      if (/line-through|oldprice/i.test(cls) || $(el).is('del, s')) return;
+      const val = parsePrice($(el).text());
+      if (val > 0 && !Array.from(installmentValues).some((iv) => Math.abs(iv - val) < 0.05)) {
+        currentPrice = val;
+      }
+    });
+  }
+
+  // 3. Preço original "De" (prioriza elemento riscado line-through)
   let originalPrice = null;
   const oldPriceElements = $('[class*="line-through"], [class*="oldPrice"], [class*="oldPriceCard"], del, s');
   oldPriceElements.each((_, el) => {
     if (originalPrice) return;
     if (isInstallmentElement($, el)) return;
     const val = parsePrice($(el).text());
-    if (val > 0 && (!currentPrice || val > currentPrice)) originalPrice = val;
+    if (val > 0 && !Array.from(installmentValues).some((iv) => Math.abs(iv - val) < 0.05) && (!currentPrice || val > currentPrice)) {
+      originalPrice = val;
+    }
   });
 
-  // 3. Desconto: Prioriza dedução matemática a partir do preço riscado vs atual
+  // 4. Desconto: Prioriza dedução matemática a partir do preço riscado vs atual
   let advertisedDiscount = null;
   if (originalPrice && currentPrice && originalPrice > currentPrice) {
     advertisedDiscount = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
@@ -102,11 +126,13 @@ function parseKabum(html, pageUrl) {
     }
   }
 
-  // Trava anti-parcela KaBuM!
+  // 5. Trava anti-parcela KaBuM!
   if (currentPrice && originalPrice && originalPrice > currentPrice) {
     const ratio = Math.round(originalPrice / currentPrice);
-    if (ratio >= 2 && ratio <= 24 && new RegExp(`\\b${ratio}\\s*x\\b`, 'i').test(bodyText)) {
+    if ((ratio >= 2 && ratio <= 24 && (new RegExp(`\\b${ratio}\\s*x\\b`, 'i').test(bodyText) || /x\s*de/i.test(bodyText))) ||
+        Array.from(installmentValues).some((iv) => Math.abs(iv - currentPrice) < 0.05)) {
       currentPrice = originalPrice;
+      originalPrice = null;
     }
   }
 

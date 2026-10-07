@@ -613,6 +613,7 @@ async function runBrowserScanCycle(control) {
         const partial = await api.submitBrowserPages(chunk, scanId, false);
         result = partial.status === 'running' ? partial : { ...result, ...partial };
         if (control.cancelled) break;
+        const totalCount = chunk.reduce((acc, p) => acc + (p.products?.length || 0), 0);
         const allProds = chunk.flatMap((page) => page.products || [])
           .filter((p) => p && p.name)
           .slice(0, 25)
@@ -622,14 +623,49 @@ async function runBrowserScanCycle(control) {
             originalPrice: p.originalPrice,
             discountPercent: p.advertisedDiscount,
             imageUrl: p.imageUrl,
+            url: p.url,
           }));
+
         publishScanProgress({
           scanning: true, manual: control.manual, siteName: category.siteName, categoryName: category.name,
-          status: `${productCount} produto(s) enviados para análise`,
+          status: `${totalCount} produto(s) lidos na categoria`,
           product: allProds[0] || null,
           products: allProds,
           scanSessionId: `${category.id}-analysis`,
         });
+
+        // Sincronização direta de contingência: envia ofertas diretamente para o ML Radar Web
+        const offersToSync = (partial.offers && partial.offers.length > 0)
+          ? partial.offers
+          : allProds.filter((p) => p.discountPercent && p.discountPercent > 0).slice(0, 5);
+
+        if (offersToSync.length > 0) {
+          (async () => {
+            try {
+              const baseUrl = await getWebAuthUrl();
+              const { auth_token, auth_user } = await chrome.storage.local.get(['auth_token', 'auth_user']);
+              for (const off of offersToSync) {
+                fetch(`${baseUrl}/api/ml-radar/ingest`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(auth_token ? { Authorization: `Bearer ${auth_token}` } : {}),
+                  },
+                  body: JSON.stringify({
+                    title: off.name,
+                    price: off.price,
+                    originalPrice: off.originalPrice || null,
+                    imageUrl: off.imageUrl || null,
+                    productUrl: off.url,
+                    store: off.siteName || category.siteName,
+                    userId: auth_user?.id || null,
+                  }),
+                }).catch(() => {});
+              }
+            } catch {}
+          })();
+        }
+
         for (const offer of partial.offers || []) {
           publishScanProgress({
             scanning: true, manual: control.manual, siteName: offer.siteName, categoryName: offer.categoryName,

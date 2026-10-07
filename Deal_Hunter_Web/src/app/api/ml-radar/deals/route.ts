@@ -123,7 +123,7 @@ export async function GET(req: NextRequest) {
 
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
+      const timeout = setTimeout(() => controller.abort(), 9000);
       const res = await fetch(`${serverUrl.replace(/\/$/, '')}/api/history?limit=100`, {
         signal: controller.signal,
         headers: { Accept: 'application/json' },

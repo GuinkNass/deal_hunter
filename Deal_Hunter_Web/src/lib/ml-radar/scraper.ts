@@ -101,11 +101,31 @@ export async function extractMetadataFromUrl(url: string): Promise<{
       }
     }
 
-    // 4. Price regex fallback
+    // 4. Price regex fallback (prioriza à vista / PIX e expurga parcelas)
     if (!price) {
-      const priceMatch = html.match(/R\$\s*([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2})/i);
-      if (priceMatch) {
-        price = parseFloat(priceMatch[1].replace(/\./g, '').replace(',', '.'));
+      const pixMatch = html.match(/(?:R\$\s*([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2})\s*(?:no\s+Pix|à\s+vista|em\s+1x)|(?:no\s+Pix|à\s+vista)\s*(?:por\s*)?R\$\s*([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2}))/i);
+      if (pixMatch) {
+        const valStr = pixMatch[1] || pixMatch[2];
+        price = parseFloat(valStr.replace(/\./g, '').replace(',', '.'));
+      }
+    }
+
+    if (!price) {
+      // Coleta parcelas para expurgo
+      const installmentValues = new Set<number>();
+      const instMatches = html.matchAll(/(?:\b\d+\s*x\s*(?:de\s*)?|em\s+at[ée]\s+\d+\s*x\s*(?:de\s*)?)R\$\s*([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2})/gi);
+      for (const m of instMatches) {
+        const num = parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
+        if (num) installmentValues.add(num);
+      }
+
+      const allPrices = html.matchAll(/R\$\s*([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2})/gi);
+      for (const match of allPrices) {
+        const cand = parseFloat(match[1].replace(/\./g, '').replace(',', '.'));
+        if (cand && !installmentValues.has(cand) && cand > 5) {
+          price = cand;
+          break;
+        }
       }
     }
 
