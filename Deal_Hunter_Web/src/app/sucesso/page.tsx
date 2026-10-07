@@ -43,7 +43,7 @@ export default function PaginaSucesso() {
   const [copied, setCopied] = useState(false);
 
   const chromeWebStoreUrl =
-    'https://chromewebstore.google.com/detail/gdnmfnoccdcbpcnaafjcoapgmihmgbdo?utm_source=item-share-cb';
+    'https://chromewebstore.google.com/detail/gdnmfnoccdcbpcnaafjcoapgmihmgbdo';
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -124,6 +124,17 @@ export default function PaginaSucesso() {
                   href={chromeWebStoreUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      if (typeof (window as any).gtag_report_conversion === 'function') {
+                        (window as any).gtag_report_conversion();
+                      } else if (typeof (window as any).gtag === 'function') {
+                        (window as any).gtag('event', 'conversion', {
+                          send_to: 'AW-18485467530/VsKeCObcyZQdEIqzx-5E',
+                        });
+                      }
+                    }
+                  }}
                   className="flex-1 inline-flex items-center justify-center gap-2.5 py-3 px-5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-500/25 active:scale-[0.98] transition-all"
                 >
                   <ChromeIcon className="w-4 h-4" />

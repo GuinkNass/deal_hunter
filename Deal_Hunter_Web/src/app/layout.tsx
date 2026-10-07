@@ -87,6 +87,24 @@ export default function RootLayout({
               function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
               gtag('config', 'AW-18485467530');
+
+              function gtag_report_conversion(url) {
+                var callback = function () {
+                  if (typeof(url) != 'undefined' && url) {
+                    window.location = url;
+                  }
+                };
+                if (typeof gtag === 'function') {
+                  gtag('event', 'conversion', {
+                      'send_to': 'AW-18485467530/VsKeCObcyZQdEIqzx-5E',
+                      'event_callback': callback
+                  });
+                } else if (typeof(url) != 'undefined' && url) {
+                  window.location = url;
+                }
+                return false;
+              }
+              window.gtag_report_conversion = gtag_report_conversion;
             `,
           }}
         />

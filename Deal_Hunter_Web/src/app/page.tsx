@@ -87,7 +87,7 @@ export default function LandingPage() {
 
   // Links oficiais, Chrome Web Store e pagamentos
   const chromeWebStoreUrl =
-    'https://chromewebstore.google.com/detail/gdnmfnoccdcbpcnaafjcoapgmihmgbdo?utm_source=item-share-cb';
+    'https://chromewebstore.google.com/detail/gdnmfnoccdcbpcnaafjcoapgmihmgbdo';
   const downloadProfitHunterZipUrl = '/downloads/profit-hunter-pro.zip';
   const infinitePayPixUrl = 'https://checkout.infinitepay.io/deal-hunter-pro-br/AoJYT9KaSj';
   const stripeCardUrl = '/login';
@@ -127,6 +127,17 @@ export default function LandingPage() {
   function triggerOpenChromeStore() {
     setChromeToast(true);
     setTimeout(() => setChromeToast(false), 5000);
+
+    // Disparar tag de conversão do Google Ads (AW-18485467530/VsKeCObcyZQdEIqzx-5E)
+    if (typeof window !== 'undefined') {
+      if (typeof (window as any).gtag_report_conversion === 'function') {
+        (window as any).gtag_report_conversion();
+      } else if (typeof (window as any).gtag === 'function') {
+        (window as any).gtag('event', 'conversion', {
+          send_to: 'AW-18485467530/VsKeCObcyZQdEIqzx-5E',
+        });
+      }
+    }
   }
 
   function toggleFaq(index: number) {
