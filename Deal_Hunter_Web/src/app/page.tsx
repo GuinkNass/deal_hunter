@@ -244,9 +244,9 @@ export default function LandingPage() {
 
           {/* Headline Principal */}
           <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tight text-white leading-[1.08]">
-            Encontre Superdescontos e <br className="hidden sm:inline" />
+            Monitore os maiores e-commerces. <br className="hidden sm:inline" />
             <span className="bg-gradient-to-r from-violet-400 via-indigo-300 to-cyan-300 bg-clip-text text-transparent">
-              Bugs de Preço em Tempo Real
+              Compre no menor preço do mercado.
             </span>
           </h1>
 

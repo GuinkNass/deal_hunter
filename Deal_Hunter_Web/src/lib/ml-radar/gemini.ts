@@ -48,7 +48,7 @@ CRITÉRIO CRÍTICO DE AUDITORIA:
 Responda EXCLUSIVAMENTE um JSON minificado de uma linha sem blocos markdown:
 {"score":<0-100>,"realMarketPrice":<numero>,"demandTrend":"<curto>","bestSeason":"<curto>","riskLevel":"<Baixo|Médio|Alto>","verdict":"<Excelente|Viável|Atenção|Evitar>","justification":"<1 frase concisa informando se a oportunidade é real ou âncora inflada>"}`;
 
-  const models = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash'];
+  const models = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-flash-latest'];
 
   for (const model of models) {
     try {

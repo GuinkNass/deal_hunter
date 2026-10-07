@@ -177,7 +177,7 @@ Retorne APENAS um JSON no formato:
   "alt_query": "Categoria Marca Modelo"
 }`;
 
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
+  const models = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-flash-latest'];
 
   for (const model of models) {
     try {
@@ -304,7 +304,7 @@ export async function scrapeMercadoLivreSearch(
         }
       }
 
-      const isBlocked = !html || html.length < 50000;
+      const isBlocked = !html || html.length < 3000 || html.includes('suspicious-traffic-frontend') || html.includes('robot check');
 
       (globalThis as any).__lastScrapeDebug = {
         searchUrl,
@@ -316,8 +316,14 @@ export async function scrapeMercadoLivreSearch(
 
       if (isBlocked) break;
 
-      // Divide pelos blocos reais de conteúdo de card
-      const contentBlocks = html.split(/<div[^>]*class=["'][^"']*poly-card__content[^"']*["']/i);
+      // Divide pelos blocos reais de conteúdo de card (suporta poly-card e ui-search)
+      let contentBlocks = html.split(/<div[^>]*class=["'][^"']*poly-card__content[^"']*["']/i);
+      if (contentBlocks.length <= 1) {
+        contentBlocks = html.split(/<div[^>]*class=["'][^"']*ui-search-result__content[^"']*["']/i);
+      }
+      if (contentBlocks.length <= 1) {
+        contentBlocks = html.split(/<li[^>]*class=["'][^"']*ui-search-layout__item[^"']*["']/i);
+      }
 
       for (let i = 1; i < contentBlocks.length; i++) {
         const block = contentBlocks[i];
@@ -715,7 +721,7 @@ DIRETRIZES FUNDAMENTAIS DE COMPARAÇÃO CLÍNICA:
   "justificativa_escolha": "Por que este anúncio específico superou os outros concorrentes."
 } `;
 
-  const models = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash'];
+  const models = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-flash-latest'];
 
   for (const model of models) {
     try {
@@ -834,7 +840,7 @@ Retorne APENAS um JSON array válido no formato:
   }
 ]`;
 
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
+  const models = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-flash-latest'];
 
   for (const model of models) {
     try {
@@ -846,46 +852,73 @@ Retorne APENAS um JSON array válido no formato:
           contents: [{ parts: [{ text: prompt }] }],
           tools: [{ googleSearch: {} }],
         }),
-        signal: AbortSignal.timeout(25000),
+        signal: AbortSignal.timeout(20000),
       });
 
       if (!res.ok) continue;
 
       const data = await res.json();
       const text = data.candidates?.[0]?.content?.parts?.find((p: any) => p.text)?.text || '';
-      if (!text) continue;
 
       const jsonMatch = text.match(/\[\s*\{[\s\S]*\}\s*\]/);
       if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((item: any, idx: number) => {
-            const rawUrl = String(item.url || '');
-            const rawMlbId = String(item.mlb_id || item.id || '');
-            const idMatch =
-              rawUrl.match(/(MLB-?\d+)/i) ||
-              rawMlbId.match(/(MLB-?\d+)/i) ||
-              rawUrl.match(/item_id:(MLB\d+)/i) ||
-              rawUrl.match(/\/p\/(MLB\d+)/i);
-            const itemId = idMatch
-              ? idMatch[1].replace('-', '')
-              : rawMlbId.startsWith('MLB')
-              ? rawMlbId
-              : `MLB-GR-${idx + 1}`;
-            const resolvedUrl = buildCanonicalMlUrl(rawUrl, itemId, item.title || query);
+        try {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map((item: any, idx: number) => {
+              const rawUrl = String(item.url || '');
+              const rawMlbId = String(item.mlb_id || item.id || '');
+              const idMatch =
+                rawUrl.match(/(MLB-?\d+)/i) ||
+                rawMlbId.match(/(MLB-?\d+)/i) ||
+                rawUrl.match(/item_id:(MLB\d+)/i) ||
+                rawUrl.match(/\/p\/(MLB\d+)/i);
+              const itemId = idMatch
+                ? idMatch[1].replace('-', '')
+                : rawMlbId.startsWith('MLB')
+                ? rawMlbId
+                : `MLB-GR-${idx + 1}`;
+              const resolvedUrl = buildCanonicalMlUrl(rawUrl, itemId, item.title || query);
 
-            return {
-              id: itemId,
-              title: String(item.title || query),
-              url: resolvedUrl,
-              price: Number(item.price || 0),
-              salesCount: 30,
-              sellerNickname: String(item.seller || 'Vendedor Mercado Livre'),
-              isFull: true,
-              freeShipping: Number(item.price || 0) >= 79.0,
-            };
+              return {
+                id: itemId,
+                title: String(item.title || query),
+                url: resolvedUrl,
+                price: Number(item.price || 0),
+                salesCount: 30,
+                sellerNickname: String(item.seller || 'Vendedor Mercado Livre'),
+                isFull: true,
+                freeShipping: Number(item.price || 0) >= 79.0,
+              };
+            });
+          }
+        } catch {}
+      }
+
+      // Fallback: extração direta dos groundingChunks retornados pelo Google Search
+      const searchChunks = data.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+      const extractedFromChunks: ScrapedMlItem[] = [];
+      for (const chunk of searchChunks) {
+        const uri = String(chunk.web?.uri || '');
+        const chunkTitle = String(chunk.web?.title || '');
+        if (uri.includes('mercadolivre.com.br') && !uri.includes('lista.mercadolivre.com.br') && !uri.endsWith('mercadolivre.com.br/')) {
+          const mlbMatch = uri.match(/(MLB-?\d+)/i) || uri.match(/\/p\/(MLB\d+)/i);
+          const itemId = mlbMatch ? mlbMatch[1].replace('-', '') : `MLB-${Date.now()}`;
+          extractedFromChunks.push({
+            id: itemId,
+            title: chunkTitle || query,
+            url: buildCanonicalMlUrl(uri, itemId, chunkTitle),
+            price: 0,
+            salesCount: 35,
+            sellerNickname: 'Vendedor Mercado Livre',
+            isFull: true,
+            freeShipping: true,
           });
         }
+      }
+
+      if (extractedFromChunks.length > 0) {
+        return extractedFromChunks;
       }
     } catch (e: any) {
       console.warn(`[Gemini Grounding Search] Falha com modelo ${model}:`, e?.message);
