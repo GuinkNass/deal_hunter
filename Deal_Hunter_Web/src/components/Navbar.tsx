@@ -99,6 +99,13 @@ export default function Navbar() {
 
         {/* Links de Navegação Desktop: Recursos, Planos, Suporte */}
         <nav className="hidden md:flex items-center gap-8 text-xs font-semibold uppercase tracking-wider text-gray-300">
+          <Link
+            href="/ofertas"
+            className="hover:text-cyan-300 text-cyan-400 font-black transition-colors flex items-center gap-1.5"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+            <span>Vitrine de Ofertas</span>
+          </Link>
           <a href="/#recursos" className="hover:text-white transition-colors">
             Recursos
           </a>
@@ -229,6 +236,14 @@ export default function Navbar() {
       {mobileMenuOpen && (
         <div className="md:hidden bg-[#0a0d14] border-b border-gray-800 px-4 pt-3 pb-6 space-y-4 animate-in slide-in-from-top-3 duration-200">
           <div className="flex flex-col space-y-3 text-sm font-medium text-gray-300">
+            <Link
+              href="/ofertas"
+              onClick={() => setMobileMenuOpen(false)}
+              className="py-1 text-cyan-400 font-bold hover:text-white flex items-center gap-2"
+            >
+              <Sparkles className="w-4 h-4 text-cyan-400" />
+              <span>Vitrine de Ofertas</span>
+            </Link>
             <a
               href="/#recursos"
               onClick={() => setMobileMenuOpen(false)}

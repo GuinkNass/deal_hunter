@@ -10,6 +10,7 @@ import {
   CheckSquare,
   Square,
   Store,
+  Star,
 } from 'lucide-react';
 import { DealAnalysis } from './AnalysisDetailModal';
 import { getProductFallbackImage } from '@/lib/ml-radar/imageFallback';
@@ -23,6 +24,7 @@ interface DealProductCardProps {
   onDelete: (deal: DealAnalysis, e?: React.MouseEvent) => void;
   onEvaluate: (deal: DealAnalysis) => void;
   onOpenCalculator: (deal: DealAnalysis) => void;
+  onToggleFeatured?: (deal: DealAnalysis, e?: React.MouseEvent) => void;
 }
 
 export default function DealProductCard({
@@ -32,6 +34,7 @@ export default function DealProductCard({
   onDelete,
   onEvaluate,
   onOpenCalculator,
+  onToggleFeatured,
 }: DealProductCardProps) {
   const itemTitle = deal.title || deal.source_title || 'Produto sem título';
   const itemPrice = Number(deal.price || deal.source_price || 0);
@@ -138,6 +141,13 @@ export default function DealProductCard({
           <span className="absolute top-2 right-2 z-10 px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[10px] font-extrabold border border-purple-500/30 flex items-center gap-1 shadow-sm backdrop-blur-sm">
             <Sparkles className="w-2.5 h-2.5 text-purple-400" />
             {deal.gemini_analysis.score} pts
+          </span>
+        )}
+
+        {deal.is_featured && (
+          <span className="absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded bg-amber-500/25 text-amber-300 text-[10px] font-black border border-amber-500/40 flex items-center gap-1 shadow-sm backdrop-blur-sm">
+            <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+            Vitrine
           </span>
         )}
 
@@ -276,6 +286,25 @@ export default function DealProductCard({
           <Calculator className="w-3.5 h-3.5" />
           <span className="hidden xl:inline">Calcular</span>
         </button>
+
+        {onToggleFeatured && (
+          <button
+            type="button"
+            onClick={(e) => onToggleFeatured(deal, e)}
+            className={`p-2 rounded-xl border text-[11px] font-bold flex items-center justify-center transition-all flex-shrink-0 ${
+              deal.is_featured
+                ? 'bg-amber-500/20 text-amber-300 border-amber-400/50 shadow-sm shadow-amber-500/30 ring-1 ring-amber-400/40'
+                : 'bg-white/[0.06] hover:bg-amber-500/15 text-zinc-400 hover:text-amber-300 border-white/10'
+            }`}
+            title={
+              deal.is_featured
+                ? 'Destaque ativo na Vitrine Pública (Clique para remover)'
+                : 'Destacar na Vitrine Pública de Ofertas (/ofertas)'
+            }
+          >
+            <Star className={`w-3.5 h-3.5 ${deal.is_featured ? 'fill-amber-400 text-amber-400' : ''}`} />
+          </button>
+        )}
 
         {deal.product_url && (
           <a

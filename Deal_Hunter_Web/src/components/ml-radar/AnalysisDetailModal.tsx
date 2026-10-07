@@ -74,6 +74,9 @@ export interface DealAnalysis {
   clinical_evaluated?: boolean;
   clinical_result?: ClinicalEvaluationResult;
   created_at?: string;
+  is_featured?: boolean;
+  description?: string;
+  category?: string;
 }
 
 interface AnalysisDetailModalProps {

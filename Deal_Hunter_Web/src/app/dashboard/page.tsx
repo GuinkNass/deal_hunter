@@ -264,6 +264,52 @@ export default function DashboardPage() {
     setSelectedDealForDetail(updated);
   }
 
+  async function handleToggleFeatured(deal: DealAnalysis, e?: React.MouseEvent) {
+    if (e) e.stopPropagation();
+    const nextFeatured = !deal.is_featured;
+
+    // Atualização otimista na interface do Dashboard
+    setDeals((prev) =>
+      prev.map((d) => (d.id === deal.id ? { ...d, is_featured: nextFeatured } : d))
+    );
+    if (selectedDealForDetail && selectedDealForDetail.id === deal.id) {
+      setSelectedDealForDetail({ ...selectedDealForDetail, is_featured: nextFeatured });
+    }
+
+    setNotification(
+      nextFeatured
+        ? `⭐ "${deal.title.slice(0, 32)}..." destacado na Vitrine Pública!`
+        : `Removido da Vitrine Pública.`
+    );
+    setTimeout(() => setNotification(null), 3500);
+
+    try {
+      const res = await fetch('/api/ml-radar/deals/featured', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
+        body: JSON.stringify({
+          dealId: deal.id,
+          isFeatured: nextFeatured,
+          dealPayload: deal,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Falha ao atualizar vitrine');
+      }
+    } catch (err: any) {
+      // Reverter atualização otimista em caso de falha de rede
+      setDeals((prev) =>
+        prev.map((d) => (d.id === deal.id ? { ...d, is_featured: !nextFeatured } : d))
+      );
+      setNotification('❌ Erro ao atualizar destaque na vitrine pública.');
+      setTimeout(() => setNotification(null), 3500);
+    }
+  }
+
   async function handleSignOut() {
     await supabase.auth.signOut();
     router.push('/');
@@ -428,6 +474,18 @@ export default function DashboardPage() {
               {simulating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5 text-cyan-400" />}
               <span>Testar Ingestão</span>
             </button>
+
+            <Link
+              href="/ofertas"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-amber-500/10 hover:from-amber-500/30 hover:to-orange-500/25 border border-amber-500/40 text-amber-300 hover:text-amber-200 text-xs font-bold transition-all shadow-sm"
+              title="Abrir a Vitrine Pública de Ofertas em nova aba"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>Ver Vitrine</span>
+              <ExternalLink className="w-3 h-3 opacity-70" />
+            </Link>
 
             <div
               className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-bold text-emerald-400 select-none"
@@ -730,6 +788,7 @@ export default function DashboardPage() {
                     onDelete={handleDeleteSingleDeal}
                     onEvaluate={setSelectedDealForDetail}
                     onOpenCalculator={handleOpenCalculatorForDeal}
+                    onToggleFeatured={handleToggleFeatured}
                   />
                 ))}
               </div>
