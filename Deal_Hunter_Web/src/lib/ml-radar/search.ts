@@ -345,7 +345,7 @@ export async function searchMercadoLivre(
         items.push({
           id,
           title: rawTitle,
-          permalink: cleanUrl || fullUrl.split('#')[0],
+          permalink: buildCanonicalMlUrl(cleanUrl || fullUrl.split('#')[0], id, rawTitle),
           price,
           original_price: Number((price * 1.15).toFixed(2)),
           thumbnail: options.imageUrl || '',

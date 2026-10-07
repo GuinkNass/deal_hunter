@@ -728,7 +728,9 @@ export default function AnalysisDetailModal({
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] text-slate-500 font-mono">
-                            {cand.item_id}
+                            {cand.item_id && /^MLB-?\d{8,}$/i.test(cand.item_id) && !cand.item_id.includes('19234857')
+                              ? cand.item_id.replace('-', '')
+                              : `Anúncio ML #${idx + 1}`}
                           </span>
                           {cand.marca && (
                             <span className="text-[10px] font-bold text-slate-400 bg-slate-800/80 px-1.5 py-0.5 rounded">
