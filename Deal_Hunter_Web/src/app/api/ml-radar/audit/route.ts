@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   cleanProductTitleWithGemini,
+  extractProductSpecsWithGemini,
   scrapeMercadoLivreSearch,
   searchMercadoLivreWithGeminiGrounding,
   enrichCandidateWithMlApi,
@@ -139,78 +140,78 @@ export async function POST(req: NextRequest) {
     let fallbackMlPrice = Number(mlPrice || numSourcePrice * 1.35);
 
     // =========================================================================
-    // ETAPA 1: Higienização cirúrgica do título via Gemini API
+    // ETAPA 1: Higienização cirúrgica e extração estruturada de Marca/Modelo via Gemini
     // =========================================================================
-    const cleanedQuery = await cleanProductTitleWithGemini(title, geminiApiKey);
-    console.log(`[Clinical Audit] Query limpa via Gemini: "${cleanedQuery}" (original: "${title}")`);
+    const specs = await extractProductSpecsWithGemini(title, geminiApiKey);
+    const cleanedQuery = specs.clean_query || title;
+    const altQuery = specs.alt_query || '';
+    console.log(`[Clinical Audit] Specs extraídas via Gemini: Brand="${specs.brand}", Model="${specs.model}", CleanQuery="${cleanedQuery}", AltQuery="${altQuery}"`);
 
     // =========================================================================
     // ETAPA 2: Varredura de Candidatos no Mercado Livre
     // Prioridade 1: API Oficial do Mercado Livre (se usuário tiver token autenticado)
-    // Prioridade 2: Raspagem invisível no servidor
+    // Prioridade 2: Busca inteligente com Grounding via Gemini (anúncios reais + links diretos)
+    // Prioridade 3: Raspagem direta no servidor (caso Gemini Grounding não retorne)
     // =========================================================================
     let scrapedCandidates: any[] = [];
 
     if (mlApiKey && mlApiKey.length > 10) {
       console.log('[Clinical Audit] Consultando API oficial autenticada do Mercado Livre...');
       try {
-        const apiMatches = await searchMercadoLivre(cleanedQuery || title, {
-          mlApiKey,
-          sourcePrice: numSourcePrice,
-        });
+        const queriesToTry = [cleanedQuery];
+        if (altQuery && altQuery !== cleanedQuery) queriesToTry.push(altQuery);
+        queriesToTry.push(title);
 
-        if (apiMatches && apiMatches.length > 0) {
-          scrapedCandidates = apiMatches
-            .map((m: any) => ({
-              id: m.id || m.permalink?.match(/(MLB-?\d+)/i)?.[1]?.replace('-', '') || '',
-              title: m.title,
-              url: m.permalink,
-              price: Number(m.price || 0),
-              salesCount: Number(m.sold_quantity || 0),
-              sellerNickname: m.seller_nickname || 'Vendedor Mercado Livre',
-              isFull: m.is_full === 1 || Boolean(m.is_full),
-              freeShipping: m.free_shipping === 1 || Boolean(m.free_shipping),
-            }))
-            .filter((x: any) => Boolean(x.id && !x.url?.includes('lista.mercadolivre.com.br')));
+        for (const q of queriesToTry) {
+          const apiMatches = await searchMercadoLivre(q, {
+            mlApiKey,
+            sourcePrice: numSourcePrice,
+          });
+
+          if (apiMatches && apiMatches.length > 0) {
+            scrapedCandidates = apiMatches
+              .map((m: any) => ({
+                id: m.id || m.permalink?.match(/(MLB-?\d+)/i)?.[1]?.replace('-', '') || '',
+                title: m.title,
+                url: m.permalink,
+                price: Number(m.price || 0),
+                salesCount: Number(m.sold_quantity || 0),
+                sellerNickname: m.seller_nickname || 'Vendedor Mercado Livre',
+                isFull: m.is_full === 1 || Boolean(m.is_full),
+                freeShipping: m.free_shipping === 1 || Boolean(m.free_shipping),
+              }))
+              .filter((x: any) => Boolean(x.id && !x.url?.includes('lista.mercadolivre.com.br')));
+            if (scrapedCandidates.length > 0) break;
+          }
         }
       } catch (err: any) {
         console.warn('[Clinical Audit] Falha na API oficial ML:', err.message);
       }
     }
 
+    // Prioridade 2: Busca cirúrgica em tempo real via Gemini Search Grounding (extrai os links reais do ML)
     if (!scrapedCandidates || scrapedCandidates.length === 0) {
-      scrapedCandidates = await scrapeMercadoLivreSearch(cleanedQuery, 2, numSourcePrice);
+      console.log(`[Clinical Audit] Acionando busca via Gemini Search Grounding para "${cleanedQuery}"...`);
+      scrapedCandidates = await searchMercadoLivreWithGeminiGrounding(cleanedQuery, geminiApiKey);
 
-      // Se a query limpa for excessivamente restrita ou não trouxer resultados, tenta a busca direta com o título original
-      if (!scrapedCandidates || scrapedCandidates.length === 0) {
-        console.log(`[Clinical Audit] Sem retorno para "${cleanedQuery}". Tentando busca com o título original...`);
-        scrapedCandidates = await scrapeMercadoLivreSearch(title, 2, numSourcePrice);
+      if ((!scrapedCandidates || scrapedCandidates.length === 0) && altQuery && altQuery !== cleanedQuery) {
+        console.log(`[Clinical Audit] Tentando Gemini Grounding com altQuery "${altQuery}"...`);
+        scrapedCandidates = await searchMercadoLivreWithGeminiGrounding(altQuery, geminiApiKey);
       }
-    }
 
-    // Prioridade 3: Se o WAF/Datacenter bloquear raspagem direta, aciona busca em tempo real via Gemini Search Grounding
-    if (!scrapedCandidates || scrapedCandidates.length === 0) {
-      console.log(`[Clinical Audit] Acionando busca em tempo real via Gemini Search Grounding para "${cleanedQuery || title}"...`);
-      scrapedCandidates = await searchMercadoLivreWithGeminiGrounding(cleanedQuery || title, geminiApiKey);
       if (!scrapedCandidates || scrapedCandidates.length === 0) {
+        console.log(`[Clinical Audit] Tentando Gemini Grounding com título original...`);
         scrapedCandidates = await searchMercadoLivreWithGeminiGrounding(title, geminiApiKey);
       }
     }
 
-    // Prioridade 4: Busca simplificada por termos centrais (Marca + primeiros termos)
+    // Prioridade 3: Raspagem direta no servidor como fallback adicional
     if (!scrapedCandidates || scrapedCandidates.length === 0) {
-      const simplifiedWords = (cleanedQuery || title)
-        .replace(/[^a-zA-Z0-9\sÀ-ÿ]/g, ' ')
-        .split(/\s+/)
-        .filter((w: string) => w.length >= 3)
-        .slice(0, 4)
-        .join(' ');
-      if (simplifiedWords && simplifiedWords !== cleanedQuery && simplifiedWords !== title) {
-        console.log(`[Clinical Audit] Tentando busca simplificada: "${simplifiedWords}"...`);
-        scrapedCandidates = await scrapeMercadoLivreSearch(simplifiedWords, 2, numSourcePrice);
-        if (!scrapedCandidates || scrapedCandidates.length === 0) {
-          scrapedCandidates = await searchMercadoLivreWithGeminiGrounding(simplifiedWords, geminiApiKey);
-        }
+      console.log(`[Clinical Audit] Tentando raspagem direta no servidor para "${cleanedQuery}"...`);
+      scrapedCandidates = await scrapeMercadoLivreSearch(cleanedQuery, 2, numSourcePrice);
+
+      if (!scrapedCandidates || scrapedCandidates.length === 0) {
+        scrapedCandidates = await scrapeMercadoLivreSearch(title, 2, numSourcePrice);
       }
     }
 

@@ -119,14 +119,21 @@ export function buildCanonicalMlUrl(
   return 'https://lista.mercadolivre.com.br';
 }
 
+export interface ProductSpecs {
+  brand: string;
+  model: string;
+  clean_query: string;
+  alt_query?: string;
+}
+
 /**
- * Etapa 1: Higienização cirúrgica do título via Gemini API
- * Remove ruídos promocionais e códigos longos irrelevantes para isolar Marca, Linha e Modelo.
+ * Etapa 1: Higienização cirúrgica e extração estruturada de Marca/Modelo via Gemini API
+ * Identifica Marca oficial, Código exato do modelo (ex: BPF-12K3) e query cirúrgica.
  */
-export async function cleanProductTitleWithGemini(
+export async function extractProductSpecsWithGemini(
   rawTitle: string,
   apiKey?: string | null
-): Promise<string> {
+): Promise<ProductSpecs> {
   const fallbackClean = rawTitle
     .replace(/\([^)]*\)/g, ' ')
     .replace(/\[[^\]]*\]/g, ' ')
@@ -137,28 +144,40 @@ export async function cleanProductTitleWithGemini(
     .replace(/\s+/g, ' ')
     .trim();
 
+  const fallback: ProductSpecs = {
+    brand: '',
+    model: '',
+    clean_query: fallbackClean,
+    alt_query: rawTitle.split(',')[0].trim(),
+  };
+
   let cleanKey = (apiKey || process.env.GEMINI_API_KEY || '').trim();
   if (cleanKey && !cleanKey.startsWith('AIza') && !cleanKey.startsWith('AQ.')) {
     cleanKey = `AQ.${cleanKey}`;
   }
 
   if (!cleanKey || cleanKey.length < 15) {
-    return fallbackClean;
+    return fallback;
   }
 
-  const prompt = `Você é um extrator de termos de busca cirúrgicos para o Mercado Livre Brasil.
-Receba o título de um produto e extraia EXCLUSIVAMENTE a Marca e o Modelo exato do fabricante para encontrar os anúncios idênticos no ML.
+  const prompt = `Atue como extrator de catálogo para e-commerce e Mercado Livre Brasil.
+Analise o produto abaixo e extraia com precisão cirúrgica:
+1. Marca real do fabricante (ex: "WAP", "Cooler Master", "Sony", "Logitech", etc.).
+2. Código exato do modelo / linha (ex: "BPF-12K3", "MasterHub", "WH-1000XM4").
+3. "clean_query": Termo direto e cirúrgico (Marca + Modelo) perfeito para encontrar no Mercado Livre.
+4. "alt_query": Termo alternativo caso precise (Categoria básica + Marca + Modelo).
 
-REGRAS CRÍTICAS DE MARCA E MODELO:
-1. Identifique e preserve OBRIGATORIAMENTE o Nome da Marca real do fabricante (ex: "Cooler Master", "DM Toys", "Elgato", "Logitech", "Sony", etc.).
-2. NUNCA misture termos genéricos de concorrentes como marca. Se o título for "Stream Deck Cooler Master MasterHub", a marca é "Cooler Master" e o modelo é "MasterHub". Termos genéricos de categoria ("Stream Deck", "Mesa Controladora") devem ser mantidos apenas se forem a linha oficial daquela marca.
-3. Elimine ruídos: especificações secundárias (RGB, cabo 2m, voltagem), códigos de lote e termos promocionais (Novo, Original, NF, Lacrado).
+PRODUTO: "${rawTitle}"
 
-Título Original: "${rawTitle}"
+Retorne APENAS um JSON no formato:
+{
+  "brand": "Nome da Marca",
+  "model": "Código do Modelo",
+  "clean_query": "Marca Modelo",
+  "alt_query": "Categoria Marca Modelo"
+}`;
 
-Responda APENAS o termo de busca limpo e direto (Marca + Modelo) em 1 linha, sem aspas:`;
-
-  const models = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.5-flash'];
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
 
   for (const model of models) {
     try {
@@ -170,10 +189,10 @@ Responda APENAS o termo de busca limpo e direto (Marca + Modelo) em 1 linha, sem
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.1,
-            maxOutputTokens: 60,
+            maxOutputTokens: 150,
           },
         }),
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(6000),
       });
 
       if (!res.ok) continue;
@@ -181,15 +200,29 @@ Responda APENAS o termo de busca limpo e direto (Marca + Modelo) em 1 linha, sem
       const data = await res.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (text) {
-        const cleaned = text.replace(/["\n\r]/g, '').trim();
-        if (cleaned.length >= 3) {
-          return cleaned;
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          return {
+            brand: String(parsed.brand || '').trim(),
+            model: String(parsed.model || '').trim(),
+            clean_query: String(parsed.clean_query || parsed.brand + ' ' + parsed.model || fallbackClean).trim(),
+            alt_query: String(parsed.alt_query || '').trim(),
+          };
         }
       }
     } catch {}
   }
 
-  return fallbackClean;
+  return fallback;
+}
+
+export async function cleanProductTitleWithGemini(
+  rawTitle: string,
+  apiKey?: string | null
+): Promise<string> {
+  const specs = await extractProductSpecsWithGemini(rawTitle, apiKey);
+  return specs.clean_query || rawTitle;
 }
 
 export interface ScrapedMlItem {
@@ -801,7 +834,7 @@ Retorne APENAS um JSON array válido no formato:
   }
 ]`;
 
-  const models = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-flash-latest'];
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
 
   for (const model of models) {
     try {
@@ -813,7 +846,7 @@ Retorne APENAS um JSON array válido no formato:
           contents: [{ parts: [{ text: prompt }] }],
           tools: [{ googleSearch: {} }],
         }),
-        signal: AbortSignal.timeout(12000),
+        signal: AbortSignal.timeout(25000),
       });
 
       if (!res.ok) continue;
