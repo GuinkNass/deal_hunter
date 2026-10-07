@@ -217,11 +217,11 @@ export default function LandingPage() {
             playsInline
             preload="auto"
             aria-hidden="true"
-            src="/video/novo.webm"
+            src="/video/fundo-07-10-2026.webm"
             className="w-full h-full object-cover object-center scale-100"
           >
+            <source src="/video/fundo-07-10-2026.webm" type="video/webm" />
             <source src="/video/novo.webm" type="video/webm" />
-            <source src="/video/hero-background.webm" type="video/webm" />
           </video>
           {/* Overlay suave para excelente legibilidade mantendo o vídeo bem nítido e visível */}
           <div className="absolute inset-0 bg-black/35 z-[1]" />
