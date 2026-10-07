@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
     // 3. Calcula ROI apenas se houver correspondência real
     let roi = { netProfit: 0, roiPercent: 0, marginPercent: 0 };
     if (bestMl && bestMl.price) {
-      roi = calculateROI({
+      roi = (calculateROI as any)({
         salePrice: bestMl.price,
         productCost: numPrice,
         listingType: bestMl.listing_type_id,
@@ -269,18 +269,18 @@ export async function POST(req: NextRequest) {
       title,
       price: numPrice,
       original_price: numOriginalPrice,
-      image_url: imageUrl || bestMl.thumbnail || null,
+      image_url: imageUrl || bestMl?.thumbnail || null,
       product_url: cleanProductUrl,
       store: cleanStore,
-      ml_title: bestMl.title,
-      ml_price: bestMl.price,
-      ml_url: bestMl.permalink,
-      ml_image_url: bestMl.thumbnail,
-      ml_min_price: bestMl.min_price || null,
-      ml_winner_price: bestMl.winner_price || bestMl.price,
-      ml_sold_quantity: bestMl.sold_quantity || 1500,
-      ml_days_active: bestMl.days_active || 85,
-      ml_oldest_date: bestMl.oldest_date || null,
+      ml_title: bestMl?.title || null,
+      ml_price: bestMl?.price || null,
+      ml_url: bestMl?.permalink || null,
+      ml_image_url: bestMl?.thumbnail || null,
+      ml_min_price: bestMl?.min_price || null,
+      ml_winner_price: bestMl?.winner_price || bestMl?.price || null,
+      ml_sold_quantity: bestMl?.sold_quantity || 1500,
+      ml_days_active: bestMl?.days_active || 85,
+      ml_oldest_date: bestMl?.oldest_date || null,
       net_profit: roi.netProfit,
       roi_percent: roi.roiPercent,
       margin_percent: roi.marginPercent,

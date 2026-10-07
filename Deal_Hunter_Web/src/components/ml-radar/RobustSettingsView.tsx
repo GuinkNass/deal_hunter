@@ -114,13 +114,16 @@ export default function RobustSettingsView({ authToken, userId }: RobustSettings
       if (json.success && json.data) {
         const d = json.data;
         const localCreds = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('dealhunter_ml_credentials') || '{}') : {};
+        const localGemini = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('dealhunter_gemini_credentials') || '{}') : {};
+        const localGeminiKey = typeof window !== 'undefined' ? localStorage.getItem('dealhunter_gemini_api_key') || '' : '';
+
         setMlClientId(d.ml_client_id || localCreds.ml_client_id || '');
         setMlClientSecret(d.ml_client_secret || localCreds.ml_client_secret || '');
         setMlApiKey(d.ml_api_key || localCreds.ml_api_key || '');
         setTelegramBotToken(d.telegram_bot_token || '');
         setTelegramChatId(d.telegram_chat_id || '');
-        setGeminiApiKey(d.gemini_api_key || '');
-        setGeminiModel(d.gemini_model || 'gemini-3.8-flash');
+        setGeminiApiKey(d.gemini_api_key || localGemini.gemini_api_key || localGeminiKey || '');
+        setGeminiModel(d.gemini_model || localGemini.gemini_model || 'gemini-3.8-flash');
         const localSettings = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('dealhunter_custom_settings') || '{}') : {};
         setDesiredMargin(d.desired_margin ?? localSettings.desired_margin ?? 20);
         setMinRoiAlert(d.min_roi_alert ?? localSettings.min_roi_alert ?? 25);
@@ -197,6 +200,17 @@ export default function RobustSettingsView({ authToken, userId }: RobustSettings
               ml_api_key: mlApiKey,
             })
           );
+          localStorage.setItem(
+            'dealhunter_gemini_credentials',
+            JSON.stringify({
+              gemini_api_key: geminiApiKey,
+              gemini_model: geminiModel,
+            })
+          );
+          if (geminiApiKey) {
+            localStorage.setItem('dealhunter_gemini_api_key', geminiApiKey);
+            document.cookie = `gemini_api_key=${encodeURIComponent(geminiApiKey)}; path=/; max-age=31536000; SameSite=Lax`;
+          }
         }
         setSaveMessage({ type: 'success', text: 'Configurações salvas com sucesso no seu perfil!' });
         setTimeout(() => setSaveMessage(null), 4000);
@@ -235,7 +249,27 @@ export default function RobustSettingsView({ authToken, userId }: RobustSettings
       });
       const json = await res.json();
       if (service === 'gemini' && json.normalizedKey) {
-        setGeminiApiKey(json.normalizedKey);
+        const finalKey = json.normalizedKey;
+        setGeminiApiKey(finalKey);
+        try {
+          const gCreds = JSON.parse(localStorage.getItem('dealhunter_gemini_credentials') || '{}');
+          gCreds.gemini_api_key = finalKey;
+          gCreds.gemini_model = geminiModel;
+          localStorage.setItem('dealhunter_gemini_credentials', JSON.stringify(gCreds));
+          localStorage.setItem('dealhunter_gemini_api_key', finalKey);
+          document.cookie = `gemini_api_key=${encodeURIComponent(finalKey)}; path=/; max-age=31536000; SameSite=Lax`;
+        } catch {}
+
+        if (authToken) {
+          fetch('/api/user/settings', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ gemini_api_key: finalKey, gemini_model: geminiModel }),
+          }).catch(() => {});
+        }
       }
       if (service === 'mercadolivre' && json.activeMlKey) {
         setMlApiKey(json.activeMlKey);

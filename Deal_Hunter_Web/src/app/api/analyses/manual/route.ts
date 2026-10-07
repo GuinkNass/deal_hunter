@@ -86,11 +86,20 @@ export async function POST(req: NextRequest) {
       } catch {}
     }
 
+    let activeGeminiKey = body.geminiApiKey || body.gemini_api_key || userCreds.gemini_api_key || '';
+    if (!activeGeminiKey) {
+      activeGeminiKey = req.cookies.get('gemini_api_key')?.value || process.env.GEMINI_API_KEY || '';
+    }
+    if (activeGeminiKey && !activeGeminiKey.startsWith('AIzaSy') && !activeGeminiKey.startsWith('AQ.')) {
+      activeGeminiKey = `AQ.${activeGeminiKey}`;
+    }
+
     // 3. Busca no Mercado Livre
     const candidates = await searchMercadoLivre(title, {
       mlApiKey: activeMlKey,
       sourcePrice: numPrice,
       imageUrl,
+      geminiApiKey: activeGeminiKey,
     });
 
     if (!candidates || candidates.length === 0) {
@@ -113,10 +122,9 @@ export async function POST(req: NextRequest) {
 
     // 5. Análise com Google Gemini (sob demanda com prompt minificado)
     let geminiAnalysis: any = null;
-    const geminiKey = userCreds.gemini_api_key || process.env.GEMINI_API_KEY || '';
-    if (geminiKey && roi.netProfit > 0) {
+    if (activeGeminiKey && roi.netProfit > 0) {
       geminiAnalysis = await analyzeOpportunityWithGemini({
-        apiKey: geminiKey,
+        apiKey: activeGeminiKey,
         sourceTitle: title,
         store: cleanStore,
         sourcePrice: numPrice,

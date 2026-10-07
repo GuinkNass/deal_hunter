@@ -43,10 +43,15 @@ export async function GET(req: NextRequest) {
       else if (latestProf?.ml_access_token) activeMlToken = latestProf.ml_access_token;
     }
 
+    let activeGeminiKey = profile?.gemini_api_key || '';
+    if (!activeGeminiKey) {
+      activeGeminiKey = req.cookies.get('gemini_api_key')?.value || process.env.GEMINI_API_KEY || '';
+    }
+
     return NextResponse.json({
       success: true,
       data: {
-        gemini_api_key: profile?.gemini_api_key || '',
+        gemini_api_key: activeGeminiKey,
         gemini_model: (profile?.gemini_model && !profile.gemini_model.includes('1.5') && !profile.gemini_model.includes('2.5')) ? profile.gemini_model : 'gemini-3.8-flash',
         ml_api_key: activeMlToken,
         ml_client_id: profile?.ml_client_id || '',
@@ -179,10 +184,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Configurações atualizadas com sucesso!',
     });
+
+    if (updates.gemini_api_key) {
+      response.cookies.set('gemini_api_key', String(updates.gemini_api_key), {
+        path: '/',
+        maxAge: 31536000,
+        sameSite: 'lax',
+      });
+    }
+
+    if (updates.ml_api_key) {
+      response.cookies.set('ml_access_token', String(updates.ml_api_key), {
+        path: '/',
+        maxAge: 31536000,
+        sameSite: 'lax',
+      });
+    }
+
+    return response;
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || 'Erro ao salvar configurações' },

@@ -157,6 +157,7 @@ export async function searchMercadoLivre(
     mlApiKey?: string | null;
     sourcePrice?: number;
     imageUrl?: string | null;
+    geminiApiKey?: string | null;
   } = {}
 ): Promise<MLMatchItem[]> {
   const cleanSlug = query
@@ -367,7 +368,7 @@ export async function searchMercadoLivre(
   // 3. Fallback inteligente com Google Gemini Search Grounding
   try {
     const { searchMercadoLivreWithGeminiGrounding } = await import('./clinicalAudit');
-    const geminiKey = process.env.GEMINI_API_KEY || '';
+    const geminiKey = options.geminiApiKey || process.env.GEMINI_API_KEY || '';
     const grounded = await searchMercadoLivreWithGeminiGrounding(query, geminiKey);
     if (grounded && grounded.length > 0) {
       const groundedItems: MLMatchItem[] = grounded.map((g) => ({
@@ -389,6 +390,13 @@ export async function searchMercadoLivre(
       return [winner, ...others];
     }
   } catch {}
+
+  // 4. Baseline de estimativa caso todas as fontes de rede estejam temporariamente bloqueadas
+  if (options.sourcePrice && options.sourcePrice > 0) {
+    const { winner } = rankWinningSeller([], options.sourcePrice);
+    winner.title = `${query} (Referência Estimada ML)`;
+    return [winner];
+  }
 
   return [];
 }

@@ -85,8 +85,8 @@ export async function cleanProductTitleWithGemini(
     .replace(/\s+/g, ' ')
     .trim();
 
-  let cleanKey = apiKey ? apiKey.trim() : '';
-  if (cleanKey && !cleanKey.startsWith('AIzaSy') && !cleanKey.startsWith('AQ.')) {
+  let cleanKey = (apiKey || process.env.GEMINI_API_KEY || '').trim();
+  if (cleanKey && !cleanKey.startsWith('AIza') && !cleanKey.startsWith('AQ.')) {
     cleanKey = `AQ.${cleanKey}`;
   }
 
@@ -559,8 +559,8 @@ export async function decideBestCandidateWithGemini(
 
   const defaultWinner = candidates[fallbackWinnerIdx];
 
-  let cleanKey = apiKey ? apiKey.trim() : '';
-  if (cleanKey && !cleanKey.startsWith('AIzaSy') && !cleanKey.startsWith('AQ.')) {
+  let cleanKey = (apiKey || process.env.GEMINI_API_KEY || '').trim();
+  if (cleanKey && !cleanKey.startsWith('AIza') && !cleanKey.startsWith('AQ.')) {
     cleanKey = `AQ.${cleanKey}`;
   }
 
@@ -717,8 +717,8 @@ export async function searchMercadoLivreWithGeminiGrounding(
   query: string,
   apiKey?: string | null
 ): Promise<ScrapedMlItem[]> {
-  let cleanKey = apiKey ? apiKey.trim() : '';
-  if (cleanKey && !cleanKey.startsWith('AIzaSy') && !cleanKey.startsWith('AQ.')) {
+  let cleanKey = (apiKey || process.env.GEMINI_API_KEY || '').trim();
+  if (cleanKey && !cleanKey.startsWith('AIza') && !cleanKey.startsWith('AQ.')) {
     cleanKey = `AQ.${cleanKey}`;
   }
   if (!cleanKey || cleanKey.length < 15) return [];

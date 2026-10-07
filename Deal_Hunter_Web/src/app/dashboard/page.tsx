@@ -25,6 +25,9 @@ import {
   LogOut,
   User as UserIcon,
   Zap,
+  Trash2,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 import AnalysisDetailModal, { DealAnalysis } from '@/components/ml-radar/AnalysisDetailModal';
 import ManualSearchModal from '@/components/ml-radar/ManualSearchModal';
@@ -50,6 +53,7 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStore, setFilterStore] = useState('ALL');
   const [filterVerdict, setFilterVerdict] = useState('ALL');
+  const [selectedDealIds, setSelectedDealIds] = useState<string[]>([]);
 
   // Modals & Interactivity
   const [selectedDealForDetail, setSelectedDealForDetail] = useState<DealAnalysis | null>(null);
@@ -115,13 +119,140 @@ export default function DashboardPage() {
       });
       const data = await res.json();
       if (res.ok && Array.isArray(data.data)) {
-        setDeals(data.data);
+        let items: DealAnalysis[] = data.data;
+        if (typeof window !== 'undefined') {
+          try {
+            const dismissed: string[] = JSON.parse(
+              localStorage.getItem('dealhunter_dismissed_deals') || '[]'
+            );
+            if (dismissed.length > 0) {
+              const dismissedSet = new Set(dismissed);
+              items = items.filter(
+                (d) => !dismissedSet.has(d.id || '') && !dismissedSet.has(d.product_url || '')
+              );
+            }
+          } catch {}
+        }
+        setDeals(items);
       }
     } catch (err: any) {
       console.error('Erro ao carregar ofertas:', err);
     } finally {
       setLoading(false);
       if (showIndicator) setRefreshing(false);
+    }
+  }
+
+  function recordDismissed(ids: string[], urls: string[] = []) {
+    if (typeof window === 'undefined') return;
+    try {
+      const dismissed: string[] = JSON.parse(
+        localStorage.getItem('dealhunter_dismissed_deals') || '[]'
+      );
+      for (const id of ids) {
+        if (id && !dismissed.includes(id)) dismissed.push(id);
+      }
+      for (const u of urls) {
+        if (u && !dismissed.includes(u)) dismissed.push(u);
+      }
+      localStorage.setItem('dealhunter_dismissed_deals', JSON.stringify(dismissed));
+    } catch {}
+  }
+
+  async function handleDeleteSingleDeal(deal: DealAnalysis, e?: React.MouseEvent) {
+    if (e) e.stopPropagation();
+    const dealId = deal.id;
+    if (!dealId) return;
+
+    setDeals((prev) => prev.filter((d) => d.id !== dealId));
+    setSelectedDealIds((prev) => prev.filter((id) => id !== dealId));
+    recordDismissed([dealId], deal.product_url ? [deal.product_url] : []);
+
+    if (authToken) {
+      fetch('/api/ml-radar/deals', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ id: dealId }),
+      }).catch(() => {});
+    }
+
+    setNotification('🗑️ Anúncio excluído do Radar!');
+    setTimeout(() => setNotification(null), 3000);
+  }
+
+  async function handleDeleteSelectedDeals() {
+    if (selectedDealIds.length === 0) return;
+    const count = selectedDealIds.length;
+    const idsToDelete = [...selectedDealIds];
+    const urlsToDelete = deals
+      .filter((d) => d.id && idsToDelete.includes(d.id))
+      .map((d) => d.product_url)
+      .filter(Boolean) as string[];
+
+    setDeals((prev) => prev.filter((d) => !d.id || !idsToDelete.includes(d.id)));
+    setSelectedDealIds([]);
+    recordDismissed(idsToDelete, urlsToDelete);
+
+    if (authToken) {
+      fetch('/api/ml-radar/deals', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ ids: idsToDelete }),
+      }).catch(() => {});
+    }
+
+    setNotification(`🗑️ ${count} anúncio(s) selecionado(s) excluído(s)!`);
+    setTimeout(() => setNotification(null), 3500);
+  }
+
+  async function handleDeleteFilteredDeals() {
+    if (filteredDeals.length === 0) return;
+    const isFiltered = filterStore !== 'ALL' || filterVerdict !== 'ALL' || searchTerm.trim().length > 0;
+    const confirmMessage = isFiltered
+      ? `Confirma a exclusão de todos os ${filteredDeals.length} anúncios filtrados no radar?`
+      : `Confirma a limpeza de todos os ${deals.length} anúncios do radar?`;
+
+    if (!window.confirm(confirmMessage)) return;
+
+    const idsToDelete = filteredDeals.map((d) => d.id).filter(Boolean) as string[];
+    const urlsToDelete = filteredDeals.map((d) => d.product_url).filter(Boolean) as string[];
+
+    setDeals((prev) => prev.filter((d) => !d.id || !idsToDelete.includes(d.id)));
+    setSelectedDealIds((prev) => prev.filter((id) => !idsToDelete.includes(id)));
+    recordDismissed(idsToDelete, urlsToDelete);
+
+    if (authToken) {
+      fetch('/api/ml-radar/deals', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ ids: idsToDelete, deleteAll: !isFiltered }),
+      }).catch(() => {});
+    }
+
+    setNotification(`🗑️ Limpeza em escala concluída: ${idsToDelete.length} anúncio(s) removido(s)!`);
+    setTimeout(() => setNotification(null), 3500);
+  }
+
+  function handleToggleSelectDeal(dealId: string, e?: React.MouseEvent) {
+    if (e) e.stopPropagation();
+    if (!dealId) return;
+    setSelectedDealIds((prev) =>
+      prev.includes(dealId) ? prev.filter((id) => id !== dealId) : [...prev, dealId]
+    );
+  }
+
+  function handleToggleSelectAllFiltered() {
+    const allFilteredSelected =
+      filteredDeals.length > 0 &&
+      filteredDeals.every((d) => d.id && selectedDealIds.includes(d.id));
+
+    if (allFilteredSelected) {
+      const filteredIds = new Set(filteredDeals.map((d) => d.id).filter(Boolean) as string[]);
+      setSelectedDealIds((prev) => prev.filter((id) => !filteredIds.has(id)));
+    } else {
+      const validFilteredIds = filteredDeals.map((d) => d.id).filter(Boolean) as string[];
+      const combined = Array.from(new Set([...selectedDealIds, ...validFilteredIds]));
+      setSelectedDealIds(combined);
     }
   }
 
@@ -489,6 +620,17 @@ export default function DashboardPage() {
                 <option value="Evitar">Evitar</option>
               </select>
 
+              {filteredDeals.length > 0 && (
+                <button
+                  onClick={handleDeleteFilteredDeals}
+                  className="px-3.5 py-2.5 rounded-xl bg-rose-950/30 hover:bg-rose-900/50 text-rose-300 border border-rose-800/40 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                  title="Excluir todos os anúncios correspondentes ao filtro atual"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Limpar Filtrados ({filteredDeals.length})</span>
+                </button>
+              )}
+
               <button
                 onClick={() => setManualModalOpen(true)}
                 className="sm:hidden w-full py-2.5 rounded-xl bg-cyan-600 text-white font-bold text-xs flex items-center justify-center gap-1.5"
@@ -496,6 +638,53 @@ export default function DashboardPage() {
                 <PlusCircle className="w-4 h-4" /> Nova Análise Manual
               </button>
             </div>
+
+            {/* Barra de Seleção e Ações em Lote */}
+            {filteredDeals.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-[#0f1422] border border-gray-800/80 text-xs">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleToggleSelectAllFiltered}
+                    className="flex items-center gap-2 text-gray-300 hover:text-white font-semibold transition-colors"
+                  >
+                    {filteredDeals.length > 0 && filteredDeals.every((d) => d.id && selectedDealIds.includes(d.id)) ? (
+                      <CheckSquare className="w-4 h-4 text-cyan-400" />
+                    ) : (
+                      <Square className="w-4 h-4 text-gray-500" />
+                    )}
+                    <span>Selecionar Todos ({filteredDeals.length})</span>
+                  </button>
+
+                  {selectedDealIds.length > 0 && (
+                    <span className="text-cyan-400 font-extrabold px-2.5 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-800/40 text-[11px]">
+                      {selectedDealIds.length} marcado(s)
+                    </span>
+                  )}
+                </div>
+
+                {selectedDealIds.length > 0 ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleDeleteSelectedDeals}
+                      className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs flex items-center gap-1.5 shadow-lg shadow-rose-950/50 transition-all"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Excluir Selecionados ({selectedDealIds.length})</span>
+                    </button>
+                    <button
+                      onClick={() => setSelectedDealIds([])}
+                      className="px-3 py-1.5 rounded-xl bg-gray-800/80 hover:bg-gray-700 text-gray-300 font-semibold text-xs transition-colors"
+                    >
+                      Desmarcar
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-[11px] text-gray-500 hidden md:inline">
+                    Marque cards para exclusão em lote ou use a lixeira individual em cada anúncio
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Grid de Ofertas */}
             {filteredDeals.length === 0 ? (
@@ -532,16 +721,29 @@ export default function DashboardPage() {
                   const isAttention = deal.verdict === 'Atenção';
                   const itemTitle = deal.title || deal.source_title || 'Produto sem título';
                   const itemPrice = Number(deal.price || deal.source_price || 0);
+                  const dealId = deal.id || '';
 
                   return (
                     <div
-                      key={deal.id}
+                      key={deal.id || `deal-${deal.product_url}`}
                       onClick={() => setSelectedDealForDetail(deal)}
                       className="group bg-[#101420] border border-gray-800/80 hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/5 rounded-3xl p-5 shadow-lg flex flex-col justify-between space-y-4 transition-all cursor-pointer"
                     >
                       {/* Header do Card */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleSelectDeal(dealId, e)}
+                            className="p-1 rounded-lg text-gray-400 hover:text-white transition-colors"
+                            title={selectedDealIds.includes(dealId) ? 'Desmarcar' : 'Selecionar'}
+                          >
+                            {selectedDealIds.includes(dealId) ? (
+                              <CheckSquare className="w-4 h-4 text-cyan-400" />
+                            ) : (
+                              <Square className="w-4 h-4 text-gray-600 hover:text-gray-400" />
+                            )}
+                          </button>
                           <span className="px-2.5 py-1 rounded-full bg-white/[0.06] text-gray-300 text-[10px] font-bold border border-white/10 uppercase">
                             {deal.store}
                           </span>
@@ -564,14 +766,24 @@ export default function DashboardPage() {
                           )}
                         </div>
 
-                        <span className="text-[10px] text-gray-500 font-medium">
-                          {deal.created_at
-                            ? new Date(deal.created_at).toLocaleTimeString('pt-BR', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })
-                            : ''}
-                        </span>
+                        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          <span className="text-[10px] text-gray-500 font-medium">
+                            {deal.created_at
+                              ? new Date(deal.created_at).toLocaleTimeString('pt-BR', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })
+                              : ''}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteSingleDeal(deal, e)}
+                            className="p-1.5 rounded-lg text-gray-600 hover:text-rose-400 hover:bg-rose-950/30 transition-colors"
+                            title="Excluir este anúncio do Radar"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
 
                       {/* Conteúdo Principal (Origem vs Mercado Livre) */}
@@ -732,6 +944,15 @@ export default function DashboardPage() {
                               <ArrowUpRight className="w-3.5 h-3.5" />
                             </a>
                           )}
+
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteSingleDeal(deal, e)}
+                          className="py-2 px-2.5 rounded-xl bg-red-950/20 hover:bg-rose-900/40 text-gray-500 hover:text-rose-400 border border-transparent hover:border-rose-500/30 text-[11px] font-bold flex items-center justify-center transition-all"
+                          title="Excluir este anúncio do Radar"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   );

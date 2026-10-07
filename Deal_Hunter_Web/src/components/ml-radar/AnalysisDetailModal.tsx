@@ -145,10 +145,13 @@ export default function AnalysisDetailModal({
       }
 
       let clientMlKey = '';
+      let clientGeminiKey = '';
       if (typeof window !== 'undefined') {
         try {
           const creds = JSON.parse(localStorage.getItem('dealhunter_ml_credentials') || '{}');
           clientMlKey = creds.ml_api_key || localStorage.getItem('dealhunter_ml_token') || '';
+          const gCreds = JSON.parse(localStorage.getItem('dealhunter_gemini_credentials') || '{}');
+          clientGeminiKey = gCreds.gemini_api_key || localStorage.getItem('dealhunter_gemini_api_key') || '';
         } catch {}
       }
 
@@ -165,6 +168,7 @@ export default function AnalysisDetailModal({
           roiPercent: analysis.roi_percent,
           marginPercent: analysis.margin_percent,
           mlApiKey: clientMlKey,
+          geminiApiKey: clientGeminiKey,
         }),
       });
 
@@ -560,7 +564,9 @@ export default function AnalysisDetailModal({
                   {sellerName}
                 </span>
 
-                <Award className="w-4 h-4 text-amber-400" title="MercadoLíder" />
+                <span title="MercadoLíder">
+                  <Award className="w-4 h-4 text-amber-400" />
+                </span>
                 <span>• Estoque: <strong className="text-white">{availableStock} un</strong></span>
                 <span>• Vendas: <strong className="text-emerald-400">{soldQty.toLocaleString('pt-BR')} un</strong></span>
               </div>

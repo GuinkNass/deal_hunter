@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Loader2,
   X,
+  Sparkles,
 } from 'lucide-react';
 
 interface MarginCalculatorViewProps {
@@ -48,7 +49,7 @@ export default function MarginCalculatorView({
 
   const [packagingCost, setPackagingCost] = useState<string | number>(3.5);
   const [adsPercent, setAdsPercent] = useState<string | number>(0);
-  const [returnPercent, setReturnPercent] = useState<string | number>(2.0);
+  const [adsFixedAmount, setAdsFixedAmount] = useState<string | number>(0);
 
   const [result, setResult] = useState<any>(null);
   const [saving, setSaving] = useState(false);
@@ -73,7 +74,7 @@ export default function MarginCalculatorView({
             customShippingCost: Number(customShippingCost || 0),
             packagingCost: Number(packagingCost || 0),
             adsPercent: Number(adsPercent || 0),
-            returnPercent: Number(returnPercent || 0),
+            adsFixedAmount: Number(adsFixedAmount || 0),
           }),
         });
         const json = await res.json();
@@ -95,7 +96,7 @@ export default function MarginCalculatorView({
     customShippingCost,
     packagingCost,
     adsPercent,
-    returnPercent,
+    adsFixedAmount,
   ]);
 
   useEffect(() => {
@@ -155,7 +156,8 @@ export default function MarginCalculatorView({
             : result?.shippingCost || 0,
           packagingCost: Number(packagingCost),
           adsPercent: Number(adsPercent),
-          returnPercent: Number(returnPercent),
+          adsFixedAmount: Number(adsFixedAmount),
+          marketingCost: Number(result?.marketingCost || 0),
           commissionFee: result?.commissionFee || 0,
           fixedFee: result?.fixedFee || 0,
           netProfit: result?.netProfit || 0,
@@ -198,6 +200,9 @@ export default function MarginCalculatorView({
     setFreeShippingAuto(Boolean(item.free_shipping_auto));
     setCustomShippingEnabled(Boolean(item.custom_shipping_enabled));
     if (item.shipping_cost) setCustomShippingCost(item.shipping_cost);
+    if (item.packaging_cost !== undefined) setPackagingCost(item.packaging_cost);
+    if (item.ads_percent !== undefined) setAdsPercent(item.ads_percent);
+    if (item.ads_fixed_amount !== undefined) setAdsFixedAmount(item.ads_fixed_amount);
   }
 
   const containerContent = (
@@ -408,29 +413,63 @@ export default function MarginCalculatorView({
             </div>
           )}
 
-          {/* Embalagem & Devolução */}
-          <div className="grid grid-cols-2 gap-3 pt-1 text-xs">
+          {/* Embalagem & Investimento em Marketing no Mercado Livre */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs">
             <div>
-              <label className="text-slate-400 block mb-1">Custo Embalagem (R$)</label>
-              <input
-                type="number"
-                step="0.5"
-                value={packagingCost}
-                onChange={(e) => setPackagingCost(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-[#0e1015] border border-slate-800 font-semibold text-white"
-              />
+              <label className="text-slate-400 block mb-1">Custo Embalagem</label>
+              <div className="relative flex items-center">
+                <span className="absolute left-3 text-slate-500 font-bold">R$</span>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={packagingCost}
+                  onChange={(e) => setPackagingCost(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-[#0e1015] border border-slate-800 font-semibold text-white focus:outline-none focus:border-slate-600"
+                />
+              </div>
             </div>
             <div>
-              <label className="text-slate-400 block mb-1">Margem Devolução (%)</label>
-              <input
-                type="number"
-                step="0.5"
-                value={returnPercent}
-                onChange={(e) => setReturnPercent(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-[#0e1015] border border-slate-800 font-semibold text-white"
-              />
+              <label className="text-slate-400 block mb-1">Marketing ML (Ads %)</label>
+              <div className="relative flex items-center">
+                <input
+                  type="number"
+                  step="0.5"
+                  value={adsPercent}
+                  onChange={(e) => setAdsPercent(e.target.value)}
+                  placeholder="0"
+                  className="w-full pl-3 pr-8 py-2 rounded-lg bg-[#0e1015] border border-slate-800 font-semibold text-white focus:outline-none focus:border-slate-600"
+                />
+                <span className="absolute right-3 text-slate-500 font-bold">%</span>
+              </div>
+            </div>
+            <div>
+              <label className="text-slate-400 block mb-1">Marketing ML (R$ fixo)</label>
+              <div className="relative flex items-center">
+                <span className="absolute left-3 text-slate-500 font-bold">R$</span>
+                <input
+                  type="number"
+                  step="1"
+                  value={adsFixedAmount}
+                  onChange={(e) => setAdsFixedAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-[#0e1015] border border-slate-800 font-semibold text-white focus:outline-none focus:border-slate-600"
+                />
+              </div>
             </div>
           </div>
+
+          {(Number(adsPercent) > 0 || Number(adsFixedAmount) > 0) && (
+            <div className="p-2.5 rounded-xl bg-purple-950/30 border border-purple-800/40 flex items-center justify-between text-xs text-purple-300">
+              <span className="font-semibold flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" /> Investimento em Marketing ML:
+              </span>
+              <span className="font-extrabold text-white">
+                - R$ {result?.marketingCost !== undefined ? Number(result.marketingCost).toFixed(2) : (
+                  (Number(salePrice || 0) * (Number(adsPercent || 0) / 100)) + Number(adsFixedAmount || 0)
+                ).toFixed(2)} / unidade
+              </span>
+            </div>
+          )}
 
           {/* Real-time Math Summary Strip */}
           {result && (

@@ -203,3 +203,64 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, data: [] });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const authHeader = req.headers.get('authorization') || '';
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+
+    const supabase = createAdminClient();
+    let userId: string | null = null;
+
+    if (token) {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser(token);
+        if (user) userId = user.id;
+      } catch {}
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const { id, ids, deleteAll } = body;
+
+    // 1. Exclusão de item individual
+    if (id) {
+      if (typeof id === 'string' && !id.startsWith('render-')) {
+        let query = supabase.from('ml_radar_deals').delete().eq('id', id);
+        if (userId) query = query.eq('user_id', userId);
+        await query;
+      }
+      return NextResponse.json({ success: true, deleted: [id] });
+    }
+
+    // 2. Exclusão em lote por lista de IDs
+    if (Array.isArray(ids) && ids.length > 0) {
+      const dbIds = ids.filter((x: string) => !x.startsWith('render-'));
+      if (dbIds.length > 0) {
+        let query = supabase.from('ml_radar_deals').delete().in('id', dbIds);
+        if (userId) query = query.eq('user_id', userId);
+        await query;
+      }
+      return NextResponse.json({ success: true, deleted: ids });
+    }
+
+    // 3. Limpeza total de anúncios
+    if (deleteAll) {
+      if (userId) {
+        await supabase.from('ml_radar_deals').delete().eq('user_id', userId);
+      } else {
+        await supabase.from('ml_radar_deals').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      }
+      return NextResponse.json({ success: true, all: true });
+    }
+
+    return NextResponse.json(
+      { success: false, error: 'Informe id, ids ou deleteAll para exclusão' },
+      { status: 400 }
+    );
+  } catch (err: any) {
+    console.error('[API ML Radar Deals DELETE] Erro:', err);
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}

@@ -47,14 +47,14 @@ export async function POST(req: NextRequest) {
       shippingCost = Number(params.shippingCost || defaultShippingCost);
     }
 
-    // 4. Taxes & Extra Costs
+    // 4. Taxes & Marketing ML Investment
     const taxAmount = Number(((salePrice * taxPercent) / 100).toFixed(2));
-    const adsCost = Number(((salePrice * adsPercent) / 100).toFixed(2));
-    const returnCost = Number(((salePrice * returnPercent) / 100).toFixed(2));
-    const extraCosts = Number((adsCost + returnCost).toFixed(2));
+    const adsFixedAmount = Number(params.adsFixedAmount || 0);
+    const adsPercentCost = Number(((salePrice * adsPercent) / 100).toFixed(2));
+    const marketingCost = Number((adsPercentCost + adsFixedAmount).toFixed(2));
 
-    // 5. Total deductions & Net Profit
-    const totalDeductions = commissionFee + fixedFee + shippingCost + packagingCost + taxAmount + extraCosts + totalCost;
+    // 5. Total deductions & Net Profit (sem margem de devolução)
+    const totalDeductions = commissionFee + fixedFee + shippingCost + packagingCost + taxAmount + marketingCost + totalCost;
     const trueNetProfit = Number((salePrice - totalDeductions).toFixed(2));
 
     // 6. Margin & ROI
@@ -62,8 +62,8 @@ export async function POST(req: NextRequest) {
     const roiPercent = totalCost > 0 ? Number(((trueNetProfit / totalCost) * 100).toFixed(2)) : 0;
 
     // 7. Break-even Price
-    const variableRateSum = commissionRate + (taxPercent / 100) + (adsPercent / 100) + (returnPercent / 100);
-    const fixedCosts = fixedFee + shippingCost + packagingCost + totalCost;
+    const variableRateSum = commissionRate + (taxPercent / 100) + (adsPercent / 100);
+    const fixedCosts = fixedFee + shippingCost + packagingCost + adsFixedAmount + totalCost;
     let breakEvenPrice = 0;
     if (variableRateSum < 1) {
       breakEvenPrice = Number((fixedCosts / (1 - variableRateSum)).toFixed(2));
@@ -100,8 +100,8 @@ export async function POST(req: NextRequest) {
         taxPercent,
         taxAmount,
         adsPercent,
-        returnPercent,
-        extraCosts,
+        adsFixedAmount,
+        marketingCost,
         netProfit: trueNetProfit,
         marginPercent,
         roiPercent,

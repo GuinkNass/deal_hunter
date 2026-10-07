@@ -98,6 +98,14 @@ export default function ManualSearchModal({ onClose, onSuccess, authToken, userI
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
+      let clientGeminiKey = '';
+      if (typeof window !== 'undefined') {
+        try {
+          const gCreds = JSON.parse(localStorage.getItem('dealhunter_gemini_credentials') || '{}');
+          clientGeminiKey = gCreds.gemini_api_key || localStorage.getItem('dealhunter_gemini_api_key') || '';
+        } catch {}
+      }
+
       const res = await fetch('/api/analyses/manual', {
         method: 'POST',
         headers,
@@ -108,6 +116,7 @@ export default function ManualSearchModal({ onClose, onSuccess, authToken, userI
           price: Number(price),
           store,
           userId: userId || undefined,
+          geminiApiKey: clientGeminiKey || undefined,
         }),
       });
 

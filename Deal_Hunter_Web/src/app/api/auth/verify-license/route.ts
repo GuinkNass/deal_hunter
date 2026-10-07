@@ -66,11 +66,14 @@ async function handleVerification(req: NextRequest) {
   const userEmail = (user.email || '').toLowerCase().trim();
 
   // 2. Busca do perfil no banco de dados
-  let { data: profile, error: profileError } = await supabase
+  const profileRes = await supabase
     .from('profiles')
     .select('role, subscription_status, stripe_customer_id, stripe_subscription_id, expires_at, created_at')
     .eq('id', user.id)
     .single();
+
+  let profile: any = profileRes.data;
+  const profileError = profileRes.error;
 
   if (profileError && profileError.code !== 'PGRST116') {
     // Se falhar apenas por coluna inexistente, tenta sem expires_at
@@ -138,7 +141,7 @@ async function handleVerification(req: NextRequest) {
   // 4. Verificação de Assinatura Paga Ativa (Stripe ou InfinitePay Pix)
   const status = profile?.subscription_status || 'inactive';
   const hasExpiresAt = !!profile?.expires_at;
-  const isPaidActive = status === 'active' && (!hasExpiresAt || new Date(profile.expires_at).getTime() > Date.now());
+  const isPaidActive = status === 'active' && (!hasExpiresAt || (profile?.expires_at ? new Date(profile.expires_at).getTime() > Date.now() : true));
 
   if (isPaidActive) {
     return NextResponse.json(
