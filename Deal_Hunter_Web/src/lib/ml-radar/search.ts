@@ -279,7 +279,7 @@ export async function searchMercadoLivre(
 
     const res = await fetch(url, {
       headers: {
-        'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+        'User-Agent': 'Twitterbot/1.0',
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'pt-BR,pt;q=0.9',
       },
@@ -296,7 +296,8 @@ export async function searchMercadoLivre(
 
         const titleLinkMatch =
           block.match(/<a[^>]*class=["'][^"']*poly-component__title[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/is) ||
-          block.match(/<a[^>]*href=["']([^"']+)["'][^>]*class=["'][^"']*poly-component__title[^"']*["'][^>]*>(.*?)<\/a>/is);
+          block.match(/<a[^>]*href=["']([^"']+)["'][^>]*class=["'][^"']*poly-component__title[^"']*["'][^>]*>(.*?)<\/a>/is) ||
+          block.match(/<a[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/is);
 
         if (!titleLinkMatch) continue;
 
@@ -306,8 +307,9 @@ export async function searchMercadoLivre(
 
         const widMatch = fullUrl.match(/[?&#]wid=(MLB\d+)/i);
         const pMatch = fullUrl.match(/\/p\/(MLB\d+)/i);
+        const upMatch = fullUrl.match(/\/up\/(MLBU?\d+)/i);
         const directMatch = fullUrl.match(/(MLB-?\d+)/i);
-        const id = widMatch ? widMatch[1] : pMatch ? pMatch[1] : directMatch ? directMatch[1].replace('-', '') : `MLB-${i}`;
+        const id = widMatch ? widMatch[1] : pMatch ? pMatch[1] : upMatch ? upMatch[1] : directMatch ? directMatch[1].replace('-', '') : `MLB-${i}`;
 
         let price = 0;
         const mainPriceMatch = block.match(/<span class="andes-money-amount[^"]*"[^>]*role="img"[^>]*aria-label="([^"]+)"/i);

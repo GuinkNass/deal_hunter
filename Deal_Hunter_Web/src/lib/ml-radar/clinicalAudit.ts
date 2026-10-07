@@ -68,8 +68,36 @@ export function parseMlSalesCount(rawText: string): number {
 }
 
 /**
+ * Higieniza o título do produto removendo sufixos ou contaminações de referência
+ * e eliminando termos redundantes/duplicados.
+ */
+export function sanitizeProductTitle(title?: string | null): string {
+  if (!title) return '';
+  let clean = title
+    .replace(/\s*\([^)]*refer[êe]ncia[^)]*\)/gi, '')
+    .replace(/\s*\[[^\]]*refer[êe]ncia[^\]]*\]/gi, '')
+    .replace(/\s*refer[êe]ncia\s*(?:de\s*)?(?:mercado|mercado\s*livre)/gi, '')
+    .replace(/\s*\(estimado\)/gi, '')
+    .replace(/\s*\[estimado\]/gi, '')
+    .trim();
+
+  // Deduplica palavras repetidas consecutivas (ex: "Relógio Masculino Relógio Skmei" -> "Relógio Masculino Skmei")
+  const words = clean.split(/\s+/);
+  const deduped: string[] = [];
+  for (const w of words) {
+    const lower = w.toLowerCase();
+    if (deduped.length > 0 && deduped[deduped.length - 1].toLowerCase() === lower) {
+      continue;
+    }
+    deduped.push(w);
+  }
+  return deduped.join(' ').trim();
+}
+
+/**
  * Constrói e valida uma URL canônica do Mercado Livre, garantindo que NUNCA aponte
- * para a home page genérica vazia (www.mercadolivre.com.br).
+ * para a home page genérica vazia (www.mercadolivre.com.br) e NUNCA corrompa URLs válidas
+ * de catálogo (/p/MLB... ou /up/MLBU...).
  */
 export function buildCanonicalMlUrl(
   url?: string | null,
@@ -78,18 +106,18 @@ export function buildCanonicalMlUrl(
 ): string {
   const raw = String(url || '').trim();
 
-  // Se já for uma URL canônica direta de produto ou catálogo com MLB válido
+  // Se já for uma URL canônica direta de produto ou catálogo com MLB válido (ex: /p/MLB... ou /up/MLBU...)
   if (
-    (raw.includes('produto.mercadolivre.com.br') || raw.includes('/p/MLB') || raw.includes('/up/MLB')) &&
+    (raw.includes('produto.mercadolivre.com.br') || raw.includes('/p/MLB') || raw.includes('/up/MLB') || raw.includes('/up/MLBU')) &&
     !raw.endsWith('mercadolivre.com.br') &&
     !raw.endsWith('mercadolivre.com.br/')
   ) {
-    return raw;
+    return raw.split('#')[0];
   }
 
-  // Tenta extrair o MLB ID da URL ou do id passado
+  // Tenta extrair o MLB ID da URL ou do id passado SOMENTE se não for uma URL de catálogo /p/ ou /up/
   const mlbMatch = raw.match(/(MLB-?\d+)/i) || (id ? String(id).match(/(MLB-?\d+)/i) : null);
-  if (mlbMatch) {
+  if (mlbMatch && !raw.includes('/p/') && !raw.includes('/up/')) {
     const cleanId = mlbMatch[1].replace('-', '');
     return `https://produto.mercadolivre.com.br/${cleanId}`;
   }
@@ -104,16 +132,16 @@ export function buildCanonicalMlUrl(
     return raw;
   }
 
-  // Fallback seguro: busca direta pelo título do produto no Mercado Livre
-  if (title && title.trim().length > 0) {
-    const cleanTerms = title
-      .replace(/[^a-zA-Z0-9\sÀ-ÿ]/g, ' ')
-      .trim()
-      .split(/\s+/)
-      .filter((w) => w.length >= 2)
-      .slice(0, 5)
-      .join(' ');
-    return `https://lista.mercadolivre.com.br/${encodeURIComponent(cleanTerms || title.trim())}`;
+  // Fallback seguro: busca direta pelo título higienizado do produto no Mercado Livre
+  const safeTitle = sanitizeProductTitle(title);
+  if (safeTitle && safeTitle.trim().length > 0) {
+    const cleanSlug = safeTitle
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    return `https://lista.mercadolivre.com.br/${cleanSlug}`;
   }
 
   return 'https://lista.mercadolivre.com.br';
@@ -134,7 +162,8 @@ export async function extractProductSpecsWithGemini(
   rawTitle: string,
   apiKey?: string | null
 ): Promise<ProductSpecs> {
-  const fallbackClean = rawTitle
+  const sanitized = sanitizeProductTitle(rawTitle);
+  const fallbackClean = sanitized
     .replace(/\([^)]*\)/g, ' ')
     .replace(/\[[^\]]*\]/g, ' ')
     .split('|')[0]
@@ -246,7 +275,8 @@ export interface ScrapedMlItem {
 export async function scrapeMercadoLivreSearch(
   query: string,
   maxPages: number = 2,
-  sourcePrice?: number
+  sourcePrice?: number,
+  specs?: { model?: string; brand?: string }
 ): Promise<ScrapedMlItem[]> {
   const cleanSlug = query
     .normalize('NFD')
@@ -269,9 +299,9 @@ export async function scrapeMercadoLivreSearch(
 
       let html = '';
       const crawlers = [
+        'Twitterbot/1.0',
         'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
         'WhatsApp/2.21.12.21 A',
-        'Twitterbot/1.0',
       ];
 
       let lastStatus = 0;
@@ -331,7 +361,8 @@ export async function scrapeMercadoLivreSearch(
         // Link canônico e título
         const titleLinkMatch =
           block.match(/<a[^>]*class=["'][^"']*poly-component__title[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/is) ||
-          block.match(/<a[^>]*href=["']([^"']+)["'][^>]*class=["'][^"']*poly-component__title[^"']*["'][^>]*>(.*?)<\/a>/is);
+          block.match(/<a[^>]*href=["']([^"']+)["'][^>]*class=["'][^"']*poly-component__title[^"']*["'][^>]*>(.*?)<\/a>/is) ||
+          block.match(/<a[^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/is);
 
         if (!titleLinkMatch) continue;
 
@@ -344,8 +375,9 @@ export async function scrapeMercadoLivreSearch(
         // Extração precisa do MLB ID (wid=MLB..., /p/MLB... ou MLB-...)
         const widMatch = fullUrl.match(/[?&#]wid=(MLB\d+)/i);
         const pMatch = fullUrl.match(/\/p\/(MLB\d+)/i);
+        const upMatch = fullUrl.match(/\/up\/(MLBU?\d+)/i);
         const directMatch = fullUrl.match(/(MLB-?\d+)/i);
-        const mlbId = widMatch ? widMatch[1] : pMatch ? pMatch[1] : directMatch ? directMatch[1].replace('-', '') : `MLB-${i}`;
+        const mlbId = widMatch ? widMatch[1] : pMatch ? pMatch[1] : upMatch ? upMatch[1] : directMatch ? directMatch[1].replace('-', '') : `MLB-${i}`;
 
         if (seenIds.has(mlbId)) continue;
 
@@ -376,7 +408,7 @@ export async function scrapeMercadoLivreSearch(
 
         // Métrica clínica de vendas
         const salesMatch = block.match(/(\+?\d+[\d.]*(?:\s*mil)?\s*vendidos?)/i);
-        const salesCount = salesMatch ? parseMlSalesCount(salesMatch[1]) : 0;
+        const salesCount = salesMatch ? parseMlSalesCount(salesMatch[1]) : 50;
 
         const isFull = block.includes('fulfillment') || block.includes('FULL') || block.includes('icon-full');
         const freeShipping = block.includes('Frete grátis') || price >= 79.0;
@@ -407,6 +439,9 @@ export async function scrapeMercadoLivreSearch(
     .split(/\s+/)
     .filter((w) => w.length >= 3);
 
+  const modelLower = (specs?.model || '').toLowerCase().replace(/[-_]/g, '');
+  const brandLower = (specs?.brand || '').toLowerCase();
+
   const scoredItems = items.map((it) => {
     const titleLower = it.title
       .toLowerCase()
@@ -416,23 +451,31 @@ export async function scrapeMercadoLivreSearch(
     for (const w of queryWords) {
       if (titleLower.includes(w)) matched++;
     }
-    const score = queryWords.length > 0 ? matched / queryWords.length : 0.5;
-    return { ...it, simScore: score };
+    let score = queryWords.length > 0 ? matched / queryWords.length : 0.5;
+
+    let isExact = false;
+    const cleanTitleNoDash = titleLower.replace(/[-_]/g, '');
+    if (modelLower && modelLower.length >= 2 && cleanTitleNoDash.includes(modelLower)) {
+      isExact = true;
+      score += 2.0; // Boost decisivo para match exato do modelo!
+    }
+    if (brandLower && brandLower.length >= 2 && cleanTitleNoDash.includes(brandLower)) {
+      score += 0.5;
+    }
+
+    return { ...it, simScore: score, isExactMatch: isExact };
   });
 
-  // Filtra itens com correspondência semântica real (elimina acessórios/brinquedos avulsos de R$ 20)
+  // Prioriza itens com correspondência exata de modelo se existirem
+  const exactMatches = scoredItems.filter((it) => it.isExactMatch);
   const relevant = scoredItems.filter((it) => (it.simScore || 0) >= 0.35);
-  const candidatesPool = relevant.length >= 1 ? relevant : scoredItems;
+  const candidatesPool = exactMatches.length >= 1 ? exactMatches : (relevant.length >= 1 ? relevant : scoredItems);
 
   // Dentre os candidatos relevantes, prioriza correspondência forte e menor preço
   candidatesPool.sort((a, b) => {
-    const aHigh = (a.simScore || 0) >= 0.6;
-    const bHigh = (b.simScore || 0) >= 0.6;
-    if (aHigh && bHigh) return a.price - b.price;
-    if (aHigh && !bHigh) return -1;
-    if (!aHigh && bHigh) return 1;
-    if (Math.abs((a.simScore || 0) - (b.simScore || 0)) <= 0.2) return a.price - b.price;
-    return (b.simScore || 0) - (a.simScore || 0);
+    if ((b.simScore || 0) - (a.simScore || 0) > 0.8) return (b.simScore || 0) - (a.simScore || 0);
+    if ((a.simScore || 0) - (b.simScore || 0) > 0.8) return -1;
+    return a.price - b.price;
   });
 
   return candidatesPool;
@@ -522,7 +565,7 @@ export async function enrichCandidateWithMlApi(
     try {
       const pdpRes = await fetch(targetUrl, {
         headers: {
-          'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+          'User-Agent': 'Twitterbot/1.0',
           Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'pt-BR,pt;q=0.9',
         },

@@ -28,6 +28,7 @@ import {
   ClinicalEvaluationResult,
   ClinicalCandidatePayload,
   buildCanonicalMlUrl,
+  sanitizeProductTitle,
 } from '@/lib/ml-radar/clinicalAudit';
 import { getProductFallbackImage } from '@/lib/ml-radar/imageFallback';
 
@@ -114,8 +115,9 @@ export default function AnalysisDetailModal({
   const [isAuditing, setIsAuditing] = useState<boolean>(false);
   const [auditError, setAuditError] = useState<string | null>(null);
 
-  const productTitle =
-    analysis?.ml_title || analysis?.title || analysis?.source_title || 'Produto sem título';
+  const rawTitle =
+    analysis?.source_title || analysis?.title || analysis?.ml_title || 'Produto sem título';
+  const productTitle = sanitizeProductTitle(rawTitle);
   const sourcePrice = Number(analysis?.price || analysis?.source_price || 0);
   const mlPrice = Number(analysis?.ml_price || 0);
   const originalPrice = analysis?.original_price || analysis?.source_original_price;
