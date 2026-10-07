@@ -5,6 +5,7 @@ import { searchMercadoLivre } from '@/lib/ml-radar/search';
 import { calculateROI } from '@/lib/ml-radar/roi';
 import { analyzeOpportunityWithGemini } from '@/lib/ml-radar/gemini';
 import { sendTelegramNotification } from '@/lib/ml-radar/telegram';
+import { tagAmazonUrl } from '@/lib/ml-radar/affiliate';
 import {
   extractProductSpecsWithGemini,
   scrapeMercadoLivreSearch,
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
 
     const numPrice = Number(price);
     const cleanStore = store || 'Busca Manual';
-    const cleanUrl = url || `https://busca-manual.local/item?q=${encodeURIComponent(title)}`;
+    const cleanUrl = tagAmazonUrl(url || `https://busca-manual.local/item?q=${encodeURIComponent(title)}`);
 
     // 2. Busca credenciais do usuário
     let userCreds: any = {};

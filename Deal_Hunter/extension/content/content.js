@@ -134,15 +134,36 @@
     }
   }
 
+  const AMAZON_AFFILIATE_TAG = 'dealhunterp07-20';
+
+  function tagAmazonUrl(urlStr) {
+    if (!urlStr || typeof urlStr !== 'string') return urlStr;
+    try {
+      const u = new URL(urlStr, location.origin);
+      const host = u.hostname.toLowerCase();
+      if (host.includes('amazon.') || host.includes('amzn.')) {
+        u.searchParams.set('tag', AMAZON_AFFILIATE_TAG);
+        return u.href;
+      }
+      return urlStr;
+    } catch {
+      return urlStr;
+    }
+  }
+
   function cleanCanonicalUrl(url) {
     if (!url) return '';
     try {
       const u = new URL(url, location.origin);
       u.hash = '';
+      const isAmazon = u.hostname.toLowerCase().includes('amazon.') || u.hostname.toLowerCase().includes('amzn.');
       for (const p of [...u.searchParams.keys()]) {
         if (/^(ref|tag|psc|crid|sprefix|qid|sr|dib|dib_tag|utm_.*)$/i.test(p)) {
           u.searchParams.delete(p);
         }
+      }
+      if (isAmazon) {
+        u.searchParams.set('tag', AMAZON_AFFILIATE_TAG);
       }
       return u.href;
     } catch {

@@ -2,10 +2,17 @@ function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 }
 
+const AMAZON_AFFILIATE_TAG = 'dealhunterp07-20';
+
 function safeUrl(value) {
   try {
     const url = new URL(value);
-    return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+    if (!['http:', 'https:'].includes(url.protocol)) return '';
+    const host = url.hostname.toLowerCase();
+    if (host.includes('amazon.') || host.includes('amzn.')) {
+      url.searchParams.set('tag', AMAZON_AFFILIATE_TAG);
+    }
+    return url.href;
   } catch { return ''; }
 }
 

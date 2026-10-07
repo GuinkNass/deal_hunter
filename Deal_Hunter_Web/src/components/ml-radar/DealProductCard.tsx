@@ -14,6 +14,7 @@ import {
 import { DealAnalysis } from './AnalysisDetailModal';
 import { getProductFallbackImage } from '@/lib/ml-radar/imageFallback';
 import { buildCanonicalMlUrl } from '@/lib/ml-radar/clinicalAudit';
+import { tagAmazonUrl } from '@/lib/ml-radar/affiliate';
 
 interface DealProductCardProps {
   deal: DealAnalysis;
@@ -278,7 +279,7 @@ export default function DealProductCard({
 
         {deal.product_url && (
           <a
-            href={deal.product_url}
+            href={tagAmazonUrl(deal.product_url)}
             target="_blank"
             rel="noopener noreferrer"
             className="p-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-zinc-300 hover:text-white border border-white/10 text-[11px] font-bold flex items-center justify-center transition-colors flex-shrink-0"

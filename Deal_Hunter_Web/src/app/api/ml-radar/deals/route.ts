@@ -1,29 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-
-const AMAZON_AFFILIATE_TAG = 'dealhunterp07-20';
-
-function tagAmazonUrl(urlStr: string): string {
-  if (!urlStr || typeof urlStr !== 'string') return urlStr;
-  try {
-    const trimmed = urlStr.trim();
-    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) return urlStr;
-    const parsed = new URL(trimmed);
-    const hostname = parsed.hostname.toLowerCase();
-    const isAmazon =
-      /(?:^|\.)amazon\.(?:[a-z]{2,3}(?:\.[a-z]{2})?)$/i.test(hostname) ||
-      /(?:^|\.)amazon\.[a-z.]+$/i.test(hostname) ||
-      /(?:^|\.)amzn\.(?:to|com)$/i.test(hostname);
-
-    if (isAmazon) {
-      parsed.searchParams.set('tag', AMAZON_AFFILIATE_TAG);
-      return parsed.toString();
-    }
-    return urlStr;
-  } catch {
-    return urlStr;
-  }
-}
+import { tagAmazonUrl, AMAZON_AFFILIATE_TAG } from '@/lib/ml-radar/affiliate';
 
 function mapRenderAlertToDeal(r: any) {
   const currentPrice = Number(r.current_price) || 0;
@@ -162,6 +139,7 @@ export async function GET(req: NextRequest) {
 
       combinedDeals.push({
         ...d,
+        product_url: tagAmazonUrl(d.product_url),
         clinical_evaluated: hasRealMlAd,
         // Limpa URLs de busca genérica para que apenas links diretos reais sejam acessados
         ml_url: hasRealMlAd ? d.ml_url : null,
@@ -183,7 +161,10 @@ export async function GET(req: NextRequest) {
       if (!alreadyExists) {
         if (normUrl) seenUrls.add(normUrl);
         if (normTitle) seenTitles.add(normTitle);
-        combinedDeals.push(rd);
+        combinedDeals.push({
+          ...rd,
+          product_url: tagAmazonUrl(rd.product_url),
+        });
       }
     }
 

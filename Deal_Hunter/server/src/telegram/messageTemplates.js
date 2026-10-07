@@ -1,3 +1,5 @@
+const { tagAmazonUrl } = require('../adapters/amazon.adapter');
+
 function formatCurrency(value) {
   if (typeof value !== 'number') return '—';
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -29,10 +31,36 @@ function opportunityMessage({ siteName = 'Mercado Livre', title, currentPrice, r
   ];
   if (sampleSize) lines.push('', `📅 Histórico: ${sampleSize} registro(s)`);
 
+  const finalUrl = tagAmazonUrl(url);
+
   return {
     text: lines.join('\n'),
-    inlineButton: { text: '🛒 ADICIONAR AO CARRINHO', url },
+    inlineButton: { text: '🛒 ADICIONAR AO CARRINHO', url: finalUrl },
   };
 }
 
-module.exports = { opportunityMessage, formatCurrency };
+function anomalyAlertMessage(params) {
+  return opportunityMessage({
+    siteName: params.siteName,
+    title: params.productName || params.title,
+    currentPrice: params.currentPrice,
+    referencePrice: params.referenceAverage || params.referencePrice,
+    referencePriceSource: 'historico',
+    discountPercent: params.calculatedDiscountPercent || params.discountPercent,
+    score: params.score,
+    sampleSize: params.sampleSize,
+    url: params.url,
+  });
+}
+
+function couponAlertMessage(params) {
+  return opportunityMessage(params);
+}
+
+module.exports = {
+  opportunityMessage,
+  anomalyAlertMessage,
+  couponAlertMessage,
+  formatCurrency,
+};
+

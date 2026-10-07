@@ -16,6 +16,9 @@ function parseListing(html, pageUrl, domain) {
       for (const key of [...url.searchParams.keys()]) {
         if (/^(utm_|ref$|tag$|psc$|crid$)/i.test(key)) url.searchParams.delete(key);
       }
+      if (productHost.includes('amazon.') || allowedDomain.includes('amazon.')) {
+        url.searchParams.set('tag', 'dealhunterp07-20');
+      }
       const existing = results.get(url.href);
       const originalPrice = Number(product.originalPrice) > Number(product.price)
         ? Number(product.originalPrice)
@@ -170,6 +173,9 @@ function parseCapturedProducts(products, pageUrl, domain) {
       url.hash = '';
       for (const key of [...url.searchParams.keys()]) {
         if (/^(utm_|ref$|tag$|psc$|crid$)/i.test(key)) url.searchParams.delete(key);
+      }
+      if (productHost.includes('amazon.') || allowedDomain.includes('amazon.')) {
+        url.searchParams.set('tag', 'dealhunterp07-20');
       }
       let originalPrice = parsePrice(product?.originalPrice != null ? product.originalPrice : product?.preco_original);
       let advertisedDiscount = Number(product?.advertisedDiscount != null ? product.advertisedDiscount : (String(product?.desconto || '').match(/\d+/)?.[0])) || null;

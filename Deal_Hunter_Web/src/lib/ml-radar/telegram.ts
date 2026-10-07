@@ -1,3 +1,5 @@
+import { tagAmazonUrl } from './affiliate';
+
 /**
  * Disparo automático de notificação para o Telegram privado do usuário
  * Via API oficial do Telegram (POST https://api.telegram.org/bot<TOKEN>/sendMessage)
@@ -46,7 +48,7 @@ export async function sendTelegramNotification(params: {
     `${mlPriceStr}` +
     `${profitStr}${roiStr}\n` +
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `🔗 <b>Link da Oferta:</b> <a href="${deal.productUrl}">Acessar Produto</a>` +
+    `🔗 <b>Link da Oferta:</b> <a href="${tagAmazonUrl(deal.productUrl)}">Acessar Produto</a>` +
     (deal.mlUrl ? `\n🛒 <b>Anúncio ML:</b> <a href="${deal.mlUrl}">Ver no Mercado Livre</a>` : '');
 
   try {

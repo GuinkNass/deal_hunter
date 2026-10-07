@@ -31,6 +31,7 @@ import {
   sanitizeProductTitle,
 } from '@/lib/ml-radar/clinicalAudit';
 import { getProductFallbackImage } from '@/lib/ml-radar/imageFallback';
+import { tagAmazonUrl } from '@/lib/ml-radar/affiliate';
 
 export interface DealAnalysis {
   id?: string;
@@ -588,7 +589,7 @@ export default function AnalysisDetailModal({
 
                 {analysis.product_url && (
                   <a
-                    href={analysis.product_url}
+                    href={tagAmazonUrl(analysis.product_url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#1a1f2c] hover:bg-[#232a3d] border border-slate-700/80 text-xs font-semibold text-cyan-300 hover:text-white transition-colors"

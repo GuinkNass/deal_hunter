@@ -5,30 +5,7 @@ import { searchMercadoLivre } from '@/lib/ml-radar/search';
 import { analyzeOpportunityWithGemini } from '@/lib/ml-radar/gemini';
 import { sendTelegramNotification } from '@/lib/ml-radar/telegram';
 import { IngestPayload } from '@/lib/ml-radar/types';
-
-const AMAZON_AFFILIATE_TAG = 'dealhunterp07-20';
-
-function tagAmazonUrl(urlStr: string): string {
-  if (!urlStr || typeof urlStr !== 'string') return urlStr;
-  try {
-    const trimmed = urlStr.trim();
-    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) return urlStr;
-    const parsed = new URL(trimmed);
-    const hostname = parsed.hostname.toLowerCase();
-    const isAmazon =
-      /(?:^|\.)amazon\.(?:[a-z]{2,3}(?:\.[a-z]{2})?)$/i.test(hostname) ||
-      /(?:^|\.)amazon\.[a-z.]+$/i.test(hostname) ||
-      /(?:^|\.)amzn\.(?:to|com)$/i.test(hostname);
-
-    if (isAmazon) {
-      parsed.searchParams.set('tag', AMAZON_AFFILIATE_TAG);
-      return parsed.toString();
-    }
-    return urlStr;
-  } catch {
-    return urlStr;
-  }
-}
+import { tagAmazonUrl, AMAZON_AFFILIATE_TAG } from '@/lib/ml-radar/affiliate';
 
 const isValidUUID = (str?: string | null): boolean =>
   Boolean(str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim()));

@@ -693,10 +693,17 @@ function escapeHtml(value) {
   })[char]);
 }
 
+const AMAZON_AFFILIATE_TAG = 'dealhunterp07-20';
+
 function safeHttpUrl(value) {
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : '#';
+    if (!['http:', 'https:'].includes(url.protocol)) return '#';
+    const host = url.hostname.toLowerCase();
+    if (host.includes('amazon.') || host.includes('amzn.')) {
+      url.searchParams.set('tag', AMAZON_AFFILIATE_TAG);
+    }
+    return url.href;
   } catch {
     return '#';
   }
