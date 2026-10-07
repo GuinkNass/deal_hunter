@@ -115,11 +115,23 @@ function parseListing(html, pageUrl, domain) {
 
       // Trava de segurança anti-parcela universal (Magalu, KaBuM, Amazon, Shein, Shopee, etc.)
       const cardFullText = card.text();
-      if (current && original && original > current) {
-        const ratio = Math.round(original / current);
-        if (ratio >= 2 && ratio <= 24 && (new RegExp(`\\b${ratio}\\s*x\\b`, 'i').test(cardFullText) || /x\s*de/i.test(cardFullText))) {
-          current = original;
-          advertisedDiscount = isMagalu ? (magaluDiscount(card) || null) : null;
+      if (current) {
+        const cardPrices = [];
+        for (const m of cardFullText.matchAll(/R\$\s*([\d.]+,\d{2})/gi)) {
+          const p = parsePrice(m[1]);
+          if (p && p > 5) cardPrices.push(p);
+        }
+        for (const other of cardPrices) {
+          if (other > current) {
+            const ratio = other / current;
+            if (ratio >= 1.8 && ratio <= 25 && Math.abs(ratio - Math.round(ratio)) < 0.08) {
+              if (!original || original <= current) {
+                original = other;
+              }
+              current = other;
+              break;
+            }
+          }
         }
       }
 

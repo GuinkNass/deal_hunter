@@ -305,9 +305,111 @@
    * MÓDULO 2: KABUM!
    */
   function parseKabum(root = document) {
-    const cards = root.querySelectorAll('a[href^="/produto/"], a[href*="/produto/"]');
     const items = [];
     const seenUrls = new Set();
+
+    // 1. SUPORTE A PÁGINA INDIVIDUAL DE PRODUTO (PDP)
+    if (location.pathname.includes('/produto/')) {
+      try {
+        let pdpAdded = false;
+        const nextScript = document.getElementById('__NEXT_DATA__');
+        if (nextScript) {
+          try {
+            const nextData = JSON.parse(nextScript.textContent);
+            const prod = nextData?.props?.pageProps?.product || nextData?.props?.pageProps?.data?.product;
+            if (prod) {
+              const sku = String(prod.id || location.pathname.match(/\/produto\/(\d+)/)?.[1] || '');
+              const titulo = sanitizeText(prod.name || document.querySelector('h1')?.innerText || '');
+              const pixPrice = Number(prod.prices?.priceWithDiscount || prod.prices?.price || prod.price || 0);
+              const oldPrice = Number(prod.prices?.oldPrice || 0);
+              const url_produto = cleanCanonicalUrl(location.href);
+              const imgEl = document.querySelector('[data-testid="carousel-active-image"] img, img[class*="imageSlide"], img');
+              const url_imagem = resolveImageUrl(imgEl, 'https://www.kabum.com.br') || (prod.photos?.[0] || '');
+
+              if (sku && titulo && pixPrice > 0) {
+                const descontoStr = oldPrice > pixPrice
+                  ? calculateDiscount(oldPrice, pixPrice)
+                  : (prod.prices?.discountPercentage ? `-${prod.prices.discountPercentage}%` : '');
+
+                seenUrls.add(url_produto);
+                items.push({
+                  id: sku,
+                  titulo,
+                  preco_atual: formatBRL(pixPrice),
+                  preco_original: oldPrice > pixPrice ? formatBRL(oldPrice) : '',
+                  desconto: descontoStr,
+                  url_produto,
+                  url_imagem,
+                  loja: 'KaBuM!',
+                  name: titulo,
+                  url: url_produto,
+                  price: pixPrice,
+                  originalPrice: oldPrice > pixPrice ? oldPrice : null,
+                  advertisedDiscount: descontoStr ? parseInt(descontoStr.replace(/\D/g, ''), 10) : null,
+                  imageUrl: url_imagem,
+                  currency: 'BRL',
+                  outOfStock: Boolean(prod.available === false),
+                });
+                pdpAdded = true;
+              }
+            }
+          } catch {}
+        }
+
+        // Fallback DOM para PDP se __NEXT_DATA__ não estiver disponível
+        if (!pdpAdded) {
+          const h1 = document.querySelector('h1');
+          const titulo = sanitizeText(h1?.innerText || '');
+          const skuMatch = location.pathname.match(/\/produto\/(\d+)/);
+          const id = skuMatch ? skuMatch[1] : '';
+
+          if (id && titulo) {
+            const url_produto = cleanCanonicalUrl(location.href);
+            const imgEl = document.querySelector('[data-testid="carousel-active-image"] img, img');
+            const url_imagem = resolveImageUrl(imgEl, 'https://www.kabum.com.br');
+
+            // Busca preço PIX no buybox
+            const buyBoxText = sanitizeText(document.querySelector('[class*="buyBox"], [class*="product-info"], main')?.innerText || '');
+            const pixMatch = buyBoxText.match(/(?:R\$\s*([\d.,]+)\s*(?:à\s*vista|no\s*Pix|no\s*PIX|em\s*1x)|(?:à\s*vista|no\s*Pix|no\s*PIX)\s*(?:por\s*)?R\$\s*([\d.,]+))/i);
+            let pdpPrice = pixMatch ? parseCurrencyToNumber(pixMatch[1] || pixMatch[2]) : null;
+
+            if (!pdpPrice) {
+              const curEl = document.querySelector('h4[class*="finalPrice"], h4[class*="priceText"], [class*="preco_desconto_a_vista"]');
+              if (curEl && !isInstallmentElement(curEl)) {
+                pdpPrice = parseCurrencyToNumber(curEl.innerText || curEl.textContent);
+              }
+            }
+
+            if (pdpPrice && pdpPrice > 0) {
+              seenUrls.add(url_produto);
+              items.push({
+                id: String(id),
+                titulo,
+                preco_atual: formatBRL(pdpPrice),
+                preco_original: '',
+                desconto: '',
+                url_produto,
+                url_imagem,
+                loja: 'KaBuM!',
+                name: titulo,
+                url: url_produto,
+                price: pdpPrice,
+                originalPrice: null,
+                advertisedDiscount: null,
+                imageUrl: url_imagem,
+                currency: 'BRL',
+                outOfStock: isCardOutOfStock(document.body),
+              });
+            }
+          }
+        }
+      } catch (pdpErr) {
+        console.debug('[Deal Hunter KaBuM PDP] Erro:', pdpErr.message);
+      }
+    }
+
+    // 2. PARSEAMENTO DE LISTAGENS E CARDS
+    const cards = root.querySelectorAll('a[href^="/produto/"], a[href*="/produto/"]');
 
     for (const card of cards) {
       try {
@@ -339,22 +441,41 @@
 
         // 1. Extrai todos os valores identificados explicitamente como parcelas para expurgo
         const installmentValues = new Set();
-        const installmentMatches = fullCardText.matchAll(/(?:\b\d+\s*x\s*(?:de\s*)?|em\s+at[ée]\s+\d+\s*x\s*(?:de\s*)?)R\$\s*([\d.,]+)/gi);
-        for (const m of installmentMatches) {
-          const val = parseCurrencyToNumber(m[1]);
-          if (val) installmentValues.add(val);
-        }
-        const suffixMatches = fullCardText.matchAll(/R\$\s*([\d.,]+)\s*(?:em\s+at[ée]\s+\d+x|\(?sem\s*juros\)?)/gi);
-        for (const m of suffixMatches) {
-          const val = parseCurrencyToNumber(m[1]);
-          if (val) installmentValues.add(val);
+        const instRegexes = [
+          /(?:\b\d+\s*x\s*(?:sem\s*juros\s*)?(?:com\s*juros\s*)?(?:no\s*cart[aã]o\s*)?(?:de\s*)?:?\s*|em\s+at[ée]\s+\d+\s*x\s*(?:sem\s*juros\s*)?(?:com\s*juros\s*)?(?:no\s*cart[aã]o\s*)?(?:de\s*)?:?\s*)R\$\s*([\d.,]+)/gi,
+          /R\$\s*([\d.,]+)\s*(?:em\s+at[ée]\s+\d+x|\(?sem\s*juros\)?|\/\s*m[êe]s|cada\s+parcela)/gi,
+        ];
+        for (const re of instRegexes) {
+          for (const m of fullCardText.matchAll(re)) {
+            const val = parseCurrencyToNumber(m[1]);
+            if (val) installmentValues.add(val);
+          }
         }
 
-        // 2. Extrai todos os preços brutos e remove valores de parcelas
+        // 2. Extrai todos os preços brutos
         const moneyMatches = fullCardText.match(/R\$\s?[\d.,]+/g) || [];
         const extractedPrices = moneyMatches
           .map(parseCurrencyToNumber)
-          .filter((p) => p && p > 0);
+          .filter((p) => p && p > 5);
+
+        // FILTRO MATEMÁTICO MULTIPLICADOR UNIVERSAL:
+        // Se existir um preço maior P e um menor p tal que P / p ~= N (onde N é 2..24), p é 100% parcela!
+        for (let i = 0; i < extractedPrices.length; i++) {
+          const p = extractedPrices[i];
+          for (let j = 0; j < extractedPrices.length; j++) {
+            if (i === j) continue;
+            const P = extractedPrices[j];
+            if (P > p) {
+              const ratio = P / p;
+              if (ratio >= 1.8 && ratio <= 25) {
+                const nearestInt = Math.round(ratio);
+                if (Math.abs(ratio - nearestInt) < 0.08) {
+                  installmentValues.add(p);
+                }
+              }
+            }
+          }
+        }
 
         const nonInstallmentPrices = extractedPrices.filter(
           (p) => !Array.from(installmentValues).some((iv) => Math.abs(iv - p) < 0.05)
@@ -382,7 +503,7 @@
           }
         }
 
-        // 5. Prioridade 3: Menor valor não-parcelado
+        // 5. Prioridade 3: Menor valor não-parcelado válido
         if (!precoAtualNum && nonInstallmentPrices.length > 0) {
           const validCandidates = nonInstallmentPrices.filter((p) => !precoOriginalNum || p < precoOriginalNum);
           if (validCandidates.length > 0) {
@@ -400,13 +521,19 @@
           }
         }
 
-        // 7. Trava de segurança anti-parcela KaBuM
-        if (precoOriginalNum && precoAtualNum && precoOriginalNum > precoAtualNum) {
-          const ratio = Math.round(precoOriginalNum / precoAtualNum);
-          if ((ratio >= 2 && ratio <= 24 && new RegExp(`\\b${ratio}\\s*x\\b`, 'i').test(fullCardText)) ||
-              Array.from(installmentValues).some((iv) => Math.abs(iv - precoAtualNum) < 0.05)) {
-            precoAtualNum = precoOriginalNum;
-            precoOriginalNum = null;
+        // 7. Trava de segurança anti-parcela KaBuM! abrangente
+        if (precoAtualNum) {
+          for (const other of extractedPrices) {
+            if (other > precoAtualNum) {
+              const ratio = other / precoAtualNum;
+              if (ratio >= 1.8 && ratio <= 25 && Math.abs(ratio - Math.round(ratio)) < 0.08) {
+                if (!precoOriginalNum || precoOriginalNum <= precoAtualNum) {
+                  precoOriginalNum = other;
+                }
+                precoAtualNum = other;
+                break;
+              }
+            }
           }
         }
 
