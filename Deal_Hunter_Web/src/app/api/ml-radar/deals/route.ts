@@ -40,6 +40,11 @@ function mapRenderAlertToDeal(r: any) {
   };
 }
 
+// Cache em memória do histórico do Render para acelerar o dashboard e eliminar travamentos
+let cachedRenderDeals: any[] = [];
+let lastRenderFetchTime = 0;
+const RENDER_CACHE_TTL = 30000; // 30 segundos
+
 export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization') || '';
@@ -97,23 +102,30 @@ export async function GET(req: NextRequest) {
       process.env.DEAL_HUNTER_SERVER_URL ||
       process.env.NEXT_PUBLIC_API_URL ||
       'https://deal-hunter-server.onrender.com';
+    if (Date.now() - lastRenderFetchTime < RENDER_CACHE_TTL && cachedRenderDeals.length > 0) {
+      renderDeals = cachedRenderDeals;
+    } else {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2000);
+        const res = await fetch(`${serverUrl.replace(/\/$/, '')}/api/history?limit=100`, {
+          signal: controller.signal,
+          headers: { Accept: 'application/json' },
+        }).finally(() => clearTimeout(timeout));
 
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 9000);
-      const res = await fetch(`${serverUrl.replace(/\/$/, '')}/api/history?limit=100`, {
-        signal: controller.signal,
-        headers: { Accept: 'application/json' },
-      }).finally(() => clearTimeout(timeout));
-
-      if (res.ok) {
-        const historyData = await res.json();
-        if (Array.isArray(historyData)) {
-          renderDeals = historyData.map(mapRenderAlertToDeal);
+        if (res.ok) {
+          const historyData = await res.json();
+          if (Array.isArray(historyData)) {
+            renderDeals = historyData.map(mapRenderAlertToDeal);
+            cachedRenderDeals = renderDeals;
+            lastRenderFetchTime = Date.now();
+          }
+        }
+      } catch (renderErr: any) {
+        if (cachedRenderDeals.length > 0) {
+          renderDeals = cachedRenderDeals;
         }
       }
-    } catch (renderErr: any) {
-      console.warn('[ML Radar Deals] Aviso ao buscar histórico do Render:', renderErr.message);
     }
 
     // 3. Combinação e desduplicação dos dados (Supabase + Render backend)

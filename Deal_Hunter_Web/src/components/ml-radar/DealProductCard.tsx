@@ -27,7 +27,7 @@ interface DealProductCardProps {
   onToggleFeatured?: (deal: DealAnalysis, e?: React.MouseEvent) => void;
 }
 
-export default function DealProductCard({
+function DealProductCardComponent({
   deal,
   isSelected,
   onToggleSelect,
@@ -333,3 +333,6 @@ export default function DealProductCard({
     </div>
   );
 }
+
+const DealProductCard = React.memo(DealProductCardComponent);
+export default DealProductCard;

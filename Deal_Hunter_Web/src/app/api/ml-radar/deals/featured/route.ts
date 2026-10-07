@@ -171,9 +171,10 @@ export async function POST(req: NextRequest) {
         },
       };
 
-      if (userId && isValidUUID(userId)) {
-        insertPayload.user_id = userId;
-      } else {
+      const targetUserId = body.userId || userId || dealData.userId || dealData.user_id;
+      let finalUserId: string | null = isValidUUID(targetUserId) ? targetUserId : null;
+
+      if (!finalUserId) {
         const { data: firstAdmin } = await supabase
           .from('profiles')
           .select('id')
@@ -181,8 +182,25 @@ export async function POST(req: NextRequest) {
           .maybeSingle();
 
         if (firstAdmin?.id && isValidUUID(firstAdmin.id)) {
-          insertPayload.user_id = firstAdmin.id;
+          finalUserId = firstAdmin.id;
         }
+      }
+
+      if (!finalUserId) {
+        // Tenta recuperar qualquer user_id válido já registrado em ml_radar_deals
+        const { data: existingDealUser } = await supabase
+          .from('ml_radar_deals')
+          .select('user_id')
+          .limit(1)
+          .maybeSingle();
+
+        if (existingDealUser?.user_id && isValidUUID(existingDealUser.user_id)) {
+          finalUserId = existingDealUser.user_id;
+        }
+      }
+
+      if (finalUserId) {
+        insertPayload.user_id = finalUserId;
       }
 
       const { data: inserted, error: insertError } = await supabase

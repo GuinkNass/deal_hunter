@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -52,6 +52,7 @@ export default function DashboardPage() {
 
   // Deals state
   const [deals, setDeals] = useState<DealAnalysis[]>([]);
+  const [visibleCount, setVisibleCount] = useState(24);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStore, setFilterStore] = useState('ALL');
   const [filterVerdict, setFilterVerdict] = useState('ALL');
@@ -65,6 +66,42 @@ export default function DashboardPage() {
   // Simulation & notification
   const [simulating, setSimulating] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+
+  // Reseta a paginação ao alterar buscas ou filtros
+  useEffect(() => {
+    setVisibleCount(24);
+  }, [searchTerm, filterStore, filterVerdict]);
+
+  const filteredDeals = useMemo(() => {
+    return deals.filter((deal) => {
+      const searchLow = searchTerm.toLowerCase();
+      const matchesSearch =
+        (deal.title && deal.title.toLowerCase().includes(searchLow)) ||
+        (deal.ml_title && deal.ml_title.toLowerCase().includes(searchLow)) ||
+        (deal.store && deal.store.toLowerCase().includes(searchLow));
+
+      const matchesStore =
+        filterStore === 'ALL' ||
+        (deal.store && deal.store.toLowerCase() === filterStore.toLowerCase());
+      const matchesVerdict =
+        filterVerdict === 'ALL'
+          ? true
+          : filterVerdict === 'FEATURED'
+          ? Boolean(deal.is_featured)
+          : deal.verdict === filterVerdict;
+
+      return matchesSearch && matchesStore && matchesVerdict;
+    });
+  }, [deals, searchTerm, filterStore, filterVerdict]);
+
+  const viableCount = useMemo(() => deals.filter((d) => d.verdict === 'Viável').length, [deals]);
+  const avgRoi = useMemo(
+    () =>
+      deals.length > 0
+        ? (deals.reduce((acc, d) => acc + (d.roi_percent || 0), 0) / deals.length).toFixed(1)
+        : '0',
+    [deals]
+  );
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -104,14 +141,15 @@ export default function DashboardPage() {
     return () => subscription.unsubscribe();
   }, [supabase, router]);
 
-  // Polling automático a cada 30 segundos mantendo o painel sempre atualizado
+  // Polling inteligente e leve: apenas na aba radar e quando a aba estiver visível
   useEffect(() => {
-    if (!authToken) return;
+    if (!authToken || activeTab !== 'radar') return;
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       loadDeals(authToken, false);
-    }, 30000);
+    }, 45000);
     return () => clearInterval(interval);
-  }, [authToken]);
+  }, [authToken, activeTab]);
 
   async function loadDeals(token: string, showIndicator = true) {
     try {
@@ -132,6 +170,24 @@ export default function DashboardPage() {
               items = items.filter(
                 (d) => !dismissedSet.has(d.id || '') && !dismissedSet.has(d.product_url || '')
               );
+            }
+          } catch {}
+
+          // Recupera produtos destacados na vitrine salvos localmente
+          try {
+            const featuredList: string[] = JSON.parse(
+              localStorage.getItem('dealhunter_featured_deals') || '[]'
+            );
+            if (featuredList.length > 0) {
+              const featuredSet = new Set(featuredList);
+              items = items.map((d) => ({
+                ...d,
+                is_featured: Boolean(
+                  d.is_featured ||
+                  featuredSet.has(d.id || '') ||
+                  featuredSet.has(d.product_url || '')
+                ),
+              }));
             }
           } catch {}
         }
@@ -235,15 +291,15 @@ export default function DashboardPage() {
     setTimeout(() => setNotification(null), 3500);
   }
 
-  function handleToggleSelectDeal(dealId: string, e?: React.MouseEvent) {
+  const handleToggleSelectDeal = useCallback((dealId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!dealId) return;
     setSelectedDealIds((prev) =>
       prev.includes(dealId) ? prev.filter((id) => id !== dealId) : [...prev, dealId]
     );
-  }
+  }, []);
 
-  function handleToggleSelectAllFiltered() {
+  const handleToggleSelectAllFiltered = useCallback(() => {
     const allFilteredSelected =
       filteredDeals.length > 0 &&
       filteredDeals.every((d) => d.id && selectedDealIds.includes(d.id));
@@ -256,140 +312,180 @@ export default function DashboardPage() {
       const combined = Array.from(new Set([...selectedDealIds, ...validFilteredIds]));
       setSelectedDealIds(combined);
     }
-  }
+  }, [filteredDeals, selectedDealIds]);
 
-  function handleUpdateDeal(updated: DealAnalysis) {
+  const handleUpdateDeal = useCallback((updated: DealAnalysis) => {
     setDeals((prev) =>
       prev.map((d) => (d.id === updated.id ? { ...d, ...updated } : d))
     );
     setSelectedDealForDetail(updated);
-  }
+  }, []);
 
-  async function handleToggleFeatured(deal: DealAnalysis, e?: React.MouseEvent) {
-    if (e) e.stopPropagation();
-    const nextFeatured = !deal.is_featured;
+  const handleToggleFeatured = useCallback(
+    async (deal: DealAnalysis, e?: React.MouseEvent) => {
+      if (e) e.stopPropagation();
+      const nextFeatured = !deal.is_featured;
 
-    // Atualização otimista na interface do Dashboard
-    setDeals((prev) =>
-      prev.map((d) =>
-        d.id === deal.id || (d.product_url && d.product_url === deal.product_url)
-          ? { ...d, is_featured: nextFeatured }
-          : d
-      )
-    );
-    if (selectedDealForDetail && (selectedDealForDetail.id === deal.id || selectedDealForDetail.product_url === deal.product_url)) {
-      setSelectedDealForDetail({ ...selectedDealForDetail, is_featured: nextFeatured });
-    }
-
-    setNotification(
-      nextFeatured
-        ? `⭐ "${(deal.title || '').slice(0, 32)}..." destacado na Vitrine Pública!`
-        : `☆ Removido da Vitrine Pública.`
-    );
-    setTimeout(() => setNotification(null), 3500);
-
-    try {
-      const res = await fetch('/api/ml-radar/deals/featured', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-        },
-        body: JSON.stringify({
-          dealId: deal.id,
-          isFeatured: nextFeatured,
-          dealData: deal,
-          dealPayload: deal,
-        }),
-      });
-
-      const resData = await res.json();
-      if (!res.ok || resData.success === false) {
-        throw new Error(resData.error || 'Falha ao atualizar vitrine');
-      }
-
-      // Se o backend persistiu um item virtual/Render e retornou o novo UUID
-      if (resData.dealId && resData.dealId !== deal.id) {
-        setDeals((prev) =>
-          prev.map((d) =>
-            d.id === deal.id || (d.product_url && d.product_url === deal.product_url)
-              ? { ...d, id: resData.dealId, is_featured: nextFeatured }
-              : d
-          )
-        );
-        if (selectedDealForDetail && (selectedDealForDetail.id === deal.id || selectedDealForDetail.product_url === deal.product_url)) {
-          setSelectedDealForDetail({ ...selectedDealForDetail, id: resData.dealId, is_featured: nextFeatured });
-        }
-      }
-    } catch (err: any) {
-      console.error('Erro ao alternar destaque na vitrine:', err);
-      // Reverter atualização otimista em caso de erro
+      // 1. Atualização otimista imediata na UI
       setDeals((prev) =>
         prev.map((d) =>
           d.id === deal.id || (d.product_url && d.product_url === deal.product_url)
-            ? { ...d, is_featured: !nextFeatured }
+            ? { ...d, is_featured: nextFeatured }
             : d
         )
       );
-      if (selectedDealForDetail && (selectedDealForDetail.id === deal.id || selectedDealForDetail.product_url === deal.product_url)) {
-        setSelectedDealForDetail({ ...selectedDealForDetail, is_featured: !nextFeatured });
+      if (
+        selectedDealForDetail &&
+        (selectedDealForDetail.id === deal.id ||
+          selectedDealForDetail.product_url === deal.product_url)
+      ) {
+        setSelectedDealForDetail((prev) => (prev ? { ...prev, is_featured: nextFeatured } : null));
       }
-      setNotification(`❌ Não foi possível atualizar vitrine: ${err.message || 'Erro de conexão'}`);
-      setTimeout(() => setNotification(null), 4000);
-    }
-  }
 
-  async function handleBatchFeatured(targetFeatured: boolean) {
-    if (selectedDealIds.length === 0) return;
-    const count = selectedDealIds.length;
-    const selectedList = deals.filter((d) => d.id && selectedDealIds.includes(d.id));
+      // 2. Persistência local imediata e imune a flicker (nunca apaga sozinha)
+      if (typeof window !== 'undefined') {
+        try {
+          const featuredList: string[] = JSON.parse(
+            localStorage.getItem('dealhunter_featured_deals') || '[]'
+          );
+          let updatedList: string[];
+          if (nextFeatured) {
+            updatedList = Array.from(
+              new Set([...featuredList, deal.id || '', deal.product_url || ''])
+            ).filter(Boolean);
+          } else {
+            const removeSet = new Set([deal.id, deal.product_url].filter(Boolean));
+            updatedList = featuredList.filter((x) => !removeSet.has(x));
+          }
+          localStorage.setItem('dealhunter_featured_deals', JSON.stringify(updatedList));
+        } catch {}
+      }
 
-    // Atualização otimista
-    setDeals((prev) =>
-      prev.map((d) => (d.id && selectedDealIds.includes(d.id) ? { ...d, is_featured: targetFeatured } : d))
-    );
+      setNotification(
+        nextFeatured
+          ? `⭐ "${(deal.title || '').slice(0, 32)}..." adicionado à Vitrine Pública!`
+          : `☆ Removido da Vitrine Pública.`
+      );
+      setTimeout(() => setNotification(null), 3000);
 
-    setNotification(
-      targetFeatured
-        ? `⭐ ${count} oferta(s) incluída(s) na Vitrine Pública!`
-        : `☆ Destaque da Vitrine Pública removido de ${count} oferta(s).`
-    );
-    setTimeout(() => setNotification(null), 3500);
+      // 3. Sincronização segura com o servidor
+      try {
+        const res = await fetch('/api/ml-radar/deals/featured', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+          },
+          body: JSON.stringify({
+            dealId: deal.id,
+            isFeatured: nextFeatured,
+            userId: sessionUser?.id,
+            dealData: deal,
+            dealPayload: deal,
+          }),
+        });
 
-    try {
-      await fetch('/api/ml-radar/deals/featured', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-        },
-        body: JSON.stringify({
-          dealIds: selectedDealIds,
-          isFeatured: targetFeatured,
-        }),
-      });
-
-      // Também sincroniza os virtuais/Render que precisam ser persistidos
-      for (const d of selectedList) {
-        if (!d.id || d.id.startsWith('render-') || !d.id.includes('-')) {
-          fetch('/api/ml-radar/deals/featured', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-            },
-            body: JSON.stringify({
-              dealId: d.id,
-              isFeatured: targetFeatured,
-              dealData: d,
-            }),
-          }).catch(() => {});
+        const resData = await res.json();
+        // Se o backend persistiu um item virtual/Render e retornou o novo UUID do banco
+        if (resData?.success && resData.dealId && resData.dealId !== deal.id) {
+          setDeals((prev) =>
+            prev.map((d) =>
+              d.id === deal.id || (d.product_url && d.product_url === deal.product_url)
+                ? { ...d, id: resData.dealId, is_featured: nextFeatured }
+                : d
+            )
+          );
+          if (
+            selectedDealForDetail &&
+            (selectedDealForDetail.id === deal.id ||
+              selectedDealForDetail.product_url === deal.product_url)
+          ) {
+            setSelectedDealForDetail((prev) =>
+              prev ? { ...prev, id: resData.dealId, is_featured: nextFeatured } : null
+            );
+          }
         }
+      } catch (err: any) {
+        console.warn('Aviso de rede na sincronização com a vitrine:', err);
       }
-    } catch (err: any) {
-      console.warn('Erro ao atualizar em lote na vitrine:', err);
-    }
-  }
+    },
+    [authToken, sessionUser, selectedDealForDetail]
+  );
+
+  const handleBatchFeatured = useCallback(
+    async (targetFeatured: boolean) => {
+      if (selectedDealIds.length === 0) return;
+      const count = selectedDealIds.length;
+      const selectedList = deals.filter((d) => d.id && selectedDealIds.includes(d.id));
+
+      // 1. Atualização otimista
+      setDeals((prev) =>
+        prev.map((d) => (d.id && selectedDealIds.includes(d.id) ? { ...d, is_featured: targetFeatured } : d))
+      );
+
+      // 2. Persistência local no localStorage
+      if (typeof window !== 'undefined') {
+        try {
+          const featuredList: string[] = JSON.parse(
+            localStorage.getItem('dealhunter_featured_deals') || '[]'
+          );
+          let updatedList: string[];
+          if (targetFeatured) {
+            const newKeys = selectedList.flatMap((d) => [d.id || '', d.product_url || '']).filter(Boolean);
+            updatedList = Array.from(new Set([...featuredList, ...newKeys]));
+          } else {
+            const removeKeys = new Set(selectedList.flatMap((d) => [d.id, d.product_url]).filter(Boolean));
+            updatedList = featuredList.filter((k) => !removeKeys.has(k));
+          }
+          localStorage.setItem('dealhunter_featured_deals', JSON.stringify(updatedList));
+        } catch {}
+      }
+
+      setNotification(
+        targetFeatured
+          ? `⭐ ${count} oferta(s) incluída(s) na Vitrine Pública!`
+          : `☆ Destaque da Vitrine Pública removido de ${count} oferta(s).`
+      );
+      setTimeout(() => setNotification(null), 3000);
+
+      try {
+        await fetch('/api/ml-radar/deals/featured', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+          },
+          body: JSON.stringify({
+            dealIds: selectedDealIds,
+            isFeatured: targetFeatured,
+            userId: sessionUser?.id,
+          }),
+        });
+
+        // Também sincroniza os virtuais/Render que precisam ser persistidos
+        for (const d of selectedList) {
+          if (!d.id || d.id.startsWith('render-') || !d.id.includes('-')) {
+            fetch('/api/ml-radar/deals/featured', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+              },
+              body: JSON.stringify({
+                dealId: d.id,
+                isFeatured: targetFeatured,
+                userId: sessionUser?.id,
+                dealData: d,
+              }),
+            }).catch(() => {});
+          }
+        }
+      } catch (err: any) {
+        console.warn('Erro ao atualizar em lote na vitrine:', err);
+      }
+    },
+    [selectedDealIds, deals, authToken, sessionUser]
+  );
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -472,30 +568,6 @@ export default function DashboardPage() {
     if (authToken) loadDeals(authToken);
     setTimeout(() => setNotification(null), 5000);
   }
-
-  const filteredDeals = deals.filter((deal) => {
-    const searchLow = searchTerm.toLowerCase();
-    const matchesSearch =
-      (deal.title && deal.title.toLowerCase().includes(searchLow)) ||
-      (deal.ml_title && deal.ml_title.toLowerCase().includes(searchLow)) ||
-      (deal.store && deal.store.toLowerCase().includes(searchLow));
-
-    const matchesStore = filterStore === 'ALL' || (deal.store && deal.store.toLowerCase() === filterStore.toLowerCase());
-    const matchesVerdict =
-      filterVerdict === 'ALL'
-        ? true
-        : filterVerdict === 'FEATURED'
-        ? Boolean(deal.is_featured)
-        : deal.verdict === filterVerdict;
-
-    return matchesSearch && matchesStore && matchesVerdict;
-  });
-
-  const viableCount = deals.filter((d) => d.verdict === 'Viável').length;
-  const avgRoi =
-    deals.length > 0
-      ? (deals.reduce((acc, d) => acc + (d.roi_percent || 0), 0) / deals.length).toFixed(1)
-      : '0';
 
   const displayName =
     sessionUser?.user_metadata?.full_name ||
@@ -884,20 +956,39 @@ export default function DashboardPage() {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
-                {filteredDeals.map((deal) => (
-                  <DealProductCard
-                    key={deal.id || `deal-${deal.product_url}`}
-                    deal={deal}
-                    isSelected={Boolean(deal.id && selectedDealIds.includes(deal.id))}
-                    onToggleSelect={handleToggleSelectDeal}
-                    onDelete={handleDeleteSingleDeal}
-                    onEvaluate={setSelectedDealForDetail}
-                    onOpenCalculator={handleOpenCalculatorForDeal}
-                    onToggleFeatured={handleToggleFeatured}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+                  {filteredDeals.slice(0, visibleCount).map((deal) => (
+                    <DealProductCard
+                      key={deal.id || `deal-${deal.product_url}`}
+                      deal={deal}
+                      isSelected={Boolean(deal.id && selectedDealIds.includes(deal.id))}
+                      onToggleSelect={handleToggleSelectDeal}
+                      onDelete={handleDeleteSingleDeal}
+                      onEvaluate={setSelectedDealForDetail}
+                      onOpenCalculator={handleOpenCalculatorForDeal}
+                      onToggleFeatured={handleToggleFeatured}
+                    />
+                  ))}
+                </div>
+
+                {filteredDeals.length > visibleCount && (
+                  <div className="pt-6 pb-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <button
+                      onClick={() => setVisibleCount((prev) => prev + 24)}
+                      className="px-6 py-2.5 rounded-xl bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold transition-all shadow-sm"
+                    >
+                      Carregar Mais Ofertas (+24)
+                    </button>
+                    <button
+                      onClick={() => setVisibleCount(filteredDeals.length)}
+                      className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-bold transition-all"
+                    >
+                      Exibir Todas ({filteredDeals.length})
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
