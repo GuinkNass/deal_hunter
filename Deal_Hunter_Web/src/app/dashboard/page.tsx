@@ -28,6 +28,7 @@ import {
   Trash2,
   CheckSquare,
   Square,
+  Star,
 } from 'lucide-react';
 import AnalysisDetailModal, { DealAnalysis } from '@/components/ml-radar/AnalysisDetailModal';
 import ManualSearchModal from '@/components/ml-radar/ManualSearchModal';
@@ -270,16 +271,20 @@ export default function DashboardPage() {
 
     // Atualização otimista na interface do Dashboard
     setDeals((prev) =>
-      prev.map((d) => (d.id === deal.id ? { ...d, is_featured: nextFeatured } : d))
+      prev.map((d) =>
+        d.id === deal.id || (d.product_url && d.product_url === deal.product_url)
+          ? { ...d, is_featured: nextFeatured }
+          : d
+      )
     );
-    if (selectedDealForDetail && selectedDealForDetail.id === deal.id) {
+    if (selectedDealForDetail && (selectedDealForDetail.id === deal.id || selectedDealForDetail.product_url === deal.product_url)) {
       setSelectedDealForDetail({ ...selectedDealForDetail, is_featured: nextFeatured });
     }
 
     setNotification(
       nextFeatured
-        ? `⭐ "${deal.title.slice(0, 32)}..." destacado na Vitrine Pública!`
-        : `Removido da Vitrine Pública.`
+        ? `⭐ "${(deal.title || '').slice(0, 32)}..." destacado na Vitrine Pública!`
+        : `☆ Removido da Vitrine Pública.`
     );
     setTimeout(() => setNotification(null), 3500);
 
@@ -293,20 +298,96 @@ export default function DashboardPage() {
         body: JSON.stringify({
           dealId: deal.id,
           isFeatured: nextFeatured,
+          dealData: deal,
           dealPayload: deal,
         }),
       });
 
-      if (!res.ok) {
-        throw new Error('Falha ao atualizar vitrine');
+      const resData = await res.json();
+      if (!res.ok || resData.success === false) {
+        throw new Error(resData.error || 'Falha ao atualizar vitrine');
+      }
+
+      // Se o backend persistiu um item virtual/Render e retornou o novo UUID
+      if (resData.dealId && resData.dealId !== deal.id) {
+        setDeals((prev) =>
+          prev.map((d) =>
+            d.id === deal.id || (d.product_url && d.product_url === deal.product_url)
+              ? { ...d, id: resData.dealId, is_featured: nextFeatured }
+              : d
+          )
+        );
+        if (selectedDealForDetail && (selectedDealForDetail.id === deal.id || selectedDealForDetail.product_url === deal.product_url)) {
+          setSelectedDealForDetail({ ...selectedDealForDetail, id: resData.dealId, is_featured: nextFeatured });
+        }
       }
     } catch (err: any) {
-      // Reverter atualização otimista em caso de falha de rede
+      console.error('Erro ao alternar destaque na vitrine:', err);
+      // Reverter atualização otimista em caso de erro
       setDeals((prev) =>
-        prev.map((d) => (d.id === deal.id ? { ...d, is_featured: !nextFeatured } : d))
+        prev.map((d) =>
+          d.id === deal.id || (d.product_url && d.product_url === deal.product_url)
+            ? { ...d, is_featured: !nextFeatured }
+            : d
+        )
       );
-      setNotification('❌ Erro ao atualizar destaque na vitrine pública.');
-      setTimeout(() => setNotification(null), 3500);
+      if (selectedDealForDetail && (selectedDealForDetail.id === deal.id || selectedDealForDetail.product_url === deal.product_url)) {
+        setSelectedDealForDetail({ ...selectedDealForDetail, is_featured: !nextFeatured });
+      }
+      setNotification(`❌ Não foi possível atualizar vitrine: ${err.message || 'Erro de conexão'}`);
+      setTimeout(() => setNotification(null), 4000);
+    }
+  }
+
+  async function handleBatchFeatured(targetFeatured: boolean) {
+    if (selectedDealIds.length === 0) return;
+    const count = selectedDealIds.length;
+    const selectedList = deals.filter((d) => d.id && selectedDealIds.includes(d.id));
+
+    // Atualização otimista
+    setDeals((prev) =>
+      prev.map((d) => (d.id && selectedDealIds.includes(d.id) ? { ...d, is_featured: targetFeatured } : d))
+    );
+
+    setNotification(
+      targetFeatured
+        ? `⭐ ${count} oferta(s) incluída(s) na Vitrine Pública!`
+        : `☆ Destaque da Vitrine Pública removido de ${count} oferta(s).`
+    );
+    setTimeout(() => setNotification(null), 3500);
+
+    try {
+      await fetch('/api/ml-radar/deals/featured', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
+        body: JSON.stringify({
+          dealIds: selectedDealIds,
+          isFeatured: targetFeatured,
+        }),
+      });
+
+      // Também sincroniza os virtuais/Render que precisam ser persistidos
+      for (const d of selectedList) {
+        if (!d.id || d.id.startsWith('render-') || !d.id.includes('-')) {
+          fetch('/api/ml-radar/deals/featured', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+            },
+            body: JSON.stringify({
+              dealId: d.id,
+              isFeatured: targetFeatured,
+              dealData: d,
+            }),
+          }).catch(() => {});
+        }
+      }
+    } catch (err: any) {
+      console.warn('Erro ao atualizar em lote na vitrine:', err);
     }
   }
 
@@ -400,7 +481,12 @@ export default function DashboardPage() {
       (deal.store && deal.store.toLowerCase().includes(searchLow));
 
     const matchesStore = filterStore === 'ALL' || (deal.store && deal.store.toLowerCase() === filterStore.toLowerCase());
-    const matchesVerdict = filterVerdict === 'ALL' || deal.verdict === filterVerdict;
+    const matchesVerdict =
+      filterVerdict === 'ALL'
+        ? true
+        : filterVerdict === 'FEATURED'
+        ? Boolean(deal.is_featured)
+        : deal.verdict === filterVerdict;
 
     return matchesSearch && matchesStore && matchesVerdict;
   });
@@ -675,9 +761,10 @@ export default function DashboardPage() {
               <select
                 value={filterVerdict}
                 onChange={(e) => setFilterVerdict(e.target.value)}
-                className="px-3 py-2.5 rounded-xl bg-gray-900/80 border border-gray-800 text-xs text-gray-300 focus:outline-none focus:border-cyan-500"
+                className="px-3 py-2.5 rounded-xl bg-gray-900/80 border border-gray-800 text-xs text-gray-300 focus:outline-none focus:border-cyan-500 font-semibold"
               >
                 <option value="ALL">Todos os Vereditos</option>
+                <option value="FEATURED">⭐ Na Vitrine Pública</option>
                 <option value="Viável">Viável</option>
                 <option value="Atenção">Atenção</option>
                 <option value="Evitar">Evitar</option>
@@ -726,14 +813,33 @@ export default function DashboardPage() {
                 </div>
 
                 {selectedDealIds.length > 0 ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => handleBatchFeatured(true)}
+                      className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+                      title="Destacar os produtos selecionados na Vitrine Pública"
+                    >
+                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                      <span>Destacar na Vitrine ({selectedDealIds.length})</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleBatchFeatured(false)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all"
+                      title="Remover os produtos selecionados da Vitrine Pública"
+                    >
+                      <Star className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Remover da Vitrine</span>
+                    </button>
+
                     <button
                       onClick={handleDeleteSelectedDeals}
                       className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs flex items-center gap-1.5 shadow-lg shadow-rose-950/50 transition-all"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>Excluir Selecionados ({selectedDealIds.length})</span>
+                      <span>Excluir</span>
                     </button>
+
                     <button
                       onClick={() => setSelectedDealIds([])}
                       className="px-3 py-1.5 rounded-xl bg-gray-800/80 hover:bg-gray-700 text-gray-300 font-semibold text-xs transition-colors"
@@ -743,7 +849,7 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   <span className="text-[11px] text-gray-500 hidden md:inline">
-                    Marque cards para exclusão em lote ou use a lixeira individual em cada anúncio
+                    Marque cards para ações em lote (vitrine ou exclusão) ou use os botões individuais em cada anúncio
                   </span>
                 )}
               </div>
@@ -863,6 +969,7 @@ export default function DashboardPage() {
           onClose={() => setSelectedDealForDetail(null)}
           onOpenCalculator={handleOpenCalculatorForDeal}
           onUpdateDeal={handleUpdateDeal}
+          onToggleFeatured={handleToggleFeatured}
           autoEvaluate={true}
           authToken={authToken}
         />

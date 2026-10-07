@@ -141,6 +141,7 @@ export async function GET(req: NextRequest) {
         ...d,
         product_url: tagAmazonUrl(d.product_url),
         clinical_evaluated: hasRealMlAd,
+        is_featured: Boolean(d.is_featured || d.gemini_analysis?.is_featured),
         // Limpa URLs de busca genérica para que apenas links diretos reais sejam acessados
         ml_url: hasRealMlAd ? d.ml_url : null,
         ml_price: hasRealMlAd ? d.ml_price : null,

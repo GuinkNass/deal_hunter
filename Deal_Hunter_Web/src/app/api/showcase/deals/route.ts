@@ -22,14 +22,15 @@ export async function GET(req: NextRequest) {
 
       if (!error && Array.isArray(data) && data.length > 0) {
         featuredDeals = data;
-      } else if (error) {
-        console.warn('[Showcase Deals] Tentando fallback para gemini_analysis->is_featured:', error.message);
-        // Fallback: caso a coluna is_featured ainda não exista no schema remoto
+      }
+
+      // Fallback abrangente: caso a coluna is_featured ainda não exista ou esteja vazia, verifica em gemini_analysis
+      if (featuredDeals.length === 0) {
         const { data: fallbackData } = await supabase
           .from('ml_radar_deals')
           .select('*')
           .order('created_at', { ascending: false })
-          .limit(60);
+          .limit(100);
 
         if (Array.isArray(fallbackData)) {
           featuredDeals = fallbackData.filter(

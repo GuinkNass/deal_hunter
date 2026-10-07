@@ -23,6 +23,7 @@ import {
   Layers,
   ShieldCheck,
   Package,
+  Star,
 } from 'lucide-react';
 import {
   ClinicalEvaluationResult,
@@ -84,6 +85,7 @@ interface AnalysisDetailModalProps {
   onClose: () => void;
   onOpenCalculator: (item: DealAnalysis) => void;
   onUpdateDeal?: (updated: DealAnalysis) => void;
+  onToggleFeatured?: (deal: DealAnalysis) => void;
   autoEvaluate?: boolean;
   authToken?: string | null;
 }
@@ -103,6 +105,7 @@ export default function AnalysisDetailModal({
   onClose,
   onOpenCalculator,
   onUpdateDeal,
+  onToggleFeatured,
   autoEvaluate = true,
   authToken,
 }: AnalysisDetailModalProps) {
@@ -378,7 +381,27 @@ export default function AnalysisDetailModal({
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            {onToggleFeatured && analysis && (
+              <button
+                type="button"
+                onClick={() => onToggleFeatured(analysis)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                  analysis.is_featured
+                    ? 'bg-amber-500/25 text-amber-300 border-amber-400/50 shadow-sm shadow-amber-500/30 ring-1 ring-amber-400/40'
+                    : 'bg-white/[0.06] hover:bg-amber-500/15 text-slate-300 hover:text-amber-300 border-white/10'
+                }`}
+                title={
+                  analysis.is_featured
+                    ? 'Oferta ativa na Vitrine Pública (/ofertas). Clique para remover.'
+                    : 'Destacar esta oferta na Vitrine Pública (/ofertas)'
+                }
+              >
+                <Star className={`w-3.5 h-3.5 ${analysis.is_featured ? 'fill-amber-400 text-amber-400' : ''}`} />
+                <span className="hidden sm:inline">{analysis.is_featured ? 'Na Vitrine' : 'Destacar na Vitrine'}</span>
+              </button>
+            )}
+
             <button
               onClick={runClinicalEvaluation}
               disabled={isAuditing}
