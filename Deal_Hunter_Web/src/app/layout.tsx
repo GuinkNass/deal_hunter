@@ -55,36 +55,37 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="dark scroll-smooth">
       <head>
-        {/* Google Consent Mode (Modo de Consentimento padrão "denied" para conformidade com EEA / LGPD) */}
-        <Script
+        {/* 1. Declaração do dataLayer e Consent Mode v2 padrão ('default') ANTES de qualquer tag */}
+        <script
           id="google-consent-mode"
-          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
+
+              // Define os valores padrão de consentimento (Basic / Advanced)
               gtag('consent', 'default', {
-                'ad_storage': 'denied',
-                'ad_user_data': 'denied',
-                'ad_personalization': 'denied',
-                'analytics_storage': 'denied'
+                'ad_storage': 'granted',
+                'analytics_storage': 'granted',
+                'ad_user_data': 'granted',
+                'ad_personalization': 'granted'
               });
             `,
           }}
         />
 
-        {/* Google tag (gtag.js) - Google Ads AW-18485467530 */}
+        {/* 2. Carregamento do script gtag.js da tag AW-18485467530 */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=AW-18485467530"
           strategy="afterInteractive"
         />
+
+        {/* 3. Configurações de gtag('config', ...) e 4. Função gtag_report_conversion */}
         <Script
           id="google-ads-config"
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
               gtag('config', 'AW-18485467530');
 
