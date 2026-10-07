@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { DealAnalysis } from './AnalysisDetailModal';
 import { getProductFallbackImage } from '@/lib/ml-radar/imageFallback';
+import { buildCanonicalMlUrl } from '@/lib/ml-radar/clinicalAudit';
 
 interface DealProductCardProps {
   deal: DealAnalysis;
@@ -46,6 +47,16 @@ export default function DealProductCard({
       (deal.ml_url.includes('produto.mercadolivre.com.br') ||
         deal.ml_url.includes('/p/MLB') ||
         deal.ml_url.includes('/MLB-')))
+  );
+
+  const canonicalMlUrl = deal.ml_url
+    ? buildCanonicalMlUrl(deal.ml_url, dealId, itemTitle)
+    : null;
+  const hasValidMlUrl = Boolean(
+    canonicalMlUrl &&
+      canonicalMlUrl !== '#' &&
+      !canonicalMlUrl.endsWith('mercadolivre.com.br') &&
+      !canonicalMlUrl.endsWith('mercadolivre.com.br/')
   );
 
   const discountPercent =
@@ -277,23 +288,17 @@ export default function DealProductCard({
           </a>
         )}
 
-        {deal.ml_url &&
-          !deal.ml_url.includes('lista.mercadolivre.com.br') &&
-          (deal.clinical_evaluated ||
-            deal.ml_url.includes('produto.mercadolivre.com.br') ||
-            deal.ml_url.includes('/p/MLB') ||
-            deal.ml_url.includes('/up/MLB') ||
-            deal.ml_url.includes('/MLB-')) && (
-            <a
-              href={deal.ml_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold flex items-center justify-center transition-colors flex-shrink-0"
-              title="Abrir anúncio vencedor no Mercado Livre"
-            >
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </a>
-          )}
+        {hasValidMlUrl && (
+          <a
+            href={canonicalMlUrl!}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold flex items-center justify-center transition-colors flex-shrink-0"
+            title="Abrir anúncio vencedor no Mercado Livre"
+          >
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </a>
+        )}
       </div>
     </div>
   );

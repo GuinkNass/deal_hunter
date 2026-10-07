@@ -6,6 +6,7 @@ import {
   searchMercadoLivreWithGeminiGrounding,
   enrichCandidateWithMlApi,
   decideBestCandidateWithGemini,
+  buildCanonicalMlUrl,
   ClinicalCandidatePayload,
   ClinicalEvaluationResult,
 } from '@/lib/ml-radar/clinicalAudit';
@@ -280,6 +281,7 @@ export async function POST(req: NextRequest) {
 
     const winnerIndex = clinicalDecision.vencedor_index ?? 0;
     const winner = enrichedCandidates[winnerIndex] || enrichedCandidates[0];
+    const canonicalWinnerPermalink = buildCanonicalMlUrl(winner.url, winner.item_id, winner.titulo || title);
 
     const effectiveMlPrice = winner.preco_atual > 0 ? winner.preco_atual : fallbackMlPrice;
     const calcNetProfit = Number(((effectiveMlPrice - numSourcePrice) * 0.7).toFixed(2));
@@ -301,7 +303,7 @@ export async function POST(req: NextRequest) {
 
     const mlWinner = {
       item_id: winner.item_id,
-      permalink: winner.url, // Link canônico direto do anúncio (NUNCA de busca)
+      permalink: canonicalWinnerPermalink, // Link canônico direto do anúncio (NUNCA home page)
       title: winner.titulo,
       seller_nickname: winner.vendedor_nome || 'Vendedor Oficial ML',
       price: winner.preco_atual,
@@ -334,7 +336,7 @@ export async function POST(req: NextRequest) {
           .update({
             ml_title: winner.titulo,
             ml_price: effectiveMlPrice,
-            ml_url: winner.url,
+            ml_url: canonicalWinnerPermalink,
             ml_image_url: winner.thumbnail || undefined,
             ml_seller_name: winner.vendedor_nome,
             ml_sold_quantity: winner.total_vendas,

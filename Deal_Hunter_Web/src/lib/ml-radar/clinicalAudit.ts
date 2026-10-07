@@ -68,6 +68,58 @@ export function parseMlSalesCount(rawText: string): number {
 }
 
 /**
+ * Constrói e valida uma URL canônica do Mercado Livre, garantindo que NUNCA aponte
+ * para a home page genérica vazia (www.mercadolivre.com.br).
+ */
+export function buildCanonicalMlUrl(
+  url?: string | null,
+  id?: string | null,
+  title?: string | null
+): string {
+  const raw = String(url || '').trim();
+
+  // Se já for uma URL canônica direta de produto ou catálogo com MLB válido
+  if (
+    (raw.includes('produto.mercadolivre.com.br') || raw.includes('/p/MLB') || raw.includes('/up/MLB')) &&
+    !raw.endsWith('mercadolivre.com.br') &&
+    !raw.endsWith('mercadolivre.com.br/')
+  ) {
+    return raw;
+  }
+
+  // Tenta extrair o MLB ID da URL ou do id passado
+  const mlbMatch = raw.match(/(MLB-?\d+)/i) || (id ? String(id).match(/(MLB-?\d+)/i) : null);
+  if (mlbMatch) {
+    const cleanId = mlbMatch[1].replace('-', '');
+    return `https://produto.mercadolivre.com.br/${cleanId}`;
+  }
+
+  // Se id for no formato numérico puro ou MLB
+  if (id && /^MLB\d+$/i.test(String(id).trim())) {
+    return `https://produto.mercadolivre.com.br/${String(id).trim().toUpperCase()}`;
+  }
+
+  // Se a URL for de busca específica no ML (lista.mercadolivre.com.br)
+  if (raw.includes('lista.mercadolivre.com.br') && raw.length > 35) {
+    return raw;
+  }
+
+  // Fallback seguro: busca direta pelo título do produto no Mercado Livre
+  if (title && title.trim().length > 0) {
+    const cleanTerms = title
+      .replace(/[^a-zA-Z0-9\sÀ-ÿ]/g, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter((w) => w.length >= 2)
+      .slice(0, 5)
+      .join(' ');
+    return `https://lista.mercadolivre.com.br/${encodeURIComponent(cleanTerms || title.trim())}`;
+  }
+
+  return 'https://lista.mercadolivre.com.br';
+}
+
+/**
  * Etapa 1: Higienização cirúrgica do título via Gemini API
  * Remove ruídos promocionais e códigos longos irrelevantes para isolar Marca, Linha e Modelo.
  */
@@ -290,10 +342,11 @@ export async function scrapeMercadoLivreSearch(
         const isFull = block.includes('fulfillment') || block.includes('FULL') || block.includes('icon-full');
         const freeShipping = block.includes('Frete grátis') || price >= 79.0;
 
+        const finalCandidateUrl = buildCanonicalMlUrl(cleanUrl || fullUrl.split('#')[0], mlbId, rawTitle);
         items.push({
           id: mlbId,
           title: rawTitle,
-          url: cleanUrl || fullUrl.split('#')[0],
+          url: finalCandidateUrl,
           price,
           salesCount,
           sellerNickname,
@@ -367,7 +420,7 @@ export async function enrichCandidateWithMlApi(
   },
   mlApiKey?: string | null
 ): Promise<ClinicalCandidatePayload['produto_candidato']> {
-  const targetUrl = item.url || `https://produto.mercadolivre.com.br/${item.id}`;
+  let targetUrl = buildCanonicalMlUrl(item.url, item.id, item.title);
 
   let totalVendas = item.salesCount || 0;
   let estoqueDisponivel = 10;
@@ -393,6 +446,9 @@ export async function enrichCandidateWithMlApi(
 
       if (itemRes.ok) {
         const itemData = await itemRes.json();
+        if (itemData?.permalink) {
+          targetUrl = buildCanonicalMlUrl(itemData.permalink, item.id, item.title);
+        }
         totalVendas = Number(itemData?.sold_quantity || 0);
         estoqueDisponivel = Number(itemData?.available_quantity || 10);
         precoAtual = Number(itemData?.price || precoAtual);
@@ -729,13 +785,16 @@ DIRETRIZES RIGOROSAS DE IDENTIDADE E MARCA:
 1. Priorize anúncios que correspondam EXATAMENTE À MESMA MARCA E MESMO MODELO do produto pesquisado.
 2. Identifique a marca do fabricante. Se o produto for da marca 'Cooler Master', NÃO traga anúncios de marcas rivais (como 'Elgato').
 3. Para cada anúncio, informe o campo 'is_exact_match' (true se for exatamente a mesma marca e modelo, false se for similar).
+4. OBRIGATÓRIO PARA 'url': Forneça o link direto do anúncio ou da página do produto no Mercado Livre (ex: https://produto.mercadolivre.com.br/MLB-... ou https://www.mercadolivre.com.br/.../p/MLB...). NUNCA forneça a página inicial vazia 'mercadolivre.com.br'.
+5. Se identificar o código do produto no Mercado Livre, informe o campo 'mlb_id' (ex: 'MLB19234857').
 
 Retorne APENAS um JSON array válido no formato:
 [
   {
     "title": "título exato do anúncio",
     "price": 123.45,
-    "url": "link do produto no mercadolivre.com.br",
+    "url": "link direto do produto no mercadolivre.com.br",
+    "mlb_id": "MLB...",
     "seller": "nome do vendedor",
     "brand": "marca identificada",
     "is_exact_match": true
@@ -769,15 +828,23 @@ Retorne APENAS um JSON array válido no formato:
         if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed.map((item: any, idx: number) => {
             const rawUrl = String(item.url || '');
+            const rawMlbId = String(item.mlb_id || item.id || '');
             const idMatch =
               rawUrl.match(/(MLB-?\d+)/i) ||
+              rawMlbId.match(/(MLB-?\d+)/i) ||
               rawUrl.match(/item_id:(MLB\d+)/i) ||
               rawUrl.match(/\/p\/(MLB\d+)/i);
-            const itemId = idMatch ? idMatch[1].replace('-', '') : `MLB-GR-${idx + 1}`;
+            const itemId = idMatch
+              ? idMatch[1].replace('-', '')
+              : rawMlbId.startsWith('MLB')
+              ? rawMlbId
+              : `MLB-GR-${idx + 1}`;
+            const resolvedUrl = buildCanonicalMlUrl(rawUrl, itemId, item.title || query);
+
             return {
               id: itemId,
               title: String(item.title || query),
-              url: rawUrl.startsWith('http') ? rawUrl : 'https://www.mercadolivre.com.br',
+              url: resolvedUrl,
               price: Number(item.price || 0),
               salesCount: 30,
               sellerNickname: String(item.seller || 'Vendedor Mercado Livre'),

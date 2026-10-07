@@ -1,4 +1,5 @@
 import { MLMatchItem } from './types';
+import { buildCanonicalMlUrl } from './clinicalAudit';
 
 function extractCoreQuery(title: string): string {
   if (!title) return '';
@@ -40,7 +41,7 @@ export function rankWinningSeller(
     const defaultItem: MLMatchItem = {
       id: `MLB-EST-${Date.now()}`,
       title: 'Produto Mercado Livre',
-      permalink: `https://www.mercadolivre.com.br`,
+      permalink: `https://lista.mercadolivre.com.br/produtos`,
       price: fallbackPrice,
       listing_type_id: 'gold_pro',
       free_shipping: fallbackPrice >= 79.0,
@@ -395,6 +396,7 @@ export async function searchMercadoLivre(
   if (options.sourcePrice && options.sourcePrice > 0) {
     const { winner } = rankWinningSeller([], options.sourcePrice);
     winner.title = `${query} (Referência Estimada ML)`;
+    winner.permalink = buildCanonicalMlUrl(null, null, query);
     return [winner];
   }
 

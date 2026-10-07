@@ -24,8 +24,12 @@ import {
   ShieldCheck,
   Package,
 } from 'lucide-react';
+import {
+  ClinicalEvaluationResult,
+  ClinicalCandidatePayload,
+  buildCanonicalMlUrl,
+} from '@/lib/ml-radar/clinicalAudit';
 import { getProductFallbackImage } from '@/lib/ml-radar/imageFallback';
-import { ClinicalEvaluationResult, ClinicalCandidatePayload } from '@/lib/ml-radar/clinicalAudit';
 
 export interface DealAnalysis {
   id?: string;
@@ -80,23 +84,13 @@ interface AnalysisDetailModalProps {
 }
 
 /**
- * Garante link direto e canônico ao Anúncio Vencedor no Mercado Livre (NUNCA busca genérica)
+ * Garante link direto e canônico ao Anúncio Vencedor no Mercado Livre (NUNCA home page)
  */
 function getSafeMlUrl(item: DealAnalysis, realWinner?: any): string {
   const candidate = realWinner?.permalink || item?.ml_url || '';
-  if (!candidate || candidate.includes('lista.mercadolivre.com.br')) {
-    return '#';
-  }
-  if (
-    candidate.includes('produto.mercadolivre.com.br') ||
-    candidate.includes('/p/MLB') ||
-    candidate.includes('/up/MLB') ||
-    candidate.includes('MLB-') ||
-    candidate.includes('MLB')
-  ) {
-    return candidate;
-  }
-  return '#';
+  const itemId = realWinner?.item_id || item?.id;
+  const title = realWinner?.title || item?.title || item?.source_title;
+  return buildCanonicalMlUrl(candidate, itemId, title);
 }
 
 export default function AnalysisDetailModal({
@@ -356,7 +350,12 @@ export default function AnalysisDetailModal({
   ];
 
   const canonicalWinnerUrl = getSafeMlUrl(analysis, realMlWinner);
-  const hasDirectWinnerUrl = canonicalWinnerUrl && canonicalWinnerUrl !== '#';
+  const hasDirectWinnerUrl = Boolean(
+    canonicalWinnerUrl &&
+    canonicalWinnerUrl !== '#' &&
+    !canonicalWinnerUrl.endsWith('mercadolivre.com.br') &&
+    !canonicalWinnerUrl.endsWith('mercadolivre.com.br/')
+  );
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200 font-sans">
@@ -794,7 +793,7 @@ export default function AnalysisDetailModal({
 
                       <div className="pt-3 mt-3 border-t border-slate-800/80">
                         <a
-                          href={cand.url}
+                          href={buildCanonicalMlUrl(cand.url, cand.item_id, cand.titulo)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${
