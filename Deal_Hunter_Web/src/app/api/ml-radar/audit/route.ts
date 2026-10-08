@@ -276,7 +276,40 @@ export async function POST(req: NextRequest) {
     // =========================================================================
     // ETAPA 3: Enriquecimento individual dos 2 Anúncios Comparativos (Mais Vendido & Menor Preço)
     // =========================================================================
-    const topTwo = scrapedCandidates.slice(0, 2);
+    let topTwo: any[] = [];
+    if (scrapedCandidates.length > 0) {
+      // 1. Identifica o Anúncio Líder de Vendas (maior número de vendas comprovadas)
+      const sortedBySales = [...scrapedCandidates].sort(
+        (a, b) => Number(b.salesCount || b.total_vendas || 0) - Number(a.salesCount || a.total_vendas || 0)
+      );
+      const bestSeller = sortedBySales[0];
+
+      // 2. Identifica o Anúncio de Menor Preço Válido (filtra acessórios abaixo de 35% do valor de custo)
+      const minValidThreshold = numSourcePrice > 0 ? numSourcePrice * 0.35 : 10;
+      const validForPrice = scrapedCandidates.filter(
+        (c) => Number(c.price || c.preco_atual || 0) >= minValidThreshold
+      );
+      const sortedByPrice = (validForPrice.length > 0 ? validForPrice : scrapedCandidates).sort(
+        (a, b) => Number(a.price || a.preco_atual || 0) - Number(b.price || b.preco_atual || 0)
+      );
+
+      const lowestPrice = sortedByPrice.find((c) => c.id !== bestSeller?.id) || sortedByPrice[0];
+
+      if (bestSeller && lowestPrice && bestSeller.id !== lowestPrice.id) {
+        topTwo = [bestSeller, lowestPrice];
+      } else if (bestSeller) {
+        topTwo = [bestSeller];
+        if (scrapedCandidates[1]) topTwo.push(scrapedCandidates[1]);
+      } else {
+        topTwo = scrapedCandidates.slice(0, 2);
+      }
+      console.log(`[Clinical Audit] 2 comparativos selecionados entre ${scrapedCandidates.length} candidatos:`, {
+        maisVendido: topTwo[0]?.title?.slice(0, 30),
+        vendas: topTwo[0]?.salesCount || topTwo[0]?.total_vendas,
+        menorPreco: topTwo[1]?.title?.slice(0, 30),
+        preco: topTwo[1]?.price || topTwo[1]?.preco_atual,
+      });
+    }
     let enrichedCandidates: ClinicalCandidatePayload['produto_candidato'][] = [];
 
     if (topTwo.length > 0) {

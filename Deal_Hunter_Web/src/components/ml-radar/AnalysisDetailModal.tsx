@@ -154,10 +154,25 @@ export default function AnalysisDetailModal({
   );
 
   /**
+   * Sanitiza e extrai as palavras-chave principais para busca no Mercado Livre
+   */
+  const cleanSearchQuery = React.useCallback((title: string): string => {
+    if (!title) return '';
+    return title
+      .replace(/(frete\s*grátis|frete\s*gratis|original|novo|lacrado|bivolt|110v|220v|promocao|promoção|garantia|\d+%\s*off|com\s*nf|nota\s*fiscal)/gi, ' ')
+      .replace(/[^\w\s-]/gi, ' ')
+      .split(/\s+/)
+      .filter((w) => w.trim().length > 1)
+      .slice(0, 6)
+      .join(' ')
+      .trim();
+  }, []);
+
+  /**
    * Dispara a varredura anti-bloqueio no navegador via extensão Deal Hunter
    */
   const requestBrowserMlScrape = React.useCallback(
-    (query: string, timeoutMs = 8000): Promise<any[]> => {
+    (query: string, timeoutMs = 14000): Promise<any[]> => {
       return new Promise((resolve) => {
         if (typeof window === 'undefined') return resolve([]);
 
@@ -228,7 +243,8 @@ export default function AnalysisDetailModal({
       setAuditStatusText('Varrendo 1ª página no navegador (anti-bloqueio)...');
       let browserCandidates: any[] = [];
       try {
-        browserCandidates = await requestBrowserMlScrape(productTitle, 6000);
+        const cleanedQuery = cleanSearchQuery(productTitle);
+        browserCandidates = await requestBrowserMlScrape(cleanedQuery || productTitle, 14000);
       } catch (e) {
         console.warn('[AnalysisDetailModal] Varredura no navegador indisponível:', e);
       }

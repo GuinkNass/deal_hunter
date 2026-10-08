@@ -1961,6 +1961,36 @@
       clickNextPage().then(sendResponse).catch((error) => sendResponse({ ok: false, message: error.message }));
       return true;
     }
+    if (message?.type === 'DEAL_HUNTER_SCRAPE_ML_FAST') {
+      (async () => {
+        try {
+          const start = Date.now();
+          let products = [];
+          // Aguarda ativamente os cards no DOM por ate 4.5 segundos
+          while (Date.now() - start < 4500) {
+            products = parseMercadoLivre(document);
+            if (products && products.length >= 3) break;
+            await new Promise((r) => setTimeout(r, 200));
+          }
+          if (!products || products.length === 0) {
+            window.scrollBy(0, 450);
+            await new Promise((r) => setTimeout(r, 350));
+            products = parseMercadoLivre(document);
+          }
+          console.log('[Deal Hunter Content] Scraping rápido do Mercado Livre concluído com', products.length, 'produtos');
+          sendResponse({
+            success: true,
+            products: (products || []).slice(0, 16),
+            productsFound: products ? products.length : 0,
+            url: location.href,
+          });
+        } catch (err) {
+          console.warn('[Deal Hunter Content] Erro no scraping rápido ML:', err.message);
+          sendResponse({ success: false, error: err.message, products: [] });
+        }
+      })();
+      return true;
+    }
     if (message?.type !== 'DEAL_HUNTER_CAPTURE_CATEGORY') return false;
     capture()
       .then(sendResponse)

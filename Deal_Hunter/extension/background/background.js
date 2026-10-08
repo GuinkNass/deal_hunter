@@ -290,15 +290,25 @@ async function sendCaptureMessage(tabId, maxRetries = 8) {
   }
 }
 
-async function scrapeMercadoLivreInBrowser(query) {
-  if (!query) throw new Error('Query de busca não informada');
-  const cleanSlug = query
+function cleanMlSearchSlug(rawQuery) {
+  if (!rawQuery) return '';
+  return rawQuery
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/(frete\s*gratis|original|novo|lacrado|bivolt|110v|220v|promocao|garantia|\d+%\s*off|com\s*nf|nota\s*fiscal)/gi, ' ')
+    .replace(/[^a-zA-Z0-9\s-]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.trim().length > 1)
+    .slice(0, 6)
+    .join('-')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
+}
 
+async function scrapeMercadoLivreInBrowser(query) {
+  if (!query) throw new Error('Query de busca não informada');
+  const cleanSlug = cleanMlSearchSlug(query) || 'eletronicos';
   const targetUrl = `https://lista.mercadolivre.com.br/${cleanSlug}`;
 
   console.log('[Deal Hunter Background] Abrindo aba para varredura anti-bloqueio no Mercado Livre:', targetUrl);
@@ -314,27 +324,80 @@ async function scrapeMercadoLivreInBrowser(query) {
   });
 
   try {
-    // Aguarda o carregamento e injeção do content script
-    await waitForTabComplete(tab.id, targetUrl);
-    // Pausa técnica para hidratação completa dos poly-cards e imagens
-    await new Promise((r) => setTimeout(r, 1500));
+    // 1. Aguarda a aba carregar a rede
+    await new Promise((resolve) => {
+      let resolved = false;
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          chrome.tabs.onUpdated.removeListener(onTabUpdated);
+          resolve();
+        }
+      }, 7000);
 
-    // Captura os produtos completos da primeira página com seletores do DOM
-    const captured = await sendCaptureMessage(tab.id);
-    console.log('[Deal Hunter Background] Produtos capturados na aba:', captured?.products?.length || 0);
+      function onTabUpdated(tabId, info) {
+        if (tabId === tab.id && info.status === 'complete') {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timeout);
+            chrome.tabs.onUpdated.removeListener(onTabUpdated);
+            resolve();
+          }
+        }
+      }
+      chrome.tabs.onUpdated.addListener(onTabUpdated);
+    });
+
+    // 2. Extração rápida direcionada aos cards do Mercado Livre
+    let captured = null;
+    for (let attempt = 1; attempt <= 6; attempt += 1) {
+      try {
+        captured = await new Promise((resolve, reject) => {
+          chrome.tabs.sendMessage(tab.id, { type: 'DEAL_HUNTER_SCRAPE_ML_FAST' }, (res) => {
+            if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+            resolve(res);
+          });
+        });
+        if (captured && Array.isArray(captured.products) && captured.products.length > 0) {
+          break;
+        }
+      } catch (err) {
+        if (chrome.scripting && err.message && (err.message.includes('Receiving end does not exist') || err.message.includes('Could not establish connection'))) {
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['content/content.js'],
+            });
+          } catch {}
+        }
+      }
+      await new Promise((r) => setTimeout(r, 600));
+    }
+
+    // Se o método rápido não obteve itens, fallback para sendCaptureMessage
+    if (!captured || !captured.products || captured.products.length === 0) {
+      try {
+        captured = await sendCaptureMessage(tab.id, 2);
+      } catch {}
+    }
+
+    const prods = captured?.products || [];
+    console.log('[Deal Hunter Background] Produtos reais extraídos do Mercado Livre no navegador:', prods.length);
 
     return {
       success: true,
       query,
       url: targetUrl,
-      products: captured.products || [],
-      productsFound: captured.productsFound || captured?.products?.length || 0,
-      pageTitle: captured.pageTitle || '',
+      products: prods,
+      productsFound: prods.length,
+      pageTitle: captured?.pageTitle || '',
     };
   } finally {
-    // Fecha a aba de varredura após a extração
+    // Garante que a aba só fecha depois de coletar as informações
     if (tab?.id) {
-      chrome.tabs.remove(tab.id).catch(() => {});
+      try {
+        await chrome.tabs.remove(tab.id);
+      } catch {}
     }
   }
 }
