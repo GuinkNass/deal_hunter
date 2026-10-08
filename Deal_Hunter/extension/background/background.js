@@ -420,9 +420,13 @@ async function extractMlFromTabDirect(tabId, maxWaitMs = 18000) {
                 sales = 500;
               }
 
-              const directUrl = mlbId
-                ? `https://produto.mercadolivre.com.br/${mlbId}`
-                : rawHref.split('#')[0];
+              let directUrl = rawHref ? rawHref.split('#')[0] : '';
+              if (directUrl && directUrl.startsWith('/')) {
+                directUrl = 'https://www.mercadolivre.com.br' + directUrl;
+              }
+              if (!directUrl && mlbId) {
+                directUrl = `https://www.mercadolivre.com.br/MLB-${mlbId.replace(/^MLB/i, '')}`;
+              }
 
               extracted.push({
                 id: mlbId || key,

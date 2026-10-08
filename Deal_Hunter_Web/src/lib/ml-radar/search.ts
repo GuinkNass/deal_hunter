@@ -360,14 +360,18 @@ export async function searchMercadoLivre(
 
       if (itemsFromMultiget.length > 0) {
         const rawItems: MLMatchItem[] = itemsFromMultiget.map((it: any) => {
-          // Garante sempre o CÓDIGO DE ANÚNCIO DO VENDEDOR (ex: MLB1942049788)
           const sellerItemId = String(it.id || '').replace('-', '');
-          const sellerDirectUrl = `https://produto.mercadolivre.com.br/${sellerItemId}`;
+          // Prioriza o permalink oficial fornecido pela própria API do Mercado Livre
+          const sellerDirectUrl =
+            it.permalink ||
+            (it.catalog_product_id
+              ? `https://www.mercadolivre.com.br/p/${it.catalog_product_id}`
+              : `https://www.mercadolivre.com.br/MLB-${sellerItemId.replace(/^MLB/i, '')}`);
 
           return {
             id: sellerItemId,
             title: it.title,
-            permalink: sellerDirectUrl, // Link direto e oficial do anúncio do vendedor
+            permalink: sellerDirectUrl, // Link real oficial fornecido pelo Mercado Livre
             price: Number(it.price),
             original_price: it.original_price ? Number(it.original_price) : undefined,
             thumbnail: it.thumbnail,
@@ -498,10 +502,8 @@ export async function searchMercadoLivre(
 
         const isFull = block.includes('fulfillment') || block.includes('FULL') || block.includes('icon-full');
 
-        // Link direto do anúncio individual do vendedor
-        const sellerAdUrl = /^MLB\d+/i.test(id)
-          ? `https://produto.mercadolivre.com.br/${id}`
-          : buildCanonicalMlUrl(fullUrl.split('#')[0], id, rawTitle);
+        // Link real e funcional do anúncio do vendedor
+        const sellerAdUrl = buildCanonicalMlUrl(fullUrl.split('#')[0], id, rawTitle);
 
         items.push({
           id,

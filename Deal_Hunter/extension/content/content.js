@@ -1368,10 +1368,14 @@
         if (seenIds.has(id)) continue;
         seenIds.add(id);
 
-        // URL Canônica do anúncio do vendedor (NUNCA página quebrada de catálogo)
-        const url_produto = mlbId
-          ? `https://produto.mercadolivre.com.br/${mlbId}`
-          : cleanCanonicalUrl(rawHref.split('#')[0]);
+        // 2.1 URL Real e Funcional do anúncio ou catálogo
+        let url_produto = rawHref ? cleanCanonicalUrl(rawHref.split('#')[0]) : '';
+        if (url_produto && url_produto.startsWith('/')) {
+          url_produto = 'https://www.mercadolivre.com.br' + url_produto;
+        }
+        if (!url_produto && mlbId) {
+          url_produto = `https://www.mercadolivre.com.br/MLB-${mlbId.replace(/^MLB/i, '')}`;
+        }
 
         // 3. Imagem de Alta Resolução com suporte a srcset
         const imgEl = card.querySelector('img.poly-component__picture, img[data-testid="picture"], img');

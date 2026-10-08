@@ -178,10 +178,8 @@ export async function POST(req: NextRequest) {
         .filter((m: any) => m && (m.titulo || m.title || m.name))
         .map((m: any) => {
           const rawId = String(m.id || m.item_id || '').replace('-', '');
-          const directUrl =
-            rawId && /^MLB\d+/i.test(rawId)
-              ? `https://produto.mercadolivre.com.br/${rawId}`
-              : m.url || m.url_produto || m.permalink;
+          const originalUrl = m.url || m.url_produto || m.permalink;
+          const directUrl = buildCanonicalMlUrl(originalUrl, rawId, m.titulo || m.title || m.name);
           return {
             id: rawId,
             title: m.titulo || m.title || m.name,
@@ -229,7 +227,7 @@ export async function POST(req: NextRequest) {
             scrapedCandidates = apiMatches
               .map((m: any) => {
                 const sellerItemId = String(m.id || '').replace('-', '');
-                const directSellerUrl = sellerItemId ? `https://produto.mercadolivre.com.br/${sellerItemId}` : m.permalink;
+                const directSellerUrl = buildCanonicalMlUrl(m.permalink, sellerItemId, m.title);
                 return {
                   id: sellerItemId,
                   title: m.title,
@@ -373,10 +371,11 @@ export async function POST(req: NextRequest) {
 
     const winnerIndex = clinicalDecision.vencedor_index ?? 0;
     const winner = enrichedCandidates[winnerIndex] || enrichedCandidates[0];
-    const canonicalWinnerPermalink =
-      winner.item_id && /^MLB\d{7,}/i.test(winner.item_id)
-        ? `https://produto.mercadolivre.com.br/${winner.item_id}`
-        : buildCanonicalMlUrl(winner.url, winner.item_id, winner.titulo || title);
+    const canonicalWinnerPermalink = buildCanonicalMlUrl(
+      winner.url,
+      winner.item_id,
+      winner.titulo || title
+    );
 
     const effectiveMlPrice = winner.preco_atual > 0 ? winner.preco_atual : fallbackMlPrice;
     const calcNetProfit = Number(((effectiveMlPrice - numSourcePrice) * 0.7).toFixed(2));

@@ -131,53 +131,53 @@ export function buildCanonicalMlUrl(
     cleanId.includes('MLB-AD');
   const safeId = isBannedId ? '' : cleanId;
 
-  // 2. Remove parâmetros e âncoras para avaliar a URL base
-  const cleanRaw = raw.split('#')[0].split('?')[0].trim();
+  // 2. Se a URL original já for uma URL real e válida do Mercado Livre, PRESERVAR INTEGRALMENTE!
+  if (raw) {
+    const cleanRaw = raw.split('#')[0].trim();
 
-  // 3. PRIORIDADE MÁXIMA: CÓDIGO DE ANÚNCIO DO VENDEDOR (wid=MLB... ou ID direto do item)
-  // O parâmetro wid=MLB... no card é o ID do anúncio individual do vendedor que ganhou a Buy Box
-  const widMatch = raw.match(/[?&#]wid=(MLB\d{7,})/i);
-  if (widMatch && !widMatch[1].includes('19234857')) {
-    return `https://produto.mercadolivre.com.br/${widMatch[1]}`;
-  }
+    // 2.1 Páginas oficiais de catálogo (/p/MLB... ou /up/MLBU...) são links legítimos e prioritários
+    if (/\/(?:p|up)\/MLB/i.test(cleanRaw) && !cleanRaw.includes('19234857')) {
+      return cleanRaw;
+    }
 
-  // Se recebemos um ID explícito de anúncio do vendedor (formato MLB seguido de 8 a 12 dígitos)
-  const idMatch = safeId.match(/^MLB-?(\d{8,12})$/i);
-  if (idMatch) {
-    return `https://produto.mercadolivre.com.br/MLB${idMatch[1]}`;
-  }
+    // 2.2 Links diretos com wid=MLB (anúncio do vendedor na Buy Box)
+    const widMatch = raw.match(/[?&#]wid=(MLB\d{7,})/i);
+    if (widMatch && !widMatch[1].includes('19234857')) {
+      return `https://www.mercadolivre.com.br/MLB-${widMatch[1].replace(/^MLB/i, '')}`;
+    }
 
-  // Se for uma URL direta de anúncio individual no subdomínio produto.mercadolivre.com.br com MLB válido
-  let sanitizedRaw = cleanRaw.replace(/\/(?:p|up)\/MLB[U]?(?:\/.*)?$/i, '');
-  const produtoMatch = sanitizedRaw.match(/produto\.mercadolivre\.com\.br\/(MLB-?\d{7,})/i);
-  if (produtoMatch && !produtoMatch[1].includes('19234857')) {
-    const cleanNum = produtoMatch[1].replace('-', '');
-    return `https://produto.mercadolivre.com.br/${cleanNum}`;
-  }
+    // 2.3 Links diretos de produto individual completos (ex: produto.mercadolivre.com.br/MLB-...)
+    if (cleanRaw.includes('produto.mercadolivre.com.br/MLB-') && !cleanRaw.includes('19234857')) {
+      return cleanRaw;
+    }
 
-  // 4. Se for uma URL de catálogo oficial (/p/MLB<digitos> ou /up/MLBU<digitos>) com pelo menos 6 dígitos numéricos
-  const catalogMatch = cleanRaw.match(/\/(?:p|up)\/(MLB[U]?\d{6,})/i);
-  if (catalogMatch && !catalogMatch[1].includes('19234857')) {
-    return cleanRaw;
-  }
-
-  // 7. Se for uma URL de listagem/busca direta bem formatada (lista.mercadolivre.com.br/<slug>)
-  if (sanitizedRaw.includes('lista.mercadolivre.com.br') && sanitizedRaw.length > 32) {
-    return sanitizedRaw;
-  }
-
-  // 8. Se a URL veio no formato https://www.mercadolivre.com.br/<slug-do-produto> (sem /p/ ou código de catálogo)
-  // No Mercado Livre, o domínio correto de busca de produtos é lista.mercadolivre.com.br
-  const generalSlugMatch = sanitizedRaw.match(/https?:\/\/(?:www\.)?mercadolivre\.com\.br\/([a-zA-Z0-9_-]+)/i);
-  if (generalSlugMatch) {
-    const slug = generalSlugMatch[1];
-    const reserved = ['registration', 'login', 'ofertas', 'ajuda', 'contato', 'produtos', 'categorias'];
-    if (slug.length >= 4 && !reserved.includes(slug.toLowerCase())) {
-      return `https://lista.mercadolivre.com.br/${slug}`;
+    // 2.4 Qualquer URL válida em mercadolivre.com.br que não seja a home genérica
+    if (
+      cleanRaw.includes('mercadolivre.com.br') &&
+      !cleanRaw.endsWith('mercadolivre.com.br') &&
+      !cleanRaw.endsWith('mercadolivre.com.br/') &&
+      !cleanRaw.includes('lista.mercadolivre.com.br') &&
+      !cleanRaw.includes('19234857')
+    ) {
+      return cleanRaw;
     }
   }
 
-  // 9. Fallback definitivo e infalível: busca direta no Mercado Livre pelo título higienizado do produto
+  // 3. Se temos um ID de anúncio válido (MLB...) e nenhuma URL funcional
+  if (safeId && /^MLB-?\d{7,}/i.test(safeId)) {
+    const numOnly = safeId.replace(/[^0-9]/g, '');
+    if (numOnly.length >= 7) {
+      // Redirecionador canônico oficial do Mercado Livre (ex: www.mercadolivre.com.br/MLB-123456789)
+      return `https://www.mercadolivre.com.br/MLB-${numOnly}`;
+    }
+  }
+
+  // 4. Se for uma URL de listagem/busca direta bem formatada
+  if (raw.includes('lista.mercadolivre.com.br') && raw.length > 32) {
+    return raw;
+  }
+
+  // 5. Fallback: busca direta no Mercado Livre pelo título higienizado do produto
   const safeTitle = sanitizeProductTitle(title);
   if (safeTitle && safeTitle.trim().length > 0) {
     const cleanSlug = safeTitle
