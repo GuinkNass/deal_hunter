@@ -164,30 +164,60 @@ export async function POST(req: NextRequest) {
 
     // =========================================================================
     // ETAPA 2: Varredura de Candidatos Reais no Mercado Livre
-    // Prioridade 1: Varredura ao vivo no Mercado Livre (Páginas 1 e 2) - 100% Anúncios Reais
-    // Prioridade 2: API Oficial do Mercado Livre (se usuário tiver token autenticado)
-    // Prioridade 3: Gemini Search Grounding (somente se a varredura ao vivo falhar)
+    // Prioridade 0: Varredura ao vivo via Extensão no Navegador do Usuário (100% Anti-Bloqueio)
+    // Prioridade 1: API Oficial do Mercado Livre (se usuário tiver token autenticado)
+    // Prioridade 2: Varredura ao vivo direta no backend (fallback)
+    // Prioridade 3: Gemini Search Grounding (somente se todas anteriores falharem)
     // =========================================================================
     let scrapedCandidates: any[] = [];
 
-    // Prioridade 1: Varredura com termos tratados cirúrgicos (Marca + Modelo prioritário)
-    const searchQueries: string[] = [];
-    if (specs.brand && specs.model) {
-      searchQueries.push(`${specs.brand} ${specs.model}`.trim());
-    }
-    if (cleanedQuery && !searchQueries.includes(cleanedQuery)) {
-      searchQueries.push(cleanedQuery);
-    }
-    if (altQuery && !searchQueries.includes(altQuery)) {
-      searchQueries.push(altQuery);
-    }
-    if (sanitizedTitle && !searchQueries.includes(sanitizedTitle)) {
-      searchQueries.push(sanitizedTitle);
+    // Prioridade 0: Candidatos fornecidos diretamente pela varredura em aba no navegador
+    if (Array.isArray(providedCandidates) && providedCandidates.length > 0) {
+      console.log(`[Clinical Audit] Utilizando ${providedCandidates.length} candidatos reais raspados pelo navegador do usuário!`);
+      scrapedCandidates = providedCandidates
+        .filter((m: any) => m && (m.titulo || m.title || m.name))
+        .map((m: any) => {
+          const rawId = String(m.id || m.item_id || '').replace('-', '');
+          const directUrl =
+            rawId && /^MLB\d+/i.test(rawId)
+              ? `https://produto.mercadolivre.com.br/${rawId}`
+              : m.url || m.url_produto || m.permalink;
+          return {
+            id: rawId,
+            title: m.titulo || m.title || m.name,
+            url: directUrl,
+            price: Number(m.preco_atual || m.price || 0),
+            originalPrice: m.preco_original || m.originalPrice ? Number(m.preco_original || m.originalPrice) : null,
+            salesCount: Number(m.total_vendas || m.salesCount || m.sold_quantity || 0),
+            sellerNickname: m.vendedor_nome || m.sellerNickname || m.seller_nickname || 'Vendedor Mercado Livre',
+            isFull: Boolean(m.isFull || m.is_full),
+            freeShipping: Boolean(m.freeShipping || m.free_shipping),
+            imageUrl: m.url_imagem || m.imageUrl || m.image_url,
+          };
+        })
+        .filter((c: any) => c.price > 0 && !c.url?.includes('lista.mercadolivre.com.br'));
     }
 
-    // Se temos token ativo da API Oficial do Mercado Livre, consulta primeiro a API Oficial
-    if (mlApiKey && mlApiKey.length > 10) {
-      console.log('[Clinical Audit] Consultando API oficial autenticada do Mercado Livre...');
+    // Se não recebemos candidatos do navegador, prossegue para as buscas do backend
+    if (!scrapedCandidates || scrapedCandidates.length === 0) {
+      // Prioridade 1: Varredura com termos tratados cirúrgicos (Marca + Modelo prioritário)
+      const searchQueries: string[] = [];
+      if (specs.brand && specs.model) {
+        searchQueries.push(`${specs.brand} ${specs.model}`.trim());
+      }
+      if (cleanedQuery && !searchQueries.includes(cleanedQuery)) {
+        searchQueries.push(cleanedQuery);
+      }
+      if (altQuery && !searchQueries.includes(altQuery)) {
+        searchQueries.push(altQuery);
+      }
+      if (sanitizedTitle && !searchQueries.includes(sanitizedTitle)) {
+        searchQueries.push(sanitizedTitle);
+      }
+
+      // Se temos token ativo da API Oficial do Mercado Livre, consulta primeiro a API Oficial
+      if (mlApiKey && mlApiKey.length > 10) {
+        console.log('[Clinical Audit] Consultando API oficial autenticada do Mercado Livre...');
       try {
         for (const q of searchQueries) {
           const apiMatches = await searchMercadoLivre(q, {
@@ -241,6 +271,7 @@ export async function POST(req: NextRequest) {
         scrapedCandidates = await searchMercadoLivreWithGeminiGrounding(altQuery, geminiApiKey);
       }
     }
+  }
 
     // =========================================================================
     // ETAPA 3: Enriquecimento individual dos 2 Anúncios Comparativos (Mais Vendido & Menor Preço)

@@ -299,9 +299,11 @@ async function scrapeMercadoLivreInBrowser(query) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 
-  const targetUrl = `https://lista.mercadolivre.com.br/${encodeURIComponent(cleanSlug)}`;
+  const targetUrl = `https://lista.mercadolivre.com.br/${cleanSlug}`;
 
-  // Abre uma aba discretamente no mesmo navegador para impedir qualquer bloqueio de bot
+  console.log('[Deal Hunter Background] Abrindo aba para varredura anti-bloqueio no Mercado Livre:', targetUrl);
+
+  // Abre uma aba no navegador para rodar a sessão real do usuário sem bloqueio de Cloudflare/Akamai
   const tab = await new Promise((resolve, reject) => {
     chrome.tabs.create({ url: targetUrl, active: false }, (t) => {
       if (chrome.runtime.lastError || !t) {
@@ -315,16 +317,18 @@ async function scrapeMercadoLivreInBrowser(query) {
     // Aguarda o carregamento e injeção do content script
     await waitForTabComplete(tab.id, targetUrl);
     // Pausa técnica para hidratação completa dos poly-cards e imagens
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, 1500));
 
     // Captura os produtos completos da primeira página com seletores do DOM
     const captured = await sendCaptureMessage(tab.id);
+    console.log('[Deal Hunter Background] Produtos capturados na aba:', captured?.products?.length || 0);
+
     return {
       success: true,
       query,
       url: targetUrl,
       products: captured.products || [],
-      productsFound: captured.productsFound || 0,
+      productsFound: captured.productsFound || captured?.products?.length || 0,
       pageTitle: captured.pageTitle || '',
     };
   } finally {

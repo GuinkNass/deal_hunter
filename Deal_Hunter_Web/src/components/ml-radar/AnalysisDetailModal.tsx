@@ -124,7 +124,20 @@ export default function AnalysisDetailModal({
   const [cleanedQuery, setCleanedQuery] = useState<string>('');
   const [realMlWinner, setRealMlWinner] = useState<any>(null);
   const [isAuditing, setIsAuditing] = useState<boolean>(false);
+  const [auditStatusText, setAuditStatusText] = useState<string>('');
   const [auditError, setAuditError] = useState<string | null>(null);
+  const [hasExtension, setHasExtension] = useState<boolean>(false);
+
+  // Detecta se a extensão Deal Hunter está ativa no navegador
+  React.useEffect(() => {
+    const handleExt = (event: MessageEvent) => {
+      if (event.data?.source === 'DEAL_HUNTER_EXTENSION' && event.data?.type === 'EXTENSION_READY') {
+        setHasExtension(true);
+      }
+    };
+    window.addEventListener('message', handleExt);
+    return () => window.removeEventListener('message', handleExt);
+  }, []);
 
   const rawTitle =
     analysis?.source_title || analysis?.title || analysis?.ml_title || 'Produto sem título';
@@ -140,10 +153,59 @@ export default function AnalysisDetailModal({
       (sourcePrice > 0 ? (sourcePrice * 1.45).toFixed(2) : 129.9)
   );
 
+  /**
+   * Dispara a varredura anti-bloqueio no navegador via extensão Deal Hunter
+   */
+  const requestBrowserMlScrape = React.useCallback(
+    (query: string, timeoutMs = 8000): Promise<any[]> => {
+      return new Promise((resolve) => {
+        if (typeof window === 'undefined') return resolve([]);
+
+        const requestId = `req-ml-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        let timer: any = null;
+
+        const handler = (event: MessageEvent) => {
+          if (
+            event.data?.source === 'DEAL_HUNTER_EXTENSION' &&
+            event.data?.type === 'DEAL_HUNTER_SCRAPE_ML_RESULT' &&
+            event.data?.requestId === requestId
+          ) {
+            window.removeEventListener('message', handler);
+            if (timer) clearTimeout(timer);
+            const prods = Array.isArray(event.data?.products) ? event.data.products : [];
+            console.log('[AnalysisDetailModal] Produtos reais capturados no navegador:', prods.length);
+            resolve(prods);
+          }
+        };
+
+        window.addEventListener('message', handler);
+
+        timer = setTimeout(() => {
+          window.removeEventListener('message', handler);
+          resolve([]);
+        }, timeoutMs);
+
+        // Envia mensagem para o content script (auth-sync.js) repassar à extensão
+        window.postMessage(
+          {
+            source: 'DEAL_HUNTER_WEB',
+            type: 'DEAL_HUNTER_SCRAPE_ML',
+            requestId,
+            query,
+            title: query,
+          },
+          '*'
+        );
+      });
+    },
+    []
+  );
+
   const runClinicalEvaluation = React.useCallback(async () => {
     if (!analysis || isAuditing) return;
     setIsAuditing(true);
     setAuditError(null);
+    setAuditStatusText('Iniciando varredura no Mercado Livre...');
 
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -162,6 +224,21 @@ export default function AnalysisDetailModal({
         } catch {}
       }
 
+      // ETAPA 1: Tenta varredura anti-bloqueio no navegador via extensão Deal Hunter
+      setAuditStatusText('Varrendo 1ª página no navegador (anti-bloqueio)...');
+      let browserCandidates: any[] = [];
+      try {
+        browserCandidates = await requestBrowserMlScrape(productTitle, 6000);
+      } catch (e) {
+        console.warn('[AnalysisDetailModal] Varredura no navegador indisponível:', e);
+      }
+
+      if (browserCandidates.length > 0) {
+        setAuditStatusText(`Auditoria com ${browserCandidates.length} anúncios reais capturados...`);
+      } else {
+        setAuditStatusText('Analisando concorrência e líderes no Mercado Livre...');
+      }
+
       const res = await fetch('/api/ml-radar/audit', {
         method: 'POST',
         headers,
@@ -176,6 +253,7 @@ export default function AnalysisDetailModal({
           marginPercent: analysis.margin_percent,
           mlApiKey: clientMlKey,
           geminiApiKey: clientGeminiKey,
+          providedCandidates: browserCandidates.length > 0 ? browserCandidates : undefined,
         }),
       });
 
@@ -454,16 +532,18 @@ export default function AnalysisDetailModal({
             </div>
           )}
 
-          {/* Loading Banner Invisível */}
+          {/* Status da Varredura ao Vivo no Navegador */}
           {isAuditing && (
-            <div className="bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-cyan-500/10 border border-amber-500/30 rounded-2xl p-5 flex items-center gap-4 animate-pulse">
-              <Loader2 className="w-6 h-6 text-amber-400 animate-spin flex-shrink-0" />
+            <div className="bg-amber-950/30 border border-amber-500/40 rounded-2xl p-4 flex items-center gap-3 text-xs text-amber-200 shadow-lg shadow-amber-950/20 animate-pulse">
+              <Loader2 className="w-5 h-5 text-amber-400 animate-spin flex-shrink-0" />
               <div className="space-y-0.5">
-                <h4 className="text-sm font-bold text-white">
-                  Varrendo Mercado Livre e Avaliando Concorrência...
-                </h4>
-                <p className="text-xs text-slate-400">
-                  Higienizando termo com Gemini, buscando as 2 primeiras páginas no ML em segundo plano no servidor (invisível), enriquecendo os top 3 candidatos na API oficial e elegendo o vencedor.
+                <p className="font-bold text-white text-sm">
+                  {auditStatusText || 'Varrendo primeira página no Mercado Livre...'}
+                </p>
+                <p className="text-[11px] text-amber-300/80">
+                  {hasExtension
+                    ? 'A extensão Deal Hunter está abrindo a busca no seu navegador para capturar todos os anúncios da 1ª página com proteção anti-bloqueio.'
+                    : 'Auditando modelos, concorrentes e anúncios líderes via inteligência artificial.'}
                 </p>
               </div>
             </div>

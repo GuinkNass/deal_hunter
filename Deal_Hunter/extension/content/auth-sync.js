@@ -33,6 +33,68 @@
     }
   });
 
+  // 3. Ponte bidirecional para Varredura do Mercado Livre no navegador (Anti-Bloqueio)
+  window.addEventListener('message', (event) => {
+    if (event.data?.source === 'DEAL_HUNTER_WEB' && event.data?.type === 'DEAL_HUNTER_SCRAPE_ML') {
+      const { requestId, query, title } = event.data;
+      const searchTerm = (query || title || '').trim();
+
+      console.log('[Deal Hunter Extension] Solicitando varredura no Mercado Livre para:', searchTerm);
+
+      chrome.runtime.sendMessage(
+        {
+          type: 'DEAL_HUNTER_SCRAPE_MERCADO_LIVRE',
+          query: searchTerm,
+          requestId,
+        },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.warn('[Deal Hunter Extension] Erro ao comunicar com background:', chrome.runtime.lastError.message);
+            window.postMessage(
+              {
+                source: 'DEAL_HUNTER_EXTENSION',
+                type: 'DEAL_HUNTER_SCRAPE_ML_RESULT',
+                requestId,
+                success: false,
+                error: chrome.runtime.lastError.message,
+                products: [],
+              },
+              '*'
+            );
+            return;
+          }
+
+          console.log('[Deal Hunter Extension] Varredura ML concluída:', response?.products?.length || 0, 'produtos encontrados');
+          window.postMessage(
+            {
+              source: 'DEAL_HUNTER_EXTENSION',
+              type: 'DEAL_HUNTER_SCRAPE_ML_RESULT',
+              requestId,
+              success: response?.success ?? true,
+              products: response?.products || [],
+              productsFound: response?.productsFound || response?.products?.length || 0,
+              query: response?.query || searchTerm,
+            },
+            '*'
+          );
+        }
+      );
+    }
+  });
+
+  // Avisa a página web que a extensão está ativa e pronta para varredura no navegador
+  function notifyExtensionReady() {
+    window.postMessage(
+      {
+        source: 'DEAL_HUNTER_EXTENSION',
+        type: 'EXTENSION_READY',
+        version: '1.2.0',
+        capabilities: ['ML_SCRAPE', 'AUTH_SYNC', 'BROWSER_SCAN'],
+      },
+      '*'
+    );
+  }
+
   // 2. Inspeciona o elemento ponte no DOM periodicamente
   function inspectDOMBridge() {
     const bridge = document.getElementById('deal-hunter-auth-payload');
@@ -46,6 +108,7 @@
         }
       } catch (_) {}
     }
+    notifyExtensionReady();
   }
 
   // Executa imediatamente e a cada 1.5s enquanto o usuário estiver na página
