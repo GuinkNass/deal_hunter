@@ -29,6 +29,7 @@ import {
   CheckSquare,
   Square,
   Star,
+  BookOpen,
 } from 'lucide-react';
 import AnalysisDetailModal, { DealAnalysis } from '@/components/ml-radar/AnalysisDetailModal';
 import ManualSearchModal from '@/components/ml-radar/ManualSearchModal';
@@ -675,74 +676,80 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          {/* User actions */}
-          <div className="flex items-center gap-3">
+          {/* User actions padronizadas e profissionais */}
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Acesso à Documentação */}
+            <Link
+              href="/docs"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 hover:border-cyan-400/30 text-slate-200 hover:text-white text-xs font-bold transition-all shadow-sm"
+              title="Abrir Manual do Usuário e Guia de Configuração Oficial"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden sm:inline">Documentação</span>
+            </Link>
+
+            {/* Nova Análise Manual */}
             <button
               onClick={() => setManualModalOpen(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold shadow-md shadow-cyan-600/25 transition-all"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold shadow-md shadow-cyan-600/25 transition-all"
+              title="Pesquisar concorrentes líderes para qualquer produto avulso"
             >
               <PlusCircle className="w-4 h-4" />
-              <span>Nova Análise</span>
+              <span className="hidden sm:inline">Nova Análise</span>
             </button>
 
-            <button
-              onClick={handleSimulateIngest}
-              disabled={simulating}
-              className="hidden md:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-all disabled:opacity-50"
-              title="Dispara teste de ingestão"
-            >
-              {simulating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5 text-cyan-400" />}
-              <span>Testar Ingestão</span>
-            </button>
-
+            {/* Sincronizar Vitrine */}
             <button
               type="button"
               onClick={handleSyncShowcase}
               disabled={syncingShowcase}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-yellow-400 text-black text-xs font-black uppercase tracking-wider shadow-lg shadow-amber-500/25 transition-all active:scale-95 disabled:opacity-50"
-              title="Atualiza toda a vitrine pública externa com as estrelas marcadas"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 text-xs font-black uppercase tracking-wider shadow-md shadow-amber-500/20 transition-all active:scale-95 disabled:opacity-50"
+              title="Sincronizar ofertas marcadas com estrela com a vitrine pública externa"
             >
-              <Star className={`w-3.5 h-3.5 fill-black text-black ${syncingShowcase ? 'animate-spin' : ''}`} />
-              <span>{syncingShowcase ? 'Atualizando...' : 'Atualizar Vitrine'}</span>
+              <Star className={`w-3.5 h-3.5 fill-slate-950 text-slate-950 ${syncingShowcase ? 'animate-spin' : ''}`} />
+              <span className="hidden md:inline">{syncingShowcase ? 'Sincronizando...' : 'Atualizar Vitrine'}</span>
               {featuredDealsCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full bg-black/20 text-black text-[10px] font-black">
+                <span className="px-1.5 py-0.2 rounded-full bg-black/20 text-slate-950 text-[10px] font-black">
                   {featuredDealsCount}
                 </span>
               )}
             </button>
 
+            {/* Ver Vitrine Pública */}
             <Link
               href="/ofertas"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-amber-500/10 hover:from-amber-500/30 hover:to-orange-500/25 border border-amber-500/40 text-amber-300 hover:text-amber-200 text-xs font-bold transition-all shadow-sm"
-              title="Abrir a Vitrine Pública de Ofertas em nova aba"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 hover:text-amber-200 text-xs font-bold transition-all shadow-sm"
+              title="Abrir a Vitrine Pública de Ofertas (/ofertas) em nova aba"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Ver Vitrine</span>
+              <span className="hidden sm:inline">Ver Vitrine</span>
               <ExternalLink className="w-3 h-3 opacity-70" />
             </Link>
 
+            {/* Indicador Auto-Sync 30s */}
             <div
-              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-bold text-emerald-400 select-none"
-              title="Sincronização contínua a cada 30 segundos"
+              className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-bold text-emerald-400 select-none"
+              title="Monitoramento ativo com sincronização a cada 30 segundos"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span>Auto-sync 30s</span>
+              <span>Auto-sync</span>
             </div>
 
+            {/* Botão de Atualizar Lista */}
             <button
               onClick={() => authToken && loadDeals(authToken, true)}
               disabled={refreshing}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all"
-              title="Atualizar lista agora"
+              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700/80 transition-all"
+              title="Atualizar lista de oportunidades agora"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-cyan-400' : ''}`} />
             </button>
 
-            {/* Profile badge */}
-            <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10">
+            {/* Profile badge & Logout */}
+            <div className="flex items-center gap-1.5 pl-2 border-l border-slate-800">
+              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-white/[0.06] border border-white/10">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt={displayName} className="w-6 h-6 rounded-full object-cover border border-cyan-400" />
                 ) : (
@@ -750,7 +757,7 @@ export default function DashboardPage() {
                     <UserIcon className="w-3.5 h-3.5" />
                   </div>
                 )}
-                <span className="text-xs font-bold text-white max-w-[120px] truncate hidden sm:inline">
+                <span className="text-xs font-bold text-white max-w-[100px] truncate hidden lg:inline">
                   {displayName}
                 </span>
               </div>
@@ -766,12 +773,12 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Tab Navigation Strip */}
+        {/* Tab Navigation Strip Padronizada */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-800/80">
           <nav className="flex items-center gap-1 sm:gap-2 overflow-x-auto py-2.5 no-scrollbar">
             <button
               onClick={() => setActiveTab('radar')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
                 activeTab === 'radar'
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
                   : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
@@ -786,7 +793,7 @@ export default function DashboardPage() {
 
             <button
               onClick={() => setActiveTab('showcase')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
                 activeTab === 'showcase'
                   ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
                   : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
@@ -801,7 +808,7 @@ export default function DashboardPage() {
 
             <button
               onClick={() => setActiveTab('manual')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
                 activeTab === 'manual'
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
                   : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
@@ -813,7 +820,7 @@ export default function DashboardPage() {
 
             <button
               onClick={() => setActiveTab('calculator')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
                 activeTab === 'calculator'
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
                   : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
@@ -825,7 +832,7 @@ export default function DashboardPage() {
 
             <button
               onClick={() => setActiveTab('settings')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
                 activeTab === 'settings'
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
                   : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
@@ -837,7 +844,7 @@ export default function DashboardPage() {
 
             <button
               onClick={() => setActiveTab('status')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
                 activeTab === 'status'
                   ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
                   : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
@@ -846,6 +853,16 @@ export default function DashboardPage() {
               <Activity className="w-4 h-4" />
               <span>Diagnóstico</span>
             </button>
+
+            {/* Atalho direto para a documentação na barra de abas */}
+            <Link
+              href="/docs"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap text-slate-400 hover:text-cyan-300 hover:bg-white/[0.04]"
+              title="Acessar o Manual do Usuário e Documentação Oficial"
+            >
+              <BookOpen className="w-4 h-4 text-cyan-400" />
+              <span>Manual do Usuário</span>
+            </Link>
           </nav>
         </div>
       </header>
