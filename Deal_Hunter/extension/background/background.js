@@ -306,6 +306,177 @@ function cleanMlSearchSlug(rawQuery) {
     .replace(/^-|-$/g, '');
 }
 
+async function extractMlFromTabDirect(tabId, maxWaitMs = 18000) {
+  const startTime = Date.now();
+  let lastProducts = [];
+
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      // Se passar de 3.5 segundos e ainda não tiver produtos, ativa a aba para evitar throttling do Chrome
+      if (Date.now() - startTime > 3500 && lastProducts.length === 0) {
+        chrome.tabs.update(tabId, { autoDiscardable: false, active: true }).catch(() => {});
+      }
+
+      const injectionResults = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => {
+          // 1. Busca todos os seletores possíveis de card do Mercado Livre
+          const cards = document.querySelectorAll(
+            'li.ui-search-layout__item, div.ui-search-result__wrapper, div.poly-card, div.andes-card.poly-card, div.poly-card__content, [class*="ui-search-layout__item"]'
+          );
+
+          const bodyText = document.body ? document.body.innerText || '' : '';
+          const noResults = /não\s*há\s*anúncios|nenhum\s*resultado|nenhum\s*anúncio/i.test(bodyText);
+
+          if (!cards || cards.length === 0) {
+            return { ready: false, noResults, count: 0, products: [] };
+          }
+
+          const extracted = [];
+          const seen = new Set();
+
+          for (const card of cards) {
+            try {
+              // Título e Link
+              const titleEl = card.querySelector(
+                'a.poly-component__title, h3.poly-component__title-wrapper a, a[class*="poly-component__title"], h2.ui-search-item__title a, a.ui-search-link, h2 a'
+              );
+              if (!titleEl) continue;
+
+              const rawHref = titleEl.getAttribute('href') || titleEl.href || '';
+              const rawTitle = (titleEl.innerText || titleEl.textContent || '').trim();
+              if (!rawTitle) continue;
+
+              // Identificação do MLB real do vendedor
+              const widMatch = rawHref.match(/[?&#]wid=(MLB\d+)/i);
+              const directMlbMatch = rawHref.match(/produto\.mercadolivre\.com\.br\/(MLB-?\d+)/i) || rawHref.match(/(MLB-?\d{8,})/i);
+              const mlbId = widMatch ? widMatch[1] : (directMlbMatch ? directMlbMatch[1].replace('-', '') : '');
+
+              const key = mlbId || rawHref.split('?')[0];
+              if (seen.has(key)) continue;
+              seen.add(key);
+
+              // Preço Atual
+              let priceNum = 0;
+              const curPriceEl = card.querySelector('.poly-price__current, [class*="poly-price__current"], .ui-search-price__second-line');
+              if (curPriceEl) {
+                const frac = curPriceEl.querySelector('.andes-money-amount__fraction');
+                const cents = curPriceEl.querySelector('.andes-money-amount__cents');
+                if (frac) {
+                  const fStr = frac.innerText.replace(/\./g, '').trim();
+                  const cStr = cents ? cents.innerText.trim() : '00';
+                  priceNum = parseFloat(`${fStr}.${cStr}`);
+                }
+              }
+              if (!priceNum) {
+                const ariaEl = card.querySelector('.andes-money-amount[aria-label]');
+                const aria = ariaEl ? ariaEl.getAttribute('aria-label') || '' : '';
+                const m = aria.match(/(\d+)\s*reais(?:.*?(\d+)\s*centavos)?/i);
+                if (m) priceNum = parseFloat(`${m[1]}.${m[2] || '00'}`);
+              }
+
+              // Preço De / Original
+              let originalPriceNum = null;
+              const prevEl = card.querySelector('s.andes-money-amount--previous, s.andes-money-amount, .ui-search-price__part--original');
+              if (prevEl) {
+                const f = prevEl.querySelector('.andes-money-amount__fraction');
+                const c = prevEl.querySelector('.andes-money-amount__cents');
+                if (f) {
+                  originalPriceNum = parseFloat(`${f.innerText.replace(/\./g, '').trim()}.${c ? c.innerText.trim() : '00'}`);
+                }
+              }
+
+              // Imagem com suporte a srcset
+              const imgEl = card.querySelector('img.poly-component__picture, img.ui-search-result-image__element, img[data-testid="picture"], img');
+              let imgUrl = '';
+              if (imgEl) {
+                const srcset = imgEl.getAttribute('srcset') || '';
+                if (srcset) {
+                  const candidates = srcset.split(',').map((s) => s.trim().split(/\s+/)[0]).filter(Boolean);
+                  imgUrl = candidates[candidates.length - 1] || candidates[0] || '';
+                }
+                if (!imgUrl) {
+                  imgUrl = imgEl.getAttribute('src') || imgEl.getAttribute('data-src') || imgEl.currentSrc || '';
+                }
+                if (imgUrl.startsWith('//')) imgUrl = 'https:' + imgUrl;
+              }
+
+              // Desconto
+              const discEl = card.querySelector('.poly-price__discount-polylabel .polylabel-pill, [class*="poly-price__discount"], .ui-search-price__discount');
+              const discountStr = discEl ? discEl.innerText.trim() : '';
+
+              // Vendedor
+              const sellerEl = card.querySelector('.poly-component__seller, .ui-search-item__seller, [class*="seller"]');
+              const sellerName = sellerEl ? sellerEl.innerText.trim() : 'Mercado Livre';
+
+              // Vendas
+              let sales = 25;
+              const textContent = card.innerText || '';
+              const salesMatch = textContent.match(/(?:Mais de\s*)?(\+?\d+[\d.]*(?:\s*mil)?)\s*(?:produtos\s*)?vendidos/i) || textContent.match(/(\+?\d+[\d.]*(?:\s*mil)?)\s*vendidos/i);
+              if (salesMatch) {
+                const rawSales = salesMatch[1].replace(/\./g, '').trim();
+                sales = rawSales.includes('mil') ? parseInt(rawSales, 10) * 1000 : parseInt(rawSales, 10);
+              } else if (textContent.includes('MAIS VENDIDO')) {
+                sales = 500;
+              }
+
+              const directUrl = mlbId
+                ? `https://produto.mercadolivre.com.br/${mlbId}`
+                : rawHref.split('#')[0];
+
+              extracted.push({
+                id: mlbId || key,
+                titulo: rawTitle,
+                title: rawTitle,
+                name: rawTitle,
+                url_produto: directUrl,
+                url: directUrl,
+                preco_atual: priceNum,
+                price: priceNum,
+                preco_original: originalPriceNum,
+                originalPrice: originalPriceNum,
+                desconto: discountStr,
+                url_imagem: imgUrl,
+                imageUrl: imgUrl,
+                vendedor_nome: sellerName,
+                total_vendas: sales,
+                salesCount: sales,
+              });
+
+              if (extracted.length >= 16) break;
+            } catch {}
+          }
+
+          return {
+            ready: extracted.length > 0,
+            count: extracted.length,
+            products: extracted,
+            noResults,
+          };
+        },
+      });
+
+      const res = injectionResults?.[0]?.result;
+      if (res && res.ready && res.products.length > 0) {
+        lastProducts = res.products;
+        console.log(`[Deal Hunter Background] Extração DOM direta concluída: ${res.products.length} anúncios em ${Date.now() - startTime}ms`);
+        return lastProducts;
+      }
+
+      if (res && res.noResults) {
+        console.warn('[Deal Hunter Background] Busca sem anúncios correspondentes no Mercado Livre.');
+        break;
+      }
+    } catch (err) {
+      // Normal durante carregamento inicial enquanto a página HTTP ainda não montou o frame
+    }
+
+    await new Promise((r) => setTimeout(r, 450));
+  }
+
+  return lastProducts;
+}
+
 async function scrapeMercadoLivreInBrowser(query) {
   if (!query) throw new Error('Query de busca não informada');
   const cleanSlug = cleanMlSearchSlug(query) || 'eletronicos';
@@ -313,7 +484,7 @@ async function scrapeMercadoLivreInBrowser(query) {
 
   console.log('[Deal Hunter Background] Abrindo aba para varredura anti-bloqueio no Mercado Livre:', targetUrl);
 
-  // Abre uma aba no navegador para rodar a sessão real do usuário sem bloqueio de Cloudflare/Akamai
+  // Cria a aba e desativa auto-descarte de memória do Chrome
   const tab = await new Promise((resolve, reject) => {
     chrome.tabs.create({ url: targetUrl, active: false }, (t) => {
       if (chrome.runtime.lastError || !t) {
@@ -324,76 +495,23 @@ async function scrapeMercadoLivreInBrowser(query) {
   });
 
   try {
-    // 1. Aguarda a aba carregar a rede
-    await new Promise((resolve) => {
-      let resolved = false;
-      const timeout = setTimeout(() => {
-        if (!resolved) {
-          resolved = true;
-          chrome.tabs.onUpdated.removeListener(onTabUpdated);
-          resolve();
-        }
-      }, 7000);
+    await chrome.tabs.update(tab.id, { autoDiscardable: false });
+  } catch {}
 
-      function onTabUpdated(tabId, info) {
-        if (tabId === tab.id && info.status === 'complete') {
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(timeout);
-            chrome.tabs.onUpdated.removeListener(onTabUpdated);
-            resolve();
-          }
-        }
-      }
-      chrome.tabs.onUpdated.addListener(onTabUpdated);
-    });
-
-    // 2. Extração rápida direcionada aos cards do Mercado Livre
-    let captured = null;
-    for (let attempt = 1; attempt <= 6; attempt += 1) {
-      try {
-        captured = await new Promise((resolve, reject) => {
-          chrome.tabs.sendMessage(tab.id, { type: 'DEAL_HUNTER_SCRAPE_ML_FAST' }, (res) => {
-            if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
-            resolve(res);
-          });
-        });
-        if (captured && Array.isArray(captured.products) && captured.products.length > 0) {
-          break;
-        }
-      } catch (err) {
-        if (chrome.scripting && err.message && (err.message.includes('Receiving end does not exist') || err.message.includes('Could not establish connection'))) {
-          try {
-            await chrome.scripting.executeScript({
-              target: { tabId: tab.id },
-              files: ['content/content.js'],
-            });
-          } catch {}
-        }
-      }
-      await new Promise((r) => setTimeout(r, 600));
-    }
-
-    // Se o método rápido não obteve itens, fallback para sendCaptureMessage
-    if (!captured || !captured.products || captured.products.length === 0) {
-      try {
-        captured = await sendCaptureMessage(tab.id, 2);
-      } catch {}
-    }
-
-    const prods = captured?.products || [];
-    console.log('[Deal Hunter Background] Produtos reais extraídos do Mercado Livre no navegador:', prods.length);
+  try {
+    // Extrai diretamente do DOM sem depender de mensagens lentas ou document_idle
+    const products = await extractMlFromTabDirect(tab.id, 18000);
+    console.log('[Deal Hunter Background] Produtos reais extraídos do Mercado Livre no navegador:', products.length);
 
     return {
       success: true,
       query,
       url: targetUrl,
-      products: prods,
-      productsFound: prods.length,
-      pageTitle: captured?.pageTitle || '',
+      products,
+      productsFound: products.length,
     };
   } finally {
-    // Garante que a aba só fecha depois de coletar as informações
+    // Fecha a aba SOMENTE APÓS extrair e validar os dados
     if (tab?.id) {
       try {
         await chrome.tabs.remove(tab.id);

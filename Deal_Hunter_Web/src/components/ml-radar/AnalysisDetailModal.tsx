@@ -172,7 +172,7 @@ export default function AnalysisDetailModal({
    * Dispara a varredura anti-bloqueio no navegador via extensão Deal Hunter
    */
   const requestBrowserMlScrape = React.useCallback(
-    (query: string, timeoutMs = 14000): Promise<any[]> => {
+    (query: string, timeoutMs = 20000): Promise<any[]> => {
       return new Promise((resolve) => {
         if (typeof window === 'undefined') return resolve([]);
 
@@ -244,7 +244,7 @@ export default function AnalysisDetailModal({
       let browserCandidates: any[] = [];
       try {
         const cleanedQuery = cleanSearchQuery(productTitle);
-        browserCandidates = await requestBrowserMlScrape(cleanedQuery || productTitle, 14000);
+        browserCandidates = await requestBrowserMlScrape(cleanedQuery || productTitle, 20000);
       } catch (e) {
         console.warn('[AnalysisDetailModal] Varredura no navegador indisponível:', e);
       }
