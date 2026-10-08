@@ -39,9 +39,12 @@ import StatusView from '@/components/ml-radar/StatusView';
 import DealProductCard from '@/components/ml-radar/DealProductCard';
 import ShowcaseHistoryView from '@/components/ml-radar/ShowcaseHistoryView';
 import { getProductFallbackImage } from '@/lib/ml-radar/imageFallback';
+import LanguageCurrencySelector from '@/components/LanguageCurrencySelector';
+import { useLanguageCurrency } from '@/contexts/LanguageCurrencyContext';
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { t, formatMoney, currency, lang } = useLanguageCurrency();
   const [supabase] = useState(() => createClient());
 
   const [loading, setLoading] = useState(true);
@@ -678,15 +681,8 @@ export default function DashboardPage() {
 
           {/* User actions padronizadas e profissionais */}
           <div className="flex items-center gap-2 sm:gap-2.5">
-            {/* Acesso à Documentação */}
-            <Link
-              href="/docs"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 hover:border-cyan-400/30 text-slate-200 hover:text-white text-xs font-bold transition-all shadow-sm"
-              title="Abrir Manual do Usuário e Guia de Configuração Oficial"
-            >
-              <BookOpen className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="hidden sm:inline">Documentação</span>
-            </Link>
+            {/* Seletor Global de Idioma e Moeda na Dashboard */}
+            <LanguageCurrencySelector />
 
             {/* Nova Análise Manual */}
             <button
@@ -695,7 +691,7 @@ export default function DashboardPage() {
               title="Pesquisar concorrentes líderes para qualquer produto avulso"
             >
               <PlusCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">Nova Análise</span>
+              <span className="hidden sm:inline">{t('dash.new_analysis')}</span>
             </button>
 
             {/* Sincronizar Vitrine */}
@@ -707,7 +703,7 @@ export default function DashboardPage() {
               title="Sincronizar ofertas marcadas com estrela com a vitrine pública externa"
             >
               <Star className={`w-3.5 h-3.5 fill-slate-950 text-slate-950 ${syncingShowcase ? 'animate-spin' : ''}`} />
-              <span className="hidden md:inline">{syncingShowcase ? 'Sincronizando...' : 'Atualizar Vitrine'}</span>
+              <span className="hidden md:inline">{syncingShowcase ? '...' : t('dash.update_showcase')}</span>
               {featuredDealsCount > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full bg-black/20 text-slate-950 text-[10px] font-black">
                   {featuredDealsCount}
@@ -724,7 +720,7 @@ export default function DashboardPage() {
               title="Abrir a Vitrine Pública de Ofertas (/ofertas) em nova aba"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Ver Vitrine</span>
+              <span className="hidden sm:inline">{t('dash.view_showcase')}</span>
               <ExternalLink className="w-3 h-3 opacity-70" />
             </Link>
 
@@ -785,7 +781,7 @@ export default function DashboardPage() {
               }`}
             >
               <Radar className="w-4 h-4" />
-              <span>Radar ML</span>
+              <span>{t('dash.tab_radar')}</span>
               <span className="px-1.5 py-0.2 rounded-full bg-cyan-400/20 text-[10px] text-cyan-300">
                 {deals.length}
               </span>
@@ -800,7 +796,7 @@ export default function DashboardPage() {
               }`}
             >
               <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-              <span>Vitrine (Descrições)</span>
+              <span>Vitrine</span>
               <span className="px-1.5 py-0.2 rounded-full bg-amber-400/20 text-[10px] text-amber-300 font-bold">
                 {featuredDealsCount}
               </span>
@@ -815,7 +811,7 @@ export default function DashboardPage() {
               }`}
             >
               <Search className="w-4 h-4" />
-              <span>Análise Manual</span>
+              <span>{t('dash.tab_manual')}</span>
             </button>
 
             <button
@@ -827,7 +823,7 @@ export default function DashboardPage() {
               }`}
             >
               <Calculator className="w-4 h-4" />
-              <span>Calculadora de Margem</span>
+              <span>{t('dash.tab_calculator')}</span>
             </button>
 
             <button
@@ -839,7 +835,7 @@ export default function DashboardPage() {
               }`}
             >
               <Settings className="w-4 h-4" />
-              <span>Configurações & APIs</span>
+              <span>{t('dash.tab_settings')}</span>
             </button>
 
             <button
@@ -851,18 +847,8 @@ export default function DashboardPage() {
               }`}
             >
               <Activity className="w-4 h-4" />
-              <span>Diagnóstico</span>
+              <span>{t('dash.tab_status')}</span>
             </button>
-
-            {/* Atalho direto para a documentação na barra de abas */}
-            <Link
-              href="/docs"
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap text-slate-400 hover:text-cyan-300 hover:bg-white/[0.04]"
-              title="Acessar o Manual do Usuário e Documentação Oficial"
-            >
-              <BookOpen className="w-4 h-4 text-cyan-400" />
-              <span>Manual do Usuário</span>
-            </Link>
           </nav>
         </div>
       </header>

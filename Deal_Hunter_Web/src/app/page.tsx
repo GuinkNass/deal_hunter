@@ -32,7 +32,9 @@ import {
   Compass,
   Target,
   Radar,
+  BookOpen,
 } from 'lucide-react';
+import { useLanguageCurrency } from '@/contexts/LanguageCurrencyContext';
 
 function ChromeIcon({ className = 'w-5 h-5' }: { className?: string }) {
   return (
@@ -56,6 +58,7 @@ function ChromeIcon({ className = 'w-5 h-5' }: { className?: string }) {
 }
 
 export default function LandingPage() {
+  const { t, formatMoney } = useLanguageCurrency();
   const [user, setUser] = useState<any>(null);
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
@@ -270,37 +273,46 @@ export default function LandingPage() {
           </p>
 
           {/* CTAs Principais da Hero */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             {/* Botão Primário: Chrome Web Store Oficial (Lime Accent) */}
             <a
               href={chromeWebStoreUrl}
               target="_blank"
               rel="noopener noreferrer"
               onClick={triggerOpenChromeStore}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-full bg-[#d4ff32] hover:bg-[#c3f01c] text-black font-black text-sm sm:text-base uppercase tracking-wider shadow-xl shadow-[#d4ff32]/25 hover:shadow-[#d4ff32]/40 hover:-translate-y-0.5 transition-all active:scale-[0.98] group"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-full bg-[#d4ff32] hover:bg-[#c3f01c] text-black font-black text-xs sm:text-sm uppercase tracking-wider shadow-xl shadow-[#d4ff32]/25 hover:shadow-[#d4ff32]/40 hover:-translate-y-0.5 transition-all active:scale-[0.98] group"
             >
-              <ChromeIcon className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" />
+              <ChromeIcon className="w-4 h-4 flex-shrink-0 group-hover:scale-110 transition-transform" />
               <span>Usar no Chrome (Oficial)</span>
             </a>
+
+            {/* Documentação Oficial exposta no Hero */}
+            <Link
+              href="/docs"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-white/[0.08] hover:bg-white/[0.15] border border-white/20 text-white font-bold text-xs sm:text-sm uppercase tracking-wider transition-all hover:border-cyan-400/50 hover:-translate-y-0.5"
+            >
+              <BookOpen className="w-4 h-4 text-cyan-400" />
+              <span>{t('hero.cta_docs')}</span>
+            </Link>
 
             {/* Se deslogado: Botão Secundário: Teste 7 Dias */}
             {!user ? (
               <Link
                 href="/login"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-full bg-white hover:bg-slate-100 text-black font-extrabold text-sm sm:text-base uppercase tracking-wider shadow-lg transition-all active:scale-[0.98]"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-white hover:bg-slate-100 text-black font-extrabold text-xs sm:text-sm uppercase tracking-wider shadow-lg transition-all active:scale-[0.98]"
               >
-                <Sparkles className="w-4 h-4 text-violet-600" />
-                <span>Testar 7 Dias Grátis</span>
+                <Sparkles className="w-3.5 h-3.5 text-violet-600" />
+                <span>{t('nav.try_free')}</span>
               </Link>
             ) : null}
 
             {/* Botão Secundário: Conhecer como funciona */}
             <a
               href="#como-funciona"
-              className="inline-flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-300 hover:text-white transition-colors group px-2 py-1"
+              className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-300 hover:text-white transition-colors group px-2 py-1"
             >
-              <span className="w-10 h-10 rounded-full bg-violet-600/30 border border-violet-500/40 text-violet-400 group-hover:bg-violet-600/50 flex items-center justify-center transition-transform group-hover:scale-110">
-                <Zap className="w-4 h-4 text-violet-400" />
+              <span className="w-8 h-8 rounded-full bg-violet-600/30 border border-violet-500/40 text-violet-400 group-hover:bg-violet-600/50 flex items-center justify-center transition-transform group-hover:scale-110">
+                <Zap className="w-3.5 h-3.5 text-violet-400" />
               </span>
               <span className="uppercase tracking-wider">Como Funciona</span>
             </a>
@@ -318,7 +330,7 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06]">
               <CheckCircle2 className="w-4 h-4 text-cyan-400" />
-              <span>Após os 7 dias: R$ 29,90 no Pix ou Cartão</span>
+              <span>Após os 7 dias: {formatMoney(29.90)} no Pix ou Cartão</span>
             </div>
           </div>
 
@@ -503,6 +515,123 @@ export default function LandingPage() {
 
             </div>
 
+          </div>
+
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 3.8 CENTRAL DE DOCUMENTAÇÃO & MANUAL DO USUÁRIO NA PRIMEIRA PÁGINA        */}
+      {/* ========================================================================= */}
+      <section id="documentacao" className="py-16 sm:py-20 relative bg-gradient-to-b from-[#0a0e1c] via-[#0d1326] to-[#070a12] border-y border-white/[0.08]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          
+          {/* Card Principal em Visual Branco & Transparência Profissional */}
+          <div className="relative rounded-[2.5rem] bg-white text-slate-900 p-8 sm:p-14 shadow-2xl shadow-indigo-500/10 border border-slate-200 overflow-hidden">
+            {/* Decorações sutis de background */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-indigo-100/60 to-cyan-100/40 rounded-full blur-3xl -z-0 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-amber-100/50 to-emerald-100/40 rounded-full blur-3xl -z-0 pointer-events-none" />
+
+            <div className="relative z-10">
+              {/* Header da Seção de Documentação */}
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-slate-200/80">
+                <div className="space-y-3 max-w-2xl">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-black uppercase tracking-wider">
+                    <BookOpen className="w-4 h-4 text-indigo-600" />
+                    <span>{t('docs_banner.badge')}</span>
+                  </div>
+                  <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-slate-900 leading-tight">
+                    {t('docs_banner.title')}
+                  </h2>
+                  <p className="text-sm sm:text-base text-slate-600 font-normal leading-relaxed">
+                    {t('docs_banner.desc')}
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <Link
+                    href="/docs"
+                    className="inline-flex items-center justify-center gap-2.5 px-6 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm uppercase tracking-wider shadow-lg shadow-indigo-600/25 transition-all hover:-translate-y-0.5 active:scale-[0.98]"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    <span>{t('docs_banner.btn')}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* 4 Cards das Funções de Usuário Normal */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 pt-8">
+                
+                {/* 1. Primeiros Passos */}
+                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/90 hover:border-indigo-400 hover:shadow-md transition-all group">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-600/10 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight mb-1.5">
+                    1. Primeiros Passos
+                  </h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Instalação oficial na Chrome Web Store com 1 clique e ativação imediata do período de 7 dias grátis.
+                  </p>
+                </div>
+
+                {/* 2. Tokens & Chaves Telegram */}
+                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/90 hover:border-indigo-400 hover:shadow-md transition-all group">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-600/10 text-cyan-700 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                    <Zap className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight mb-1.5">
+                    2. Chaves &amp; Tokens
+                  </h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Como obter seu Bot Token e Chat ID no Telegram em menos de 2 minutos para receber alertas no celular.
+                  </p>
+                </div>
+
+                {/* 3. Radar de Arbitragem */}
+                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/90 hover:border-indigo-400 hover:shadow-md transition-all group">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-600/10 text-emerald-700 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                    <Radar className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight mb-1.5">
+                    3. Radar de Arbitragem
+                  </h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Entenda o cálculo de margem líquida, comissões de marketplaces, verificação de concorrência e volume.
+                  </p>
+                </div>
+
+                {/* 4. Calculadora & Vitrine */}
+                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/90 hover:border-indigo-400 hover:shadow-md transition-all group">
+                  <div className="w-10 h-10 rounded-xl bg-amber-600/10 text-amber-700 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                    <Star className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight mb-1.5">
+                    4. Vitrine &amp; Calculadora
+                  </h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Como simular taxas de envio personalizadas e destacar ofertas na vitrine pública com estrela.
+                  </p>
+                </div>
+
+              </div>
+
+              {/* Barra inferior com selo de transparência e suporte multilíngue */}
+              <div className="mt-8 pt-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span className="font-semibold text-slate-700">{t('docs_banner.free_badge')}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="font-medium text-slate-600">Disponível em: 🇧🇷 Português · 🇺🇸 English · 🇪🇸 Español</span>
+                  <Link href="/docs" className="font-bold text-indigo-600 hover:text-indigo-800 underline">
+                    Abrir Manual &rarr;
+                  </Link>
+                </div>
+              </div>
+
+            </div>
           </div>
 
         </div>
@@ -1209,7 +1338,7 @@ export default function LandingPage() {
                 <div className="mt-6 mb-2">
                   <div className="flex items-baseline gap-2">
                     <span className="text-4xl sm:text-5xl font-black text-white">
-                      R$ 29,90
+                      {formatMoney(29.90)}
                     </span>
                     <span className="text-xs text-emerald-400 font-bold uppercase tracking-wider">
                       / 30 dias de acesso
@@ -1267,7 +1396,7 @@ export default function LandingPage() {
                   className="w-full flex items-center justify-center gap-2.5 py-4 px-6 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-extrabold text-sm sm:text-base shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 transition-all active:scale-[0.98]"
                 >
                   <Zap className="w-4 h-4 fill-white" />
-                  <span>Pagar R$ 29,90 via Pix</span>
+                  <span>Pagar {formatMoney(29.90)} via Pix</span>
                 </a>
                 <p className="text-center text-[11px] text-emerald-400 font-medium mt-2.5">
                   ⚡ Liberação automática instantânea por 30 dias
@@ -1303,10 +1432,10 @@ export default function LandingPage() {
                 <div className="mt-6 mb-2">
                   <div className="flex items-baseline gap-2">
                     <span className="text-4xl sm:text-5xl font-black text-white">
-                      R$ 29,90
+                      {formatMoney(29.90)}
                     </span>
                     <span className="text-xs text-violet-400 font-bold uppercase tracking-wider">
-                      / mês
+                      {t('pricing.month_suffix')}
                     </span>
                   </div>
                   <p className="text-[11px] text-[#d4ff32] font-semibold mt-1">
@@ -1484,6 +1613,13 @@ export default function LandingPage() {
 
             {/* Links Rápidos */}
             <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-slate-400">
+              <Link href="/docs" className="text-cyan-400 font-bold hover:text-cyan-300 transition-colors flex items-center gap-1.5">
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>{t('nav.docs')} Oficial</span>
+              </Link>
+              <Link href="/ofertas" className="hover:text-amber-300 text-slate-300 transition-colors">
+                {t('nav.showcase')}
+              </Link>
               <a href="#como-funciona" className="hover:text-white transition-colors">
                 Como Funciona
               </a>
@@ -1491,13 +1627,13 @@ export default function LandingPage() {
                 Requisitos
               </a>
               <a href="#recursos" className="hover:text-white transition-colors">
-                Recursos
+                {t('nav.features')}
               </a>
               <a href="#planos" className="hover:text-white transition-colors">
-                Planos
+                {t('nav.pricing')}
               </a>
               <Link href="/login" className="hover:text-white transition-colors">
-                Área de Membros
+                {t('nav.members')}
               </Link>
             </div>
 

@@ -16,6 +16,7 @@ import { DealAnalysis } from './AnalysisDetailModal';
 import { getProductFallbackImage } from '@/lib/ml-radar/imageFallback';
 import { buildCanonicalMlUrl } from '@/lib/ml-radar/clinicalAudit';
 import { tagAmazonUrl } from '@/lib/ml-radar/affiliate';
+import { useLanguageCurrency } from '@/contexts/LanguageCurrencyContext';
 
 interface DealProductCardProps {
   deal: DealAnalysis;
@@ -36,6 +37,7 @@ function DealProductCardComponent({
   onOpenCalculator,
   onToggleFeatured,
 }: DealProductCardProps) {
+  const { formatMoney, t } = useLanguageCurrency();
   const itemTitle = deal.title || deal.source_title || 'Produto sem título';
   const itemPrice = Number(deal.price || deal.source_price || 0);
   const originalPrice = deal.original_price ? Number(deal.original_price) : null;
@@ -189,11 +191,11 @@ function DealProductCardComponent({
         <div className="pt-1">
           <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-lg sm:text-xl font-black text-cyan-400 tracking-tight">
-              R$ {itemPrice.toFixed(2)}
+              {formatMoney(itemPrice)}
             </span>
             {originalPrice && originalPrice > itemPrice && (
               <span className="text-xs text-zinc-500 line-through font-medium">
-                R$ {originalPrice.toFixed(2)}
+                {formatMoney(originalPrice)}
               </span>
             )}
           </div>
@@ -208,17 +210,17 @@ function DealProductCardComponent({
               <div className="flex items-center justify-between text-[11px]">
                 <span className="font-semibold text-zinc-400">Preço Vencedor ML:</span>
                 <span className="font-black text-emerald-400">
-                  R$ {Number(deal.ml_price || 0).toFixed(2)}
+                  {formatMoney(Number(deal.ml_price || 0))}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-2 pt-1 border-t border-zinc-800/60 text-[11px]">
                 <div>
                   <span className="text-[9px] uppercase tracking-wider text-zinc-500 block font-semibold">
-                    Lucro Líquido
+                    {t('radar.col_net_profit')}
                   </span>
                   <span className="font-bold text-zinc-100">
-                    R$ {Number(deal.net_profit || 0).toFixed(2)}
+                    {formatMoney(Number(deal.net_profit || 0))}
                   </span>
                 </div>
                 <div>

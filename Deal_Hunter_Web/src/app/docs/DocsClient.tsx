@@ -29,59 +29,19 @@ import {
   Layers,
   ArrowUpRight,
   RefreshCw,
+  Home,
 } from 'lucide-react';
-
-type Language = 'pt' | 'en' | 'es';
-type Currency = 'BRL' | 'USD' | 'EUR';
-
-interface ExchangeRates {
-  USD: number; // 1 USD in BRL
-  EUR: number; // 1 EUR in BRL
-  updatedAt: string;
-}
+import { useLanguageCurrency } from '@/contexts/LanguageCurrencyContext';
 
 export default function DocsClient() {
-  const [lang, setLang] = useState<Language>('pt');
-  const [currency, setCurrency] = useState<Currency>('BRL');
+  const { lang, setLang, currency, setCurrency, rates, formatMoney: formatCurrency } = useLanguageCurrency();
   const [activeSection, setActiveSection] = useState<string>('quickstart');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  // Cotações em tempo real via API pública da AwesomeAPI (gratuita e sem chave)
-  const [rates, setRates] = useState<ExchangeRates>({
-    USD: 5.0,
-    EUR: 5.5,
-    updatedAt: '',
-  });
-  const [loadingRates, setLoadingRates] = useState<boolean>(true);
-
   // Exemplo interativo de precificação
   const [calcInputBuyBrl, setCalcInputBuyBrl] = useState<number>(399.9);
   const [calcInputSellBrl, setCalcInputSellBrl] = useState<number>(589.9);
-
-  useEffect(() => {
-    async function fetchRates() {
-      try {
-        setLoadingRates(true);
-        const res = await fetch('https://economia.awesomeapi.com.br/last/USD-BRL,EUR-BRL');
-        if (res.ok) {
-          const data = await res.json();
-          const usdBrl = parseFloat(data?.USDBRL?.bid || '5.0');
-          const eurBrl = parseFloat(data?.EURBRL?.bid || '5.5');
-          setRates({
-            USD: usdBrl,
-            EUR: eurBrl,
-            updatedAt: new Date().toLocaleTimeString(),
-          });
-        }
-      } catch (e) {
-        console.warn('Usando cotação padrão de fallback:', e);
-      } finally {
-        setLoadingRates(false);
-      }
-    }
-    fetchRates();
-  }, []);
 
   const copyToClipboard = (text: string, id: string) => {
     if (typeof navigator !== 'undefined') {
@@ -89,31 +49,6 @@ export default function DocsClient() {
       setCopiedKey(id);
       setTimeout(() => setCopiedKey(null), 2000);
     }
-  };
-
-  // Conversor monetário em tempo real
-  const formatCurrency = (amountInBrl: number): string => {
-    if (currency === 'BRL') {
-      return new Intl.NumberFormat(lang === 'pt' ? 'pt-BR' : lang === 'es' ? 'es-ES' : 'en-US', {
-        style: 'currency',
-        currency: 'BRL',
-      }).format(amountInBrl);
-    }
-    if (currency === 'USD') {
-      const inUsd = amountInBrl / (rates.USD || 5.0);
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-      }).format(inUsd);
-    }
-    if (currency === 'EUR') {
-      const inEur = amountInBrl / (rates.EUR || 5.5);
-      return new Intl.NumberFormat('de-DE', {
-        style: 'currency',
-        currency: 'EUR',
-      }).format(inEur);
-    }
-    return `R$ ${amountInBrl.toFixed(2)}`;
   };
 
   // Conteúdo multilíngue da documentação
@@ -315,10 +250,18 @@ export default function DocsClient() {
               </button>
             </div>
 
-            {/* Botão de Retorno ao Dashboard */}
+            {/* Botão de Retorno à Página Principal e Dashboard */}
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all border border-slate-200"
+              title="Voltar para a Página Inicial"
+            >
+              <Home className="w-3.5 h-3.5 text-slate-600" />
+              <span className="hidden sm:inline">Início</span>
+            </Link>
             <Link
               href="/dashboard"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-md shadow-slate-900/15 transition-all"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-md shadow-slate-900/15 transition-all"
             >
               <span>{t.backToDashboard}</span>
               <ArrowRight className="w-3.5 h-3.5" />
