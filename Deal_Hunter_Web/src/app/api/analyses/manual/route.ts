@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
       );
     } else {
       const estimatedPrice = Number((numPrice * 1.38).toFixed(2));
-      const referenceCandidate: ClinicalCandidatePayload['produto_candidato'] = {
+      const referenceCandidate: any = {
         item_id: 'MLB-ESTIMATED-REF',
         titulo: `${cleanedQuery || title} (Referência de Mercado)`,
         preco_atual: estimatedPrice,
@@ -187,33 +187,39 @@ export async function POST(req: NextRequest) {
         total_vendas: 150,
         estoque_disponivel: 20,
         quantidade_inicial: 170,
-        taxa_conversao_estimada: 3.2,
-        dias_ativo: 60,
-        data_criacao: new Date(Date.now() - 60 * 24 * 3600 * 1000).toISOString(),
         tipo_anuncio: 'gold_special',
         frete_gratis: estimatedPrice >= 79,
+        logistica: 'fulfillment',
+        condicao: 'new',
+        marca: '',
+        modelo: specs.model || '',
         reputacao_vendedor: 'platinum',
-        nivel_experiencia: 'experiente',
-        categoria_id: 'MLB1000',
-        url_anuncio: `https://www.mercadolivre.com.br/gz/home/navigation?search=${encodeURIComponent(cleanedQuery || title)}`,
-        thumbnail_url: imageUrl || 'https://http2.mlstatic.com/frontend-assets/ml-web-navigation/ui-navigation/6.6.92/mercadolivre/logo__large_plus.png',
-        modelo_identificado: specs.model || undefined,
-        compatibilidade_alta: true,
+        nota_avaliacoes: 4.8,
+        total_avaliacoes: 100,
+        url: `https://www.mercadolivre.com.br/gz/home/navigation?search=${encodeURIComponent(cleanedQuery || title)}`,
+        thumbnail: imageUrl || 'https://http2.mlstatic.com/frontend-assets/ml-web-navigation/ui-navigation/6.6.92/mercadolivre/logo__large_plus.png',
       };
       enrichedCandidates = [referenceCandidate];
     }
 
     // Decisão do melhor anúncio correspondente via Gemini ou fallback heurístico
-    let chosenCandidate = enrichedCandidates[0];
+    let chosenCandidate: any = enrichedCandidates[0];
     if (enrichedCandidates.length > 1) {
       try {
-        const decided = await decideBestCandidateWithGemini(specs, enrichedCandidates, numPrice, activeGeminiKey);
-        if (decided) chosenCandidate = decided;
+        const decided = await decideBestCandidateWithGemini(
+          enrichedCandidates as any,
+          { title, price: numPrice, store: cleanStore },
+          activeGeminiKey
+        );
+        if (decided && decided.raw_payload) {
+          chosenCandidate = decided.raw_payload;
+        }
       } catch {}
     }
 
     // Garantia de link direto e canônico
-    const finalMlUrl = buildCanonicalMlUrl(chosenCandidate.item_id, chosenCandidate.url_anuncio, chosenCandidate.titulo);
+    const candidateUrl = chosenCandidate.url || chosenCandidate.url_anuncio || '';
+    const finalMlUrl = buildCanonicalMlUrl(chosenCandidate.item_id, candidateUrl, chosenCandidate.titulo);
 
     // ETAPA 4: Cálculo de ROI preciso
     const roi = calculateROI({
@@ -264,22 +270,23 @@ export async function POST(req: NextRequest) {
     }
 
     // ETAPA 7: Persistência no Supabase com estrutura uniforme de DealAnalysis
+    const candidateThumb = chosenCandidate.thumbnail || (chosenCandidate as any).thumbnail_url || null;
     const dealPayload: any = {
       title,
       price: numPrice,
       original_price: null,
-      image_url: imageUrl || chosenCandidate.thumbnail_url || null,
+      image_url: imageUrl || candidateThumb || null,
       product_url: cleanUrl,
       store: cleanStore,
       ml_title: chosenCandidate.titulo,
       ml_price: chosenCandidate.preco_atual,
       ml_url: finalMlUrl,
-      ml_image_url: chosenCandidate.thumbnail_url,
+      ml_image_url: candidateThumb,
       ml_min_price: chosenCandidate.preco_atual,
       ml_winner_price: chosenCandidate.preco_atual,
       ml_sold_quantity: chosenCandidate.total_vendas || 150,
-      ml_days_active: chosenCandidate.dias_ativo || 60,
-      ml_oldest_date: chosenCandidate.data_criacao || null,
+      ml_days_active: (chosenCandidate as any).dias_ativo || 60,
+      ml_oldest_date: (chosenCandidate as any).data_criacao || null,
       net_profit: roi.netProfit,
       roi_percent: roi.roiPercent,
       margin_percent: roi.marginPercent,

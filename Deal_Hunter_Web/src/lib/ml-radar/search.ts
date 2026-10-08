@@ -1,5 +1,107 @@
 import { MLMatchItem } from './types';
 import { buildCanonicalMlUrl } from './clinicalAudit';
+import { getValidMlAccessToken } from './tokenManager';
+
+export function isAccessoryItem(
+  itemTitle: string,
+  queryTitle: string,
+  sourcePrice?: number,
+  itemPrice?: number
+): boolean {
+  if (sourcePrice && itemPrice && itemPrice < sourcePrice * 0.35) {
+    return true;
+  }
+  const t = (itemTitle || '').toLowerCase();
+  const q = (queryTitle || '').toLowerCase();
+  const accessoryKeywords = [
+    'copo para',
+    'copo de',
+    'copo compatível',
+    'copo acrílico para',
+    'jarra para',
+    'jarra de',
+    'lâmina para',
+    'lamina para',
+    'lâminas para',
+    'arraste',
+    'arraste para',
+    'tampa para',
+    'filtro para',
+    'botão para',
+    'chave para',
+    'faca para',
+    'peça de reposição',
+    'peça reposição',
+    'carregador para',
+    'cabo para',
+    'refil para',
+  ];
+  const queryIsAccessory = accessoryKeywords.some((w) => q.includes(w));
+  if (!queryIsAccessory) {
+    return accessoryKeywords.some((w) => t.includes(w));
+  }
+  return false;
+}
+
+/**
+ * Passo 1: Limpeza da Query
+ * Higieniza o título vindo do outro marketplace, removendo ruídos e mantendo as palavras-chave mais relevantes.
+ */
+export function cleanSearchQuery(title: string): string {
+  if (!title) return '';
+  return title
+    .replace(/(frete gr[áa]tis|original|novo|lacrado|bivolt|promocao|promo[çc][ãa]o|garantia|\d+%\s*off)/gi, '')
+    .replace(/[^\w\s-]/gi, '') // remove pontuações estranhas
+    .split(/\s+/)
+    .filter((word) => word.trim().length > 1)
+    .slice(0, 6) // mantém as palavras-chave mais relevantes
+    .join(' ')
+    .trim();
+}
+
+/**
+ * Passo 4: Eleger os Dois Comparativos (Mais Vendido & Menor Valor)
+ * Analisa os 12 anúncios obtidos na API do ML e seleciona:
+ * 1. O anúncio com MAIS VENDAS (Líder em volume e conversão)
+ * 2. O anúncio com MENOR VALOR (Preço mais competitivo)
+ */
+export function electTopTwoComparatives(
+  items: MLMatchItem[],
+  sourcePrice?: number
+): { winnerMostSold: MLMatchItem; lowestPriceItem: MLMatchItem; topTwo: MLMatchItem[] } {
+  const valid = items.filter((it) => {
+    if (!it.price || it.price <= 0) return false;
+    if (sourcePrice && it.price < sourcePrice * 0.35) return false;
+    return true;
+  });
+
+  const candidates = valid.length > 0 ? valid : items;
+
+  // 1. Identificar qual dos anúncios tem mais vendas
+  const sortedBySales = [...candidates].sort((a, b) => {
+    const diff = Number(b.sold_quantity || 0) - Number(a.sold_quantity || 0);
+    if (diff !== 0) return diff;
+    if (a.listing_type_id === 'gold_pro' && b.listing_type_id !== 'gold_pro') return -1;
+    if (b.listing_type_id === 'gold_pro' && a.listing_type_id !== 'gold_pro') return 1;
+    return Number(a.price || 0) - Number(b.price || 0);
+  });
+
+  const winnerMostSold = sortedBySales[0] || items[0];
+
+  // 2. Identificar qual anúncio tem menor valor
+  const sortedByPrice = [...candidates].sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+
+  let lowestPriceItem = sortedByPrice.find((it) => it.id !== winnerMostSold?.id);
+  if (!lowestPriceItem) {
+    lowestPriceItem = sortedBySales[1] || winnerMostSold;
+  }
+
+  return {
+    winnerMostSold,
+    lowestPriceItem,
+    topTwo: [winnerMostSold, lowestPriceItem].filter(Boolean),
+  };
+}
 
 function extractCoreQuery(title: string): string {
   if (!title) return '';
@@ -168,106 +270,134 @@ export async function searchMercadoLivre(
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 
-  // 1. Se o usuário forneceu Token da API Mercado Livre
-  if (options.mlApiKey && options.mlApiKey.length > 10) {
+  // 1. Tenta API Oficial do Mercado Livre em duas etapas:
+  // [Título Sanitizado] -> [GET /sites/MLB/search?q=...&limit=12] -> [GET /items?ids=...] -> [2 Comparativos: Mais Vendido & Menor Valor]
+  let tokenToUse = options.mlApiKey;
+  if (!tokenToUse || tokenToUse.length < 10) {
+    const resolved = await getValidMlAccessToken({ providedToken: options.mlApiKey });
+    if (resolved?.token) tokenToUse = resolved.token;
+  }
+
+  if (tokenToUse && tokenToUse.length > 10) {
     try {
-      let dataResults: any[] = [];
-      const queriesToTry = [query];
+      const cleanQuery = cleanSearchQuery(query);
       const core = extractCoreQuery(query);
-      if (core && core.toLowerCase() !== query.toLowerCase()) {
-        queriesToTry.push(core);
-      }
+      const queriesToTry = [cleanQuery, core, query].filter(
+        (q, idx, arr) => Boolean(q && q.trim().length > 2 && arr.indexOf(q) === idx)
+      );
+
+      let itemsFromMultiget: any[] = [];
 
       for (const q of queriesToTry) {
-        const apiUrl = `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(q)}&limit=30`;
-        const res = await fetch(apiUrl, {
+        // Passo 2: Buscar os 12 primeiros anúncios que aparecem na pesquisa
+        const searchUrl = `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(q)}&limit=12`;
+        let res = await fetch(searchUrl, {
           headers: {
-            Authorization: `Bearer ${options.mlApiKey}`,
+            Authorization: `Bearer ${tokenToUse}`,
             Accept: 'application/json',
           },
           signal: AbortSignal.timeout(6000),
         });
 
+        // Se o token expirou (401), tenta renovar imediatamente via OAuth refresh_token
+        if (res.status === 401) {
+          console.log('[searchMercadoLivre] Token 401 retornado. Tentando renovação automática...');
+          const refreshed = await getValidMlAccessToken({ providedToken: tokenToUse });
+          if (refreshed?.token && refreshed.token !== tokenToUse) {
+            tokenToUse = refreshed.token;
+            res = await fetch(searchUrl, {
+              headers: {
+                Authorization: `Bearer ${tokenToUse}`,
+                Accept: 'application/json',
+              },
+              signal: AbortSignal.timeout(6000),
+            });
+          }
+        }
+
         if (res.ok) {
-          const data = await res.json();
-          if (data.results && data.results.length > 0) {
-            dataResults = data.results;
-            break;
+          const searchData = await res.json();
+          const itemIds: string[] = (searchData.results || [])
+            .map((item: any) => item.id)
+            .filter(Boolean)
+            .slice(0, 12);
+
+          if (itemIds.length > 0) {
+            // Passo 3: Multiget de detalhes dos 12 itens via endpoint oficial /items?ids=...
+            const itemsUrl = `https://api.mercadolibre.com/items?ids=${itemIds.join(',')}&attributes=id,title,price,sold_quantity,permalink,thumbnail,seller_id,listing_type_id,shipping,condition,available_quantity,original_price,date_created`;
+            const itemsRes = await fetch(itemsUrl, {
+              headers: {
+                Authorization: `Bearer ${tokenToUse}`,
+                Accept: 'application/json',
+              },
+              signal: AbortSignal.timeout(6000),
+            });
+
+            if (itemsRes.ok) {
+              const itemsData = await itemsRes.json();
+              const validItems = Array.isArray(itemsData)
+                ? itemsData
+                    .filter((entry: any) => entry.code === 200 && entry.body)
+                    .map((entry: any) => entry.body)
+                : [];
+
+              if (validItems.length > 0) {
+                // Filtra acessórios espúrios (copo, lâmina, tampa, arraste)
+                const nonAccessories = validItems.filter(
+                  (it: any) => !isAccessoryItem(it.title, query, options.sourcePrice, Number(it.price))
+                );
+                itemsFromMultiget = nonAccessories.length > 0 ? nonAccessories : validItems;
+                break;
+              }
+            } else {
+              // Se o multiget falhar por algum motivo, usa os resultados diretos da busca
+              itemsFromMultiget = searchData.results.slice(0, 12);
+              break;
+            }
           }
         }
       }
 
-      if (dataResults.length > 0) {
-        const rawItems: MLMatchItem[] = dataResults.map((it: any) => ({
-          id: it.id,
-          title: it.title,
-          permalink: it.permalink, // Link DIRETO e real do anúncio no ML
-          price: Number(it.price),
-          original_price: it.original_price ? Number(it.original_price) : undefined,
-          thumbnail: it.thumbnail,
-          condition: it.condition,
-          listing_type_id: it.listing_type_id || 'gold_pro',
-          free_shipping: Boolean(it.shipping?.free_shipping),
-          is_full: Boolean(it.shipping?.logistic_type === 'fulfillment'),
-          sold_quantity: it.sold_quantity || 0,
-          date_created: it.date_created || it.stop_time,
-          seller_nickname: it.seller?.nickname || 'Vendedor ML',
-          seller_reputation_level: it.seller?.seller_reputation?.level_id || '5_green',
-          catalog_product_id: it.catalog_product_id || null,
-        }));
+      if (itemsFromMultiget.length > 0) {
+        const rawItems: MLMatchItem[] = itemsFromMultiget.map((it: any) => {
+          // Garante sempre o CÓDIGO DE ANÚNCIO DO VENDEDOR (ex: MLB1942049788)
+          const sellerItemId = String(it.id || '').replace('-', '');
+          const sellerDirectUrl = `https://produto.mercadolivre.com.br/${sellerItemId}`;
 
-          const { winner } = rankWinningSeller(rawItems, options.sourcePrice);
+          return {
+            id: sellerItemId,
+            title: it.title,
+            permalink: sellerDirectUrl, // Link direto e oficial do anúncio do vendedor
+            price: Number(it.price),
+            original_price: it.original_price ? Number(it.original_price) : undefined,
+            thumbnail: it.thumbnail,
+            condition: it.condition,
+            listing_type_id: it.listing_type_id || 'gold_pro',
+            free_shipping: Boolean(it.shipping?.free_shipping),
+            is_full: Boolean(it.shipping?.logistic_type === 'fulfillment'),
+            sold_quantity: Number(it.sold_quantity || 0),
+            date_created: it.date_created || it.stop_time,
+            seller_nickname: it.seller?.nickname || 'Vendedor Mercado Livre',
+            seller_reputation_level: it.seller?.seller_reputation?.level_id || '5_green',
+            catalog_product_id: it.catalog_product_id || null,
+          };
+        });
 
-          // Se o produto possui Catálogo Oficial (PDP), consulta /products/$PRODUCT_ID
-          // conforme documentação oficial "Buscador de Produtos" para obter a Buy Box e permalink canônico
-          if (winner && winner.catalog_product_id) {
-            try {
-              const catUrl = `https://api.mercadolibre.com/products/${winner.catalog_product_id}`;
-              const prodRes = await fetch(catUrl, {
-                headers: {
-                  Authorization: `Bearer ${options.mlApiKey}`,
-                  Accept: 'application/json',
-                },
-                signal: AbortSignal.timeout(3500),
-              });
-
-              if (prodRes.ok) {
-                const prodData = await prodRes.json();
-                if (prodData.permalink) {
-                  winner.permalink = prodData.permalink;
-                }
-                if (prodData.buy_box_winner) {
-                  const bb = prodData.buy_box_winner;
-                  if (bb.price && Number(bb.price) > 0) {
-                    winner.price = Number(bb.price);
-                    winner.winner_price = Number(bb.price);
-                  }
-                  if (bb.seller?.nickname) {
-                    winner.seller_nickname = bb.seller.nickname;
-                  }
-                }
-                if (prodData.buy_box_winner_price_range?.min_price) {
-                  winner.min_price = Number(prodData.buy_box_winner_price_range.min_price);
-                }
-              }
-            } catch (pErr: any) {
-              console.warn('[searchMercadoLivre] Aviso ao buscar Buy Box do catálogo:', pErr.message);
-            }
-          }
-
-          // Coloca o vencedor no topo (índice 0)
-          const filtered = rawItems.filter((it) => it.id !== winner.id);
-          return [winner, ...filtered];
+        // Passo 4: Eleger os DOIS COMPARATIVOS (Mais Vendido & Menor Valor)
+        const { topTwo } = electTopTwoComparatives(rawItems, options.sourcePrice);
+        if (topTwo.length > 0) {
+          return topTwo;
         }
+      }
     } catch (err: any) {
-      console.warn('[searchMercadoLivre] Erro na API oficial do ML:', err.message);
+      console.warn('[searchMercadoLivre] Erro no pipeline oficial de 12 itens do ML:', err.message);
     }
   }
 
-  // 2. Raspagem defensiva ao vivo de listagens do Mercado Livre
+  // 2. Raspagem defensiva ao vivo de listagens do Mercado Livre (coleta até os 12 primeiros anúncios)
   try {
-    const coreQuery = extractCoreQuery(query);
-    const coreSlug = coreQuery
+    const cleanQuery = cleanSearchQuery(query);
+    const coreSlug = cleanQuery
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
@@ -291,7 +421,7 @@ export async function searchMercadoLivre(
       const contentBlocks = html.split(/<div[^>]*class=["'][^"']*poly-card__content[^"']*["']/i);
       const items: MLMatchItem[] = [];
 
-      for (let i = 1; i < contentBlocks.length; i++) {
+      for (let i = 1; i < Math.min(contentBlocks.length, 13); i++) {
         const block = contentBlocks[i];
 
         const titleLinkMatch =
@@ -303,13 +433,11 @@ export async function searchMercadoLivre(
 
         const fullUrl = titleLinkMatch[1].replace(/&amp;/g, '&');
         const rawTitle = titleLinkMatch[2].replace(/<[^>]+>/g, '').trim();
-        const cleanUrl = fullUrl.split('#')[0].split('?')[0];
 
+        // Extração prioritária do CÓDIGO DE ANÚNCIO DO VENDEDOR (wid=MLB... ou produto.mercadolivre.com.br/MLB...)
         const widMatch = fullUrl.match(/[?&#]wid=(MLB\d+)/i);
-        const pMatch = fullUrl.match(/\/p\/(MLB\d+)/i);
-        const upMatch = fullUrl.match(/\/up\/(MLBU?\d+)/i);
-        const directMatch = fullUrl.match(/(MLB-?\d+)/i);
-        const id = widMatch ? widMatch[1] : pMatch ? pMatch[1] : upMatch ? upMatch[1] : directMatch ? directMatch[1].replace('-', '') : `MLB-${i}`;
+        const directMatch = fullUrl.match(/produto\.mercadolivre\.com\.br\/(MLB-?\d+)/i) || fullUrl.match(/(MLB-?\d{8,})/i);
+        const id = widMatch ? widMatch[1] : directMatch ? directMatch[1].replace('-', '') : `MLB-${i}`;
 
         let price = 0;
         const mainPriceMatch = block.match(/<span class="andes-money-amount[^"]*"[^>]*role="img"[^>]*aria-label="([^"]+)"/i);
@@ -327,30 +455,63 @@ export async function searchMercadoLivre(
             price = parseFloat(`${frac[1].replace(/\./g, '')}.${cents ? cents[1] : '00'}`);
           }
         }
+
         const minPriceThreshold = options.sourcePrice && options.sourcePrice > 0 ? Math.max(1.5, options.sourcePrice * 0.25) : 2.0;
         if (price < minPriceThreshold) continue;
+
+        // Filtra acessórios se for aparelho principal
+        if (isAccessoryItem(rawTitle, query, options.sourcePrice, price)) continue;
 
         const sellerMatch = block.match(/class=["']poly-component__seller["'][^>]*>(.*?)<\/span>/is);
         const sellerNickname = sellerMatch ? sellerMatch[1].replace(/<[^>]+>/g, '').trim() : 'Vendedor Mercado Livre';
 
-        const salesMatch = block.match(/(\+?\d+[\d.]*(?:\s*mil)?\s*vendidos?)/i);
-        let parsedSold = 25;
-        if (salesMatch) {
-          const raw = salesMatch[1].replace(/\./g, '');
+        // Badge "MAIS VENDIDO"
+        const isBestSeller = block.includes('MAIS VENDIDO');
+
+        // Métrica de vendas reais (prioriza andes-visually-hidden)
+        let parsedSold = isBestSeller ? 500 : 25;
+        const hiddenSalesMatch = block.match(/class=["']andes-visually-hidden["'][^>]*>(?:Mais de\s*)?(\+?\d+[\d.]*(?:\s*mil)?)\s*produtos\s*vendidos/i);
+        if (hiddenSalesMatch) {
+          const raw = hiddenSalesMatch[1].replace(/\./g, '');
           parsedSold = raw.includes('mil') ? parseInt(raw, 10) * 1000 : parseInt(raw, 10);
+        } else {
+          const salesMatch = block.match(/(\+?\d+[\d.]*(?:\s*mil)?\s*vendidos?)/i);
+          if (salesMatch) {
+            const raw = salesMatch[1].replace(/\./g, '');
+            parsedSold = raw.includes('mil') ? parseInt(raw, 10) * 1000 : parseInt(raw, 10);
+          }
+        }
+
+        // Imagem do produto
+        const imgMatch =
+          block.match(/<img[^>]*class=["'][^"']*poly-component__picture[^"']*["'][^>]*src=["']([^"']+)["']/i) ||
+          block.match(/data-src=["']([^"']+)["']/i);
+        const productThumbnail = imgMatch ? imgMatch[1].replace(/&amp;/g, '&') : (options.imageUrl || '');
+
+        // Preço anterior ("De:")
+        let originalPrice = Number((price * 1.15).toFixed(2));
+        const prevPriceMatch = block.match(/<s[^>]*class=["'][^"']*andes-money-amount--previous[^"']*["'][^>]*aria-label=["']Antes:\s*([^"']+)["']/i);
+        if (prevPriceMatch) {
+          const prevNum = prevPriceMatch[1].match(/(\d+)\s*reais(?:.*?(\d+)\s*centavos)?/i);
+          if (prevNum) originalPrice = parseFloat(`${prevNum[1]}.${prevNum[2] || '00'}`);
         }
 
         const isFull = block.includes('fulfillment') || block.includes('FULL') || block.includes('icon-full');
 
+        // Link direto do anúncio individual do vendedor
+        const sellerAdUrl = /^MLB\d+/i.test(id)
+          ? `https://produto.mercadolivre.com.br/${id}`
+          : buildCanonicalMlUrl(fullUrl.split('#')[0], id, rawTitle);
+
         items.push({
           id,
           title: rawTitle,
-          permalink: buildCanonicalMlUrl(cleanUrl || fullUrl.split('#')[0], id, rawTitle),
+          permalink: sellerAdUrl,
           price,
-          original_price: Number((price * 1.15).toFixed(2)),
-          thumbnail: options.imageUrl || '',
-          listing_type_id: price >= 100 ? 'gold_pro' : 'gold_special',
-          free_shipping: price >= 79.0,
+          original_price: originalPrice,
+          thumbnail: productThumbnail,
+          listing_type_id: isBestSeller || price >= 100 ? 'gold_pro' : 'gold_special',
+          free_shipping: price >= 79.0 || block.includes('Chegará grátis'),
           is_full: isFull,
           sold_quantity: parsedSold,
           seller_nickname: sellerNickname,
@@ -359,9 +520,8 @@ export async function searchMercadoLivre(
       }
 
       if (items.length > 0) {
-        const { winner } = rankWinningSeller(items, options.sourcePrice);
-        const others = items.filter((it) => it.id !== winner.id);
-        return [winner, ...others];
+        const { topTwo } = electTopTwoComparatives(items, options.sourcePrice);
+        return topTwo;
       }
     }
   } catch (err: any) {
@@ -388,9 +548,8 @@ export async function searchMercadoLivre(
         seller_nickname: g.sellerNickname,
         seller_reputation_level: '5_green',
       }));
-      const { winner } = rankWinningSeller(groundedItems, options.sourcePrice);
-      const others = groundedItems.filter((it) => it.id !== winner.id);
-      return [winner, ...others];
+      const { topTwo } = electTopTwoComparatives(groundedItems, options.sourcePrice);
+      return topTwo;
     }
   } catch {}
 

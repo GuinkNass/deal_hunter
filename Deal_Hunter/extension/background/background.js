@@ -98,6 +98,12 @@ chrome.runtime.onMessageExternal.addListener((message, _sender, sendResponse) =>
     })();
     return true;
   }
+  if (message?.type === 'DEAL_HUNTER_SCRAPE_MERCADO_LIVRE') {
+    scrapeMercadoLivreInBrowser(message.query)
+      .then((res) => sendResponse(res))
+      .catch((err) => sendResponse({ success: false, error: err.message, products: [] }));
+    return true;
+  }
   return false;
 });
 
@@ -284,6 +290,51 @@ async function sendCaptureMessage(tabId, maxRetries = 8) {
   }
 }
 
+async function scrapeMercadoLivreInBrowser(query) {
+  if (!query) throw new Error('Query de busca não informada');
+  const cleanSlug = query
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  const targetUrl = `https://lista.mercadolivre.com.br/${encodeURIComponent(cleanSlug)}`;
+
+  // Abre uma aba discretamente no mesmo navegador para impedir qualquer bloqueio de bot
+  const tab = await new Promise((resolve, reject) => {
+    chrome.tabs.create({ url: targetUrl, active: false }, (t) => {
+      if (chrome.runtime.lastError || !t) {
+        return reject(new Error(chrome.runtime.lastError?.message || 'Falha ao abrir aba no navegador'));
+      }
+      resolve(t);
+    });
+  });
+
+  try {
+    // Aguarda o carregamento e injeção do content script
+    await waitForTabComplete(tab.id, targetUrl);
+    // Pausa técnica para hidratação completa dos poly-cards e imagens
+    await new Promise((r) => setTimeout(r, 1200));
+
+    // Captura os produtos completos da primeira página com seletores do DOM
+    const captured = await sendCaptureMessage(tab.id);
+    return {
+      success: true,
+      query,
+      url: targetUrl,
+      products: captured.products || [],
+      productsFound: captured.productsFound || 0,
+      pageTitle: captured.pageTitle || '',
+    };
+  } finally {
+    // Fecha a aba de varredura após a extração
+    if (tab?.id) {
+      chrome.tabs.remove(tab.id).catch(() => {});
+    }
+  }
+}
+
 function sendAdvanceMessage(tabId) {
   return new Promise((resolve, reject) => {
     chrome.tabs.sendMessage(tabId, { type: 'DEAL_HUNTER_ADVANCE_NEXT_PAGE' }, (result) => {
@@ -297,7 +348,10 @@ function buildNextPageUrl(currentUrl, targetPageNumber) {
   try {
     const nextUrl = new URL(currentUrl);
     const host = nextUrl.hostname.toLowerCase();
-    if (host.includes('amazon.')) {
+    if (host.includes('mercadolivre.') || host.includes('mercadolibre.')) {
+      const offset = (targetPageNumber - 1) * 48 + 1;
+      nextUrl.searchParams.set('desde', String(offset));
+    } else if (host.includes('amazon.')) {
       if (nextUrl.searchParams.has('promotionsSearchStartIndex')) {
         nextUrl.searchParams.set('promotionsSearchStartIndex', String((targetPageNumber - 1) * 60));
       }
@@ -796,6 +850,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     chrome.storage.local.remove(['auth_token', 'apiToken', 'auth_user', 'licenseStatus']).then(() => {
       sendResponse({ ok: true });
     });
+    return true;
+  }
+  if (message?.type === 'DEAL_HUNTER_SCRAPE_MERCADO_LIVRE') {
+    scrapeMercadoLivreInBrowser(message.query)
+      .then((res) => sendResponse(res))
+      .catch((err) => sendResponse({ success: false, error: err.message, products: [] }));
     return true;
   }
   return false;

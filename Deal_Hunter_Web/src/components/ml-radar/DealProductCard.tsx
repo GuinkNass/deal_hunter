@@ -71,10 +71,10 @@ function DealProductCardComponent({
   return (
     <div
       onClick={() => onEvaluate(deal)}
-      className={`group relative flex flex-col justify-between h-full bg-[#111726]/90 hover:bg-[#141d30] border rounded-2xl p-4 transition-all duration-300 cursor-pointer shadow-lg hover:shadow-2xl hover:shadow-cyan-500/10 ${
+      className={`group relative flex flex-col justify-between h-full bg-[#111726] hover:bg-[#141d30] border rounded-2xl p-4 transition-colors duration-150 cursor-pointer shadow-md ${
         isSelected
           ? 'border-cyan-400 bg-cyan-950/20 ring-1 ring-cyan-400/50'
-          : 'border-zinc-800/80 hover:border-cyan-500/50'
+          : 'border-zinc-800 hover:border-cyan-500/50'
       }`}
     >
       {/* ===================================================================== */}
@@ -95,7 +95,7 @@ function DealProductCardComponent({
             )}
           </button>
 
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800/90 text-zinc-300 text-[10px] font-bold border border-zinc-700/60 uppercase tracking-wider truncate">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 text-[10px] font-bold border border-zinc-700/60 uppercase tracking-wider truncate">
             <Store className="w-2.5 h-2.5 text-zinc-400" />
             {deal.store || 'Origem'}
           </span>
@@ -110,7 +110,7 @@ function DealProductCardComponent({
                 ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
                 : isAvoid
                 ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
-                : 'bg-zinc-800/80 text-zinc-400 border-zinc-700/40'
+                : 'bg-zinc-800 text-zinc-400 border-zinc-700/40'
             }`}
           >
             {deal.verdict || (isEvaluated ? 'Avaliado' : 'Radar')}
@@ -130,22 +130,22 @@ function DealProductCardComponent({
       {/* ===================================================================== */}
       {/* ÁREA VISUAL DO PRODUTO (Estilo Vitrine Electro com Badge de Desconto) */}
       {/* ===================================================================== */}
-      <div className="relative w-full aspect-square bg-[#0b0f19] rounded-xl border border-zinc-800/80 p-3 sm:p-4 mb-3 flex items-center justify-center overflow-hidden group/img">
+      <div className="relative w-full aspect-square bg-[#0b0f19] rounded-xl border border-zinc-800/80 p-3 sm:p-4 mb-3 flex items-center justify-center overflow-hidden">
         {discountPercent !== null && discountPercent > 0 && (
-          <span className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-rose-600/90 text-white text-[10px] font-black tracking-tight border border-rose-500/40 shadow-sm backdrop-blur-sm">
+          <span className="absolute top-2 left-2 z-10 px-1.5 py-0.5 rounded bg-rose-600 text-white text-[10px] font-black tracking-tight border border-rose-500/40 shadow-sm">
             -{discountPercent}%
           </span>
         )}
 
         {deal.gemini_analysis?.score && (
-          <span className="absolute top-2 right-2 z-10 px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 text-[10px] font-extrabold border border-purple-500/30 flex items-center gap-1 shadow-sm backdrop-blur-sm">
+          <span className="absolute top-2 right-2 z-10 px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 text-[10px] font-extrabold border border-purple-500/30 flex items-center gap-1 shadow-sm">
             <Sparkles className="w-2.5 h-2.5 text-purple-400" />
             {deal.gemini_analysis.score} pts
           </span>
         )}
 
         {deal.is_featured && (
-          <span className="absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded bg-amber-500/25 text-amber-300 text-[10px] font-black border border-amber-500/40 flex items-center gap-1 shadow-sm backdrop-blur-sm">
+          <span className="absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded bg-amber-500/30 text-amber-300 text-[10px] font-black border border-amber-500/40 flex items-center gap-1 shadow-sm">
             <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
             Vitrine
           </span>
@@ -158,7 +158,9 @@ function DealProductCardComponent({
             getProductFallbackImage(itemTitle, deal.store)
           }
           alt={itemTitle}
-          className="w-full h-full object-contain filter drop-shadow-md group-hover:scale-105 transition-transform duration-300 ease-out"
+          referrerPolicy="no-referrer"
+          loading="lazy"
+          className="w-full h-full object-contain"
           onError={(e) => {
             e.currentTarget.onerror = null;
             e.currentTarget.src = getProductFallbackImage(itemTitle, deal.store);

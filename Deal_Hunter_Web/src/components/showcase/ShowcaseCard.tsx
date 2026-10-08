@@ -47,22 +47,20 @@ export default function ShowcaseCard({ deal }: ShowcaseCardProps) {
       ? Math.round(((deal.original_price - deal.price) / deal.original_price) * 100)
       : null);
 
-  const displayImage = !imgError && deal.image_url ? deal.image_url : getProductFallbackImage(deal.title);
+  const displayImage = !imgError && deal.image_url ? deal.image_url : getProductFallbackImage(deal.title, deal.store);
 
   return (
-    <article className="group relative flex flex-col justify-between rounded-2xl sm:rounded-3xl bg-[#0c101d] border border-white/[0.08] hover:border-violet-500/40 shadow-xl hover:shadow-2xl hover:shadow-violet-950/30 transition-all duration-300 overflow-hidden">
+    <article className="group relative flex flex-col justify-between rounded-2xl sm:rounded-3xl bg-[#0c101d] border border-white/[0.08] hover:border-violet-500/40 shadow-xl transition-colors duration-200 overflow-hidden">
       {/* Top Banner / Image Container */}
       <div className="relative w-full aspect-square bg-[#070a13] flex items-center justify-center p-5 overflow-hidden border-b border-white/[0.05]">
-        {/* Glow de fundo no hover */}
-        <div className="absolute inset-0 bg-gradient-to-t from-violet-900/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-
-        {/* Imagem do Produto com zoom suave no hover */}
+        {/* Imagem do Produto com no-referrer para contornar bloqueios das lojas */}
         <img
           src={displayImage}
           alt={deal.title}
           onError={() => setImgError(true)}
           loading="lazy"
-          className="w-full h-full object-contain filter group-hover:scale-105 transition-transform duration-500"
+          referrerPolicy="no-referrer"
+          className="w-full h-full object-contain"
         />
 
         {/* Badges Flutuantes Superiores */}

@@ -78,6 +78,7 @@ export interface DealAnalysis {
   is_featured?: boolean;
   description?: string;
   category?: string;
+  status?: string;
 }
 
 interface AnalysisDetailModalProps {
@@ -94,8 +95,11 @@ interface AnalysisDetailModalProps {
  * Garante link direto e canônico ao Anúncio Vencedor no Mercado Livre (NUNCA home page)
  */
 function getSafeMlUrl(item: DealAnalysis, realWinner?: any): string {
-  const candidate = realWinner?.permalink || item?.ml_url || '';
   const itemId = realWinner?.item_id || item?.id;
+  if (itemId && /^MLB\d{7,}/i.test(itemId)) {
+    return `https://produto.mercadolivre.com.br/${itemId.replace('-', '')}`;
+  }
+  const candidate = realWinner?.permalink || item?.ml_url || '';
   const title = realWinner?.title || item?.title || item?.source_title;
   return buildCanonicalMlUrl(candidate, itemId, title);
 }
@@ -719,24 +723,26 @@ export default function AnalysisDetailModal({
             </div>
           )}
 
-          {/* 3. CONCORRENTES AVALIADOS (TOP 1 A 3 CANDIDATOS DO ML) */}
+          {/* 3. CONCORRENTES AVALIADOS (DOIS COMPARATIVOS: MAIS VENDIDO & MENOR PREÇO) */}
           {candidates && candidates.length > 0 && (
             <div className="bg-[#12151f] border border-slate-800/80 rounded-2xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Layers className="w-5 h-5 text-amber-400" />
                   <h3 className="text-sm sm:text-base font-bold text-white tracking-wide">
-                    Anúncios Concorrentes Avaliados ({candidates.length} Analisados)
+                    Comparativos Oficiais do Mercado Livre ({candidates.length} Eleitos)
                   </h3>
                 </div>
                 <span className="text-[11px] text-slate-400">
-                  Elegibilidade e dados extraídos via API oficial
+                  Apurado entre os 12 primeiros anúncios via API oficial
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className={`grid grid-cols-1 ${candidates.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-4`}>
                 {candidates.map((cand, idx) => {
                   const isWinner = idx === (clinicalResult?.vencedor_index ?? 0);
+                  const isBestSeller = idx === 0;
+                  const isLowestPrice = idx === 1;
                   return (
                     <div
                       key={cand.item_id || idx}
@@ -746,11 +752,23 @@ export default function AnalysisDetailModal({
                           : 'bg-[#0b0e17] border-slate-800/80 hover:border-slate-700'
                       }`}
                     >
-                      {isWinner && (
-                        <span className="absolute -top-2.5 right-3 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-sm">
-                          {clinicalResult?.is_exact_match ? '🏆 Eleito Vencedor (Idêntico)' : '⚡ Eleito Vencedor (Similar)'}
-                        </span>
-                      )}
+                      <div className="absolute -top-2.5 right-3 flex items-center gap-1.5">
+                        {isBestSeller && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm">
+                            🔥 Mais Vendido
+                          </span>
+                        )}
+                        {isLowestPrice && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-sm">
+                            🏷️ Menor Preço
+                          </span>
+                        )}
+                        {isWinner && (
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-sm">
+                            {clinicalResult?.is_exact_match ? '🏆 Eleito Vencedor' : '⚡ Eleito Vencedor'}
+                          </span>
+                        )}
+                      </div>
 
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -824,7 +842,11 @@ export default function AnalysisDetailModal({
 
                       <div className="pt-3 mt-3 border-t border-slate-800/80">
                         <a
-                          href={buildCanonicalMlUrl(cand.url, cand.item_id, cand.titulo)}
+                          href={
+                            cand.item_id && /^MLB\d{7,}/i.test(cand.item_id)
+                              ? `https://produto.mercadolivre.com.br/${cand.item_id.replace('-', '')}`
+                              : buildCanonicalMlUrl(cand.url, cand.item_id, cand.titulo)
+                          }
                           target="_blank"
                           rel="noopener noreferrer"
                           className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${

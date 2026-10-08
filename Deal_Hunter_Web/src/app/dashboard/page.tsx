@@ -36,6 +36,7 @@ import MarginCalculatorView from '@/components/ml-radar/MarginCalculatorView';
 import RobustSettingsView from '@/components/ml-radar/RobustSettingsView';
 import StatusView from '@/components/ml-radar/StatusView';
 import DealProductCard from '@/components/ml-radar/DealProductCard';
+import ShowcaseHistoryView from '@/components/ml-radar/ShowcaseHistoryView';
 import { getProductFallbackImage } from '@/lib/ml-radar/imageFallback';
 
 export default function DashboardPage() {
@@ -44,11 +45,12 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [syncingShowcase, setSyncingShowcase] = useState(false);
   const [sessionUser, setSessionUser] = useState<any>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
 
-  // Active view tab: 'radar' | 'manual' | 'calculator' | 'settings' | 'status'
-  const [activeTab, setActiveTab] = useState<'radar' | 'manual' | 'calculator' | 'settings' | 'status'>('radar');
+  // Active view tab: 'radar' | 'showcase' | 'manual' | 'calculator' | 'settings' | 'status'
+  const [activeTab, setActiveTab] = useState<'radar' | 'showcase' | 'manual' | 'calculator' | 'settings' | 'status'>('radar');
 
   // Deals state
   const [deals, setDeals] = useState<DealAnalysis[]>([]);
@@ -315,10 +317,27 @@ export default function DashboardPage() {
   }, [filteredDeals, selectedDealIds]);
 
   const handleUpdateDeal = useCallback((updated: DealAnalysis) => {
-    setDeals((prev) =>
-      prev.map((d) => (d.id === updated.id ? { ...d, ...updated } : d))
-    );
+    setDeals((prev) => {
+      const exists = prev.some((d) => d.id === updated.id);
+      if (exists) {
+        return prev.map((d) => (d.id === updated.id ? { ...d, ...updated } : d));
+      } else {
+        return [updated, ...prev];
+      }
+    });
     setSelectedDealForDetail(updated);
+
+    // Se o item estiver marcado como destaque, garante gravação no localStorage
+    if (updated.is_featured && typeof window !== 'undefined') {
+      try {
+        const featuredList: string[] = JSON.parse(
+          localStorage.getItem('dealhunter_featured_deals') || '[]'
+        );
+        const keysToAdd = [updated.id || '', updated.product_url || ''].filter(Boolean);
+        const nextList = Array.from(new Set([...featuredList, ...keysToAdd]));
+        localStorage.setItem('dealhunter_featured_deals', JSON.stringify(nextList));
+      } catch {}
+    }
   }, []);
 
   const handleToggleFeatured = useCallback(
@@ -487,6 +506,49 @@ export default function DashboardPage() {
     [selectedDealIds, deals, authToken, sessionUser]
   );
 
+  const featuredDealsCount = useMemo(
+    () => deals.filter((d) => Boolean(d.is_featured)).length,
+    [deals]
+  );
+
+  const handleSyncShowcase = useCallback(async () => {
+    setSyncingShowcase(true);
+    try {
+      const activeFeatured = deals.filter((d) => Boolean(d.is_featured));
+
+      if (activeFeatured.length === 0) {
+        setNotification('⚠️ Nenhuma oferta com estrela acesa no momento. Marque ao menos um produto no Radar ou no Histórico da Vitrine!');
+        setTimeout(() => setNotification(null), 4000);
+        return;
+      }
+
+      const res = await fetch('/api/showcase/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
+        body: JSON.stringify({
+          deals: activeFeatured,
+          userId: sessionUser?.id,
+        }),
+      });
+
+      const resData = await res.json();
+      if (res.ok && resData.success) {
+        setNotification(`⭐ Vitrine atualizada com sucesso! ${activeFeatured.length} produto(s) sincronizados com a vitrine externa (/ofertas).`);
+      } else {
+        setNotification(`⚠️ ${resData.error || 'Erro ao sincronizar vitrine externa.'}`);
+      }
+    } catch (err: any) {
+      console.error('Erro ao sincronizar vitrine:', err);
+      setNotification('❌ Erro de rede ao sincronizar vitrine externa.');
+    } finally {
+      setSyncingShowcase(false);
+      setTimeout(() => setNotification(null), 4000);
+    }
+  }, [deals, authToken, sessionUser]);
+
   async function handleSignOut() {
     await supabase.auth.signOut();
     router.push('/');
@@ -633,6 +695,22 @@ export default function DashboardPage() {
               <span>Testar Ingestão</span>
             </button>
 
+            <button
+              type="button"
+              onClick={handleSyncShowcase}
+              disabled={syncingShowcase}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-yellow-400 text-black text-xs font-black uppercase tracking-wider shadow-lg shadow-amber-500/25 transition-all active:scale-95 disabled:opacity-50"
+              title="Atualiza toda a vitrine pública externa com as estrelas marcadas"
+            >
+              <Star className={`w-3.5 h-3.5 fill-black text-black ${syncingShowcase ? 'animate-spin' : ''}`} />
+              <span>{syncingShowcase ? 'Atualizando...' : 'Atualizar Vitrine'}</span>
+              {featuredDealsCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-black/20 text-black text-[10px] font-black">
+                  {featuredDealsCount}
+                </span>
+              )}
+            </button>
+
             <Link
               href="/ofertas"
               target="_blank"
@@ -649,7 +727,7 @@ export default function DashboardPage() {
               className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-bold text-emerald-400 select-none"
               title="Sincronização contínua a cada 30 segundos"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
               <span>Auto-sync 30s</span>
             </div>
 
@@ -703,6 +781,21 @@ export default function DashboardPage() {
               <span>Radar ML</span>
               <span className="px-1.5 py-0.2 rounded-full bg-cyan-400/20 text-[10px] text-cyan-300">
                 {deals.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('showcase')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                activeTab === 'showcase'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+              }`}
+            >
+              <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+              <span>Vitrine (Descrições)</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-400/20 text-[10px] text-amber-300 font-bold">
+                {featuredDealsCount}
               </span>
             </button>
 
@@ -991,6 +1084,19 @@ export default function DashboardPage() {
               </>
             )}
           </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB: HISTÓRICO DA VITRINE (SEGUNDO HISTÓRICO - MODO LEVE/DESCRIÇÕES)     */}
+        {/* ========================================================================= */}
+        {activeTab === 'showcase' && (
+          <ShowcaseHistoryView
+            deals={deals}
+            onToggleFeatured={handleToggleFeatured}
+            onUpdateDeal={handleUpdateDeal}
+            onSyncShowcase={handleSyncShowcase}
+            isSyncing={syncingShowcase}
+          />
         )}
 
         {/* ========================================================================= */}

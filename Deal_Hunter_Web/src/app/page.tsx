@@ -209,10 +209,13 @@ export default function LandingPage() {
         </div>
       )}
 
-      {/* Glows Decorativos de Fundo Inspirados no Design System */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-gradient-to-b from-violet-600/15 via-indigo-600/10 to-transparent blur-[160px] pointer-events-none -z-10" />
-      <div className="fixed top-1/3 -left-40 w-[600px] h-[600px] bg-indigo-500/10 blur-[170px] pointer-events-none -z-10" />
-      <div className="fixed bottom-10 -right-40 w-[600px] h-[600px] bg-purple-600/10 blur-[170px] pointer-events-none -z-10" />
+      {/* Glows Decorativos de Fundo Otimizados com Gradiente Radial Leve (Zero lag e máxima fluidez) */}
+      <div
+        className="fixed inset-0 pointer-events-none -z-10 opacity-70"
+        style={{
+          background: 'radial-gradient(circle at 50% 10%, rgba(139, 92, 246, 0.12) 0%, transparent 55%), radial-gradient(circle at 5% 45%, rgba(99, 102, 241, 0.08) 0%, transparent 50%), radial-gradient(circle at 95% 85%, rgba(168, 85, 247, 0.08) 0%, transparent 50%)',
+        }}
+      />
 
       {/* ========================================================================= */}
       {/* 1 & 2. TOPO COMPLETO (NAVBAR + HERO COM VÍDEO FULL SCREEN DE FUNDO)       */}
@@ -248,8 +251,8 @@ export default function LandingPage() {
           <div className="max-w-6xl mx-auto space-y-8 relative z-10 w-full">
           
           {/* Badge de Destaque Superior */}
-          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-violet-950/50 border border-violet-500/30 text-violet-300 text-xs font-bold tracking-widest uppercase backdrop-blur-md animate-in fade-in duration-700 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-[#d4ff32] animate-pulse" />
+          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-violet-950/50 border border-violet-500/30 text-violet-300 text-xs font-bold tracking-widest uppercase shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-[#d4ff32]" />
             Extensão Oficial Chrome Web Store · Versão 2.9
           </div>
 
@@ -341,7 +344,7 @@ export default function LandingPage() {
       <section className="relative py-8 sm:py-10 border-y border-white/[0.06] bg-[#090d18]/70 overflow-hidden">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-5 text-center">
           <p className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.25em] text-violet-400 flex items-center justify-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#d4ff32] animate-ping" />
+            <span className="w-1.5 h-1.5 rounded-full bg-[#d4ff32]" />
             Lojas e Marketplaces Integrados em Tempo Real
           </p>
         </div>
@@ -380,8 +383,8 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           
           <div className="relative rounded-[2.5rem] bg-[#0c101d] border border-white/[0.08] p-4 sm:p-8 shadow-2xl shadow-black/80 overflow-hidden">
-            {/* Glow de ambientação no topo do container */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-32 bg-violet-600/20 blur-[100px] pointer-events-none" />
+            {/* Ambientação leve no topo do container */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-24 bg-violet-600/10 blur-xl pointer-events-none" />
 
             {/* Imagem Principal de Showcase com Card Holográfico */}
             <div className="relative rounded-[2rem] overflow-hidden border border-white/[0.1] bg-[#070a12] aspect-[16/9] sm:aspect-[21/9] max-h-[520px]">
@@ -398,8 +401,8 @@ export default function LandingPage() {
               <div className="absolute inset-0 bg-gradient-to-t from-[#0c101d] via-transparent to-black/30 pointer-events-none" />
 
               {/* Tag Flutuante Superior */}
-              <div className="absolute top-4 left-4 sm:top-6 sm:left-6 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/60 border border-white/20 backdrop-blur-md text-[11px] font-black uppercase tracking-wider text-white">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <div className="absolute top-4 left-4 sm:top-6 sm:left-6 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/75 border border-white/20 text-[11px] font-black uppercase tracking-wider text-white">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
                 <span>Radar Inteligente Ativo 24h</span>
               </div>
 
@@ -580,7 +583,7 @@ export default function LandingPage() {
             {/* Rodapé do player */}
             <div className="p-4 sm:p-5 bg-[#090d18] border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-300">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
                 <span>Extensão oficial verificada pelo Google. Instalação instantânea em 1 clique.</span>
               </div>
               <a
@@ -1002,8 +1005,8 @@ export default function LandingPage() {
       <section id="bonus" className="py-16 sm:py-24 relative overflow-hidden bg-gradient-to-b from-[#070a12] via-[#0e1220] to-[#0a0d15] border-t border-white/[0.06]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           
-          {/* Ambient Glow */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-violet-600/20 blur-[140px] pointer-events-none" />
+          {/* Ambient Glow leve */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-violet-600/10 blur-xl pointer-events-none" />
 
           <div className="relative rounded-[2.5rem] bg-gradient-to-br from-[#0e1322] via-[#0b0f1a] to-[#070a12] border-2 border-violet-500/30 p-6 sm:p-12 shadow-2xl shadow-violet-950/40">
             
@@ -1014,7 +1017,7 @@ export default function LandingPage() {
                 <span>Bônus Exclusivo Incluso Grátis</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
                 <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Liberado com o Deal Hunter Pro</span>
               </div>
             </div>
@@ -1192,7 +1195,7 @@ export default function LandingPage() {
 
               <div>
                 <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
                   <span>Opção 1 · Pix (InfinitePay)</span>
                 </div>
                 <h3 className="text-2xl font-black text-white">

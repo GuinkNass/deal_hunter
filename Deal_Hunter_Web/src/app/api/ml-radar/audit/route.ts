@@ -14,6 +14,7 @@ import {
 } from '@/lib/ml-radar/clinicalAudit';
 import { analyzeOpportunityWithGemini } from '@/lib/ml-radar/gemini';
 import { searchMercadoLivre } from '@/lib/ml-radar/search';
+import { getValidMlAccessToken } from '@/lib/ml-radar/tokenManager';
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest) {
     const supabase = createAdminClient();
     let geminiApiKey = process.env.GEMINI_API_KEY || '';
     let mlApiKey = process.env.ML_API_KEY || '';
+    let authenticatedUserId = '';
 
     if (token) {
       try {
@@ -30,6 +32,7 @@ export async function POST(req: NextRequest) {
           data: { user },
         } = await supabase.auth.getUser(token);
         if (user) {
+          authenticatedUserId = user.id;
           const { data: profile } = await supabase
             .from('profiles')
             .select('gemini_api_key, ml_api_key, ml_access_token')
@@ -53,13 +56,14 @@ export async function POST(req: NextRequest) {
       try {
         const { data: latestProfile } = await supabase
           .from('profiles')
-          .select('gemini_api_key, ml_api_key, ml_access_token')
+          .select('id, gemini_api_key, ml_api_key, ml_access_token')
           .not('ml_api_key', 'is', null)
           .order('updated_at', { ascending: false })
           .limit(1)
           .maybeSingle();
 
         if (latestProfile) {
+          if (!authenticatedUserId && latestProfile.id) authenticatedUserId = latestProfile.id;
           if (!geminiApiKey && latestProfile.gemini_api_key) geminiApiKey = latestProfile.gemini_api_key;
           if (!mlApiKey) mlApiKey = latestProfile.ml_api_key || latestProfile.ml_access_token || '';
         }
@@ -107,6 +111,15 @@ export async function POST(req: NextRequest) {
     if (!mlApiKey) {
       const cookieToken = req.cookies.get('ml_access_token')?.value;
       if (cookieToken) mlApiKey = cookieToken.trim();
+    }
+
+    // Auto-refresh garantido do token Mercado Livre usando o tokenManager
+    const mlResolved = await getValidMlAccessToken({
+      userId: authenticatedUserId,
+      providedToken: mlApiKey,
+    });
+    if (mlResolved?.token) {
+      mlApiKey = mlResolved.token;
     }
 
     // Sincroniza chaves ativas no perfil do Supabase em background se logado
@@ -157,27 +170,23 @@ export async function POST(req: NextRequest) {
     // =========================================================================
     let scrapedCandidates: any[] = [];
 
-    // Prioridade 1: Varredura ao vivo direta com termos tratados cirúrgicos
-    const searchQueries = [cleanedQuery];
-    if (altQuery && altQuery.toLowerCase() !== cleanedQuery.toLowerCase()) {
+    // Prioridade 1: Varredura com termos tratados cirúrgicos (Marca + Modelo prioritário)
+    const searchQueries: string[] = [];
+    if (specs.brand && specs.model) {
+      searchQueries.push(`${specs.brand} ${specs.model}`.trim());
+    }
+    if (cleanedQuery && !searchQueries.includes(cleanedQuery)) {
+      searchQueries.push(cleanedQuery);
+    }
+    if (altQuery && !searchQueries.includes(altQuery)) {
       searchQueries.push(altQuery);
     }
-    if (sanitizedTitle.toLowerCase() !== cleanedQuery.toLowerCase()) {
+    if (sanitizedTitle && !searchQueries.includes(sanitizedTitle)) {
       searchQueries.push(sanitizedTitle);
     }
 
-    for (const q of searchQueries) {
-      console.log(`[Clinical Audit] Buscando listagens reais no Mercado Livre para "${q}"...`);
-      const liveMatches = await scrapeMercadoLivreSearch(q, 2, numSourcePrice, specs);
-      if (liveMatches && liveMatches.length > 0) {
-        scrapedCandidates = liveMatches;
-        // Se encontrou candidato de correspondência exata de modelo, prioriza
-        if (liveMatches.some((m) => m.isExactMatch)) break;
-      }
-    }
-
-    // Prioridade 2: API Oficial se token estiver configurado e nada foi encontrado ainda
-    if ((!scrapedCandidates || scrapedCandidates.length === 0) && mlApiKey && mlApiKey.length > 10) {
+    // Se temos token ativo da API Oficial do Mercado Livre, consulta primeiro a API Oficial
+    if (mlApiKey && mlApiKey.length > 10) {
       console.log('[Clinical Audit] Consultando API oficial autenticada do Mercado Livre...');
       try {
         for (const q of searchQueries) {
@@ -188,22 +197,38 @@ export async function POST(req: NextRequest) {
 
           if (apiMatches && apiMatches.length > 0) {
             scrapedCandidates = apiMatches
-              .map((m: any) => ({
-                id: m.id || m.permalink?.match(/(MLB-?\d+)/i)?.[1]?.replace('-', '') || '',
-                title: m.title,
-                url: m.permalink,
-                price: Number(m.price || 0),
-                salesCount: Number(m.sold_quantity || 0),
-                sellerNickname: m.seller_nickname || 'Vendedor Mercado Livre',
-                isFull: m.is_full === 1 || Boolean(m.is_full),
-                freeShipping: m.free_shipping === 1 || Boolean(m.free_shipping),
-              }))
+              .map((m: any) => {
+                const sellerItemId = String(m.id || '').replace('-', '');
+                const directSellerUrl = sellerItemId ? `https://produto.mercadolivre.com.br/${sellerItemId}` : m.permalink;
+                return {
+                  id: sellerItemId,
+                  title: m.title,
+                  url: directSellerUrl,
+                  price: Number(m.price || 0),
+                  salesCount: Number(m.sold_quantity || 0),
+                  sellerNickname: m.seller_nickname || 'Vendedor Mercado Livre',
+                  isFull: m.is_full === 1 || Boolean(m.is_full),
+                  freeShipping: m.free_shipping === 1 || Boolean(m.free_shipping),
+                };
+              })
               .filter((x: any) => Boolean(x.id && !x.url?.includes('lista.mercadolivre.com.br')));
             if (scrapedCandidates.length > 0) break;
           }
         }
       } catch (err: any) {
         console.warn('[Clinical Audit] Falha na API oficial ML:', err.message);
+      }
+    }
+
+    // Se a API Oficial não retornou resultados (ou não havia token), tenta a raspagem ao vivo
+    if (!scrapedCandidates || scrapedCandidates.length === 0) {
+      for (const q of searchQueries) {
+        console.log(`[Clinical Audit] Buscando listagens reais no Mercado Livre para "${q}"...`);
+        const liveMatches = await scrapeMercadoLivreSearch(q, 2, numSourcePrice, specs);
+        if (liveMatches && liveMatches.length > 0) {
+          scrapedCandidates = liveMatches;
+          if (liveMatches.some((m) => m.isExactMatch)) break;
+        }
       }
     }
 
@@ -218,14 +243,14 @@ export async function POST(req: NextRequest) {
     }
 
     // =========================================================================
-    // ETAPA 3: Enriquecimento individual de 1 a 3 Anúncios Candidatos via API Oficial
+    // ETAPA 3: Enriquecimento individual dos 2 Anúncios Comparativos (Mais Vendido & Menor Preço)
     // =========================================================================
-    const topThree = scrapedCandidates.slice(0, 3);
+    const topTwo = scrapedCandidates.slice(0, 2);
     let enrichedCandidates: ClinicalCandidatePayload['produto_candidato'][] = [];
 
-    if (topThree.length > 0) {
+    if (topTwo.length > 0) {
       enrichedCandidates = await Promise.all(
-        topThree.map((cand) => enrichCandidateWithMlApi(cand, mlApiKey))
+        topTwo.map((cand) => enrichCandidateWithMlApi(cand, mlApiKey))
       );
     } else {
       // Fallback gracioso resiliente: constrói um benchmark de referência de mercado baseado no preço de origem
@@ -284,7 +309,10 @@ export async function POST(req: NextRequest) {
 
     const winnerIndex = clinicalDecision.vencedor_index ?? 0;
     const winner = enrichedCandidates[winnerIndex] || enrichedCandidates[0];
-    const canonicalWinnerPermalink = buildCanonicalMlUrl(winner.url, winner.item_id, winner.titulo || title);
+    const canonicalWinnerPermalink =
+      winner.item_id && /^MLB\d{7,}/i.test(winner.item_id)
+        ? `https://produto.mercadolivre.com.br/${winner.item_id}`
+        : buildCanonicalMlUrl(winner.url, winner.item_id, winner.titulo || title);
 
     const effectiveMlPrice = winner.preco_atual > 0 ? winner.preco_atual : fallbackMlPrice;
     const calcNetProfit = Number(((effectiveMlPrice - numSourcePrice) * 0.7).toFixed(2));

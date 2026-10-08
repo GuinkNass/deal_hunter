@@ -218,35 +218,33 @@ export async function DELETE(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const { id, ids, deleteAll } = body;
 
-    // 1. Exclusão de item individual
+    // 1. Exclusão de item individual (protege produtos da vitrine)
     if (id) {
       if (typeof id === 'string' && !id.startsWith('render-')) {
-        let query = supabase.from('ml_radar_deals').delete().eq('id', id);
+        let query = supabase.from('ml_radar_deals').delete().eq('id', id).or('is_featured.is.null,is_featured.eq.false');
         if (userId) query = query.eq('user_id', userId);
         await query;
       }
       return NextResponse.json({ success: true, deleted: [id] });
     }
 
-    // 2. Exclusão em lote por lista de IDs
+    // 2. Exclusão em lote por lista de IDs (nunca apaga itens da vitrine)
     if (Array.isArray(ids) && ids.length > 0) {
       const dbIds = ids.filter((x: string) => !x.startsWith('render-'));
       if (dbIds.length > 0) {
-        let query = supabase.from('ml_radar_deals').delete().in('id', dbIds);
+        let query = supabase.from('ml_radar_deals').delete().in('id', dbIds).or('is_featured.is.null,is_featured.eq.false');
         if (userId) query = query.eq('user_id', userId);
         await query;
       }
       return NextResponse.json({ success: true, deleted: ids });
     }
 
-    // 3. Limpeza total de anúncios
+    // 3. Limpeza total de anúncios do radar (a vitrine pública é 100% blindada e preservada)
     if (deleteAll) {
-      if (userId) {
-        await supabase.from('ml_radar_deals').delete().eq('user_id', userId);
-      } else {
-        await supabase.from('ml_radar_deals').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      }
-      return NextResponse.json({ success: true, all: true });
+      let query = supabase.from('ml_radar_deals').delete().or('is_featured.is.null,is_featured.eq.false');
+      if (userId) query = query.eq('user_id', userId);
+      await query;
+      return NextResponse.json({ success: true, all: true, vitrine_preserved: true });
     }
 
     return NextResponse.json(

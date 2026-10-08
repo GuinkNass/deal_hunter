@@ -48,3 +48,7 @@ desktop.ini
 # Root archives
 *.zip
 
+# Temporary screenshots
+scrap ml/
+
+

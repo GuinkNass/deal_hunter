@@ -1,39 +1,68 @@
 /**
- * Generates an SVG Data URI as a fallback when product images fail to load or are blocked
+ * Gera um SVG elegante e limpo de fallback quando uma imagem de produto não carrega ou é bloqueada
  */
 export function getProductFallbackImage(title: string = '', store: string = ''): string {
   const t = (title || '').toLowerCase();
 
-  let iconPath = '';
-  let categoryName = 'PRODUTO';
-  const bgColor = '#1e293b';
-  let accentColor = '#38bdf8';
+  let categoryName = store ? store.toUpperCase() : 'OFERTA VERIFICADA';
+  let accentColor = '#38bdf8'; // Cyan padrão
 
-  if (t.includes('camera') || t.includes('câmera') || t.includes('a28') || t.includes('wifi') || t.includes('segurança')) {
-    categoryName = 'CÂMERA DE SEGURANÇA';
-    accentColor = '#10b981';
-    iconPath = `<circle cx="50" cy="45" r="18" fill="none" stroke="${accentColor}" stroke-width="4"/><circle cx="50" cy="45" r="8" fill="${accentColor}"/><rect x="25" y="25" width="50" height="45" rx="8" fill="none" stroke="${accentColor}" stroke-width="3"/><path d="M40 70 L60 70 L50 85 Z" fill="${accentColor}"/>`;
-  } else if (t.includes('ssd') || t.includes('kingston') || t.includes('nvme') || t.includes('sata')) {
-    categoryName = 'SSD / ARMAZENAMENTO';
-    accentColor = '#f59e0b';
-    iconPath = `<rect x="25" y="28" width="50" height="44" rx="6" fill="none" stroke="${accentColor}" stroke-width="4"/><line x1="33" y1="36" x2="48" y2="36" stroke="${accentColor}" stroke-width="3"/><line x1="33" y1="44" x2="42" y2="44" stroke="${accentColor}" stroke-width="3"/><rect x="52" y="56" width="16" height="8" rx="2" fill="${accentColor}"/>`;
-  } else if (t.includes('headset') || t.includes('gamer') || t.includes('fone') || t.includes('zeus')) {
-    categoryName = 'HEADSET GAMER';
-    accentColor = '#ec4899';
-    iconPath = `<path d="M30 52 A22 22 0 0 1 70 52" fill="none" stroke="${accentColor}" stroke-width="4"/><rect x="24" y="48" width="12" height="20" rx="4" fill="${accentColor}"/><rect x="64" y="48" width="12" height="20" rx="4" fill="${accentColor}"/><path d="M68 68 Q58 78 48 74" fill="none" stroke="${accentColor}" stroke-width="3"/>`;
-  } else if (t.includes('air fryer') || t.includes('fritadeira') || t.includes('mondial') || t.includes('panela')) {
-    categoryName = 'AIR FRYER';
-    accentColor = '#ef4444';
-    iconPath = `<rect x="28" y="28" width="44" height="48" rx="10" fill="none" stroke="${accentColor}" stroke-width="4"/><line x1="34" y1="48" x2="66" y2="48" stroke="${accentColor}" stroke-width="3"/><circle cx="50" cy="38" r="4" fill="${accentColor}"/><rect x="44" y="56" width="12" height="12" rx="3" fill="${accentColor}"/>`;
-  } else {
-    categoryName = store ? store.toUpperCase() : 'ML RADAR';
-    iconPath = `<rect x="25" y="25" width="50" height="50" rx="8" fill="none" stroke="${accentColor}" stroke-width="4"/><path d="M35 45 L65 45 M50 35 L50 65" stroke="${accentColor}" stroke-width="4"/>`;
+  if (t.includes('nexgard') || t.includes('bravecto') || t.includes('scalibor') || t.includes('antipulgas') || t.includes('cães') || t.includes('pet')) {
+    categoryName = 'PET & SAÚDE ANIMAL';
+    accentColor = '#10b981'; // Emerald
+  } else if (t.includes('monitor') || t.includes('tv') || t.includes('display') || t.includes('tela') || t.includes('samsung') || t.includes('lg')) {
+    categoryName = 'MONITORES & SMART TV';
+    accentColor = '#818cf8'; // Indigo
+  } else if (t.includes('ssd') || t.includes('kingston') || t.includes('nvme') || t.includes('memória') || t.includes('armazenamento')) {
+    categoryName = 'HARDWARE & SSD';
+    accentColor = '#f59e0b'; // Amber
+  } else if (t.includes('air fryer') || t.includes('fritadeira') || t.includes('mondial') || t.includes('eletro')) {
+    categoryName = 'ELETRODOMÉSTICOS';
+    accentColor = '#f97316'; // Orange
+  } else if (t.includes('headset') || t.includes('fone') || t.includes('earphone')) {
+    categoryName = 'ÁUDIO & HEADSETS';
+    accentColor = '#ec4899'; // Pink
+  } else if (t.includes('cadeira') || t.includes('mesa') || t.includes('escritório')) {
+    categoryName = 'MÓVEIS & ERGONOMIA';
+    accentColor = '#06b6d4'; // Cyan
+  } else if (store) {
+    categoryName = store.toUpperCase();
+    accentColor = '#38bdf8';
   }
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
-    <rect width="100" height="100" fill="${bgColor}" rx="12"/>
-    ${iconPath}
-    <text x="50" y="92" font-family="system-ui, -apple-system, sans-serif" font-size="6.5" font-weight="bold" fill="#94a3b8" text-anchor="middle" letter-spacing="0.5">${categoryName}</text>
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+    <defs>
+      <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#090d16"/>
+        <stop offset="100%" stop-color="#0f172a"/>
+      </linearGradient>
+      <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="${accentColor}"/>
+        <stop offset="100%" stop-color="#6366f1"/>
+      </linearGradient>
+    </defs>
+    <rect width="400" height="400" fill="url(#bg)" rx="24"/>
+    
+    <!-- Moldura interior sutil -->
+    <rect x="20" y="20" width="360" height="360" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="2" rx="18"/>
+    
+    <!-- Ícone de Pacote / Tag de Oferta Sofisticado -->
+    <g transform="translate(150, 130)">
+      <rect x="0" y="15" width="100" height="85" rx="14" fill="rgba(255,255,255,0.03)" stroke="${accentColor}" stroke-width="3"/>
+      <path d="M0 45 L100 45" stroke="${accentColor}" stroke-width="2" stroke-opacity="0.4"/>
+      <path d="M50 15 L50 100" stroke="${accentColor}" stroke-width="2" stroke-opacity="0.4"/>
+      <!-- Alça da Caixa / Laço -->
+      <path d="M35 15 C35 -5, 65 -5, 65 15" fill="none" stroke="${accentColor}" stroke-width="3" stroke-linecap="round"/>
+    </g>
+
+    <!-- Badge Curadoria -->
+    <g transform="translate(200, 260)">
+      <rect x="-85" y="-14" width="170" height="28" rx="14" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+      <text x="0" y="5" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="11" font-weight="800" fill="${accentColor}" text-anchor="middle" letter-spacing="1.2">DEAL HUNTER PRO</text>
+    </g>
+
+    <!-- Nome da Categoria -->
+    <text x="200" y="315" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="13" font-weight="700" fill="#94a3b8" text-anchor="middle" letter-spacing="0.8">${categoryName}</text>
   </svg>`;
 
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;

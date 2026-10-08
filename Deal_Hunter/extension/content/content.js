@@ -47,6 +47,12 @@
     'a[data-cy="list-product"]',
     '[data-cy="list-product"]',
     'div.MuiCard-root',
+
+    // Mercado Livre (poly-card e andes-card da listagem oficial)
+    'li.ui-search-layout__item',
+    'div.ui-search-result__wrapper',
+    'div.poly-card',
+    'div.poly-card__content',
   ];
 
   const host = location.hostname.toLowerCase();
@@ -58,6 +64,7 @@
   const isShopee = host.includes('shopee.');
   const isKabum = host.includes('kabum.');
   const isRenner = host.includes('lojasrenner.') || host.includes('renner.');
+  const isMercadoLivre = host.includes('mercadolivre.') || host.includes('mercadolibre.');
 
   const siteTag = isMagalu ? 'Magalu'
     : isEletroclub ? 'Eletroclub'
@@ -67,6 +74,7 @@
     : isShopee ? 'Shopee'
     : isKabum ? 'KaBuM!'
     : isRenner ? 'Renner'
+    : isMercadoLivre ? 'Mercado Livre'
     : 'Loja';
 
   const MONEY_RE = /R\$\s*\d[\d.\u00a0 ]*(?:,\d{2})?/g;
@@ -1273,10 +1281,192 @@
     return items;
   }
 
+  /**
+   * MÓDULO 9: MERCADO LIVRE (Extração Direta e Completa de Busca / Listagem)
+   * Baseado nos prints oficiais do DOM: poly-card, andes-card, poly-component__*
+   */
+  function parseMercadoLivre(root = document) {
+    const cards = root.querySelectorAll(
+      'li.ui-search-layout__item, div.ui-search-result__wrapper, div.poly-card, div.andes-card.poly-card'
+    );
+    const items = [];
+    const seenIds = new Set();
+
+    for (const card of cards) {
+      try {
+        // 1. Título e Link Principal do Produto
+        const titleLinkEl = card.querySelector('a.poly-component__title, h3.poly-component__title-wrapper a, a[class*="poly-component__title"]');
+        if (!titleLinkEl) continue;
+
+        const rawHref = titleLinkEl.getAttribute('href') || titleLinkEl.href || '';
+        const rawTitle = titleLinkEl.innerText || titleLinkEl.textContent || '';
+        const titulo = sanitizeText(rawTitle);
+        if (!titulo) continue;
+
+        // 2. Extração prioritária do CÓDIGO DE ANÚNCIO REAL DO VENDEDOR (wid=MLB...)
+        const widMatch = rawHref.match(/[?&#]wid=(MLB\d+)/i);
+        const directMlbMatch = rawHref.match(/produto\.mercadolivre\.com\.br\/(MLB-?\d+)/i) || rawHref.match(/(MLB-?\d{8,})/i);
+        const mlbId = widMatch ? widMatch[1] : (directMlbMatch ? directMlbMatch[1].replace('-', '') : '');
+
+        const id = mlbId || String(rawHref.split('?')[0]);
+        if (seenIds.has(id)) continue;
+        seenIds.add(id);
+
+        // URL Canônica do anúncio do vendedor (NUNCA página quebrada de catálogo)
+        const url_produto = mlbId
+          ? `https://produto.mercadolivre.com.br/${mlbId}`
+          : cleanCanonicalUrl(rawHref.split('#')[0]);
+
+        // 3. Imagem de Alta Resolução com suporte a srcset
+        const imgEl = card.querySelector('img.poly-component__picture, img[data-testid="picture"], img');
+        let url_imagem = '';
+        if (imgEl) {
+          const srcset = imgEl.getAttribute('srcset') || '';
+          if (srcset) {
+            const candidates = srcset.split(',').map((s) => s.trim().split(/\s+/)[0]).filter(Boolean);
+            url_imagem = candidates[candidates.length - 1] || candidates[0] || '';
+          }
+          if (!url_imagem) {
+            url_imagem = imgEl.getAttribute('src') || imgEl.getAttribute('data-src') || imgEl.currentSrc || '';
+          }
+        }
+        if (url_imagem && url_imagem.startsWith('//')) {
+          url_imagem = 'https:' + url_imagem;
+        }
+
+        // 4. Preço Atual ("Por:")
+        const curPriceContainer = card.querySelector('.poly-price__current, [class*="poly-price__current"]');
+        let precoAtualNum = null;
+        if (curPriceContainer) {
+          const fracEl = curPriceContainer.querySelector('.andes-money-amount__fraction');
+          const centsEl = curPriceContainer.querySelector('.andes-money-amount__cents');
+          if (fracEl) {
+            const cleanFrac = fracEl.innerText.replace(/\./g, '').trim();
+            const cleanCents = centsEl ? centsEl.innerText.trim() : '00';
+            precoAtualNum = parseFloat(`${cleanFrac}.${cleanCents}`);
+          }
+        }
+        if (!precoAtualNum) {
+          const amountEl = card.querySelector('.poly-price__current .andes-money-amount, .andes-money-amount');
+          const ariaLabel = amountEl?.getAttribute('aria-label') || '';
+          const matchAria = ariaLabel.match(/(\d+)\s*reais(?:.*?(\d+)\s*centavos)?/i);
+          if (matchAria) {
+            precoAtualNum = parseFloat(`${matchAria[1]}.${matchAria[2] || '00'}`);
+          }
+        }
+
+        // 5. Preço Original de Tabela ("De:")
+        const prevPriceContainer = card.querySelector('s.andes-money-amount--previous, s.andes-money-amount');
+        let precoOriginalNum = null;
+        if (prevPriceContainer) {
+          const prevFrac = prevPriceContainer.querySelector('.andes-money-amount__fraction');
+          const prevCents = prevPriceContainer.querySelector('.andes-money-amount__cents');
+          if (prevFrac) {
+            const cleanFrac = prevFrac.innerText.replace(/\./g, '').trim();
+            const cleanCents = prevCents ? prevCents.innerText.trim() : '00';
+            precoOriginalNum = parseFloat(`${cleanFrac}.${cleanCents}`);
+          }
+        }
+
+        // 6. Desconto Percentual
+        const discountEl = card.querySelector('.poly-price__discount-polylabel .polylabel-pill, [class*="poly-price__discount"]');
+        let descontoStr = discountEl ? sanitizeText(discountEl.innerText) : '';
+        if (!descontoStr && precoOriginalNum && precoAtualNum && precoOriginalNum > precoAtualNum) {
+          descontoStr = calculateDiscount(precoOriginalNum, precoAtualNum);
+        }
+
+        // 7. Vendedor & Loja Oficial
+        const sellerEl = card.querySelector('.poly-component__seller');
+        const vendedor_nome = sellerEl ? sanitizeText(sellerEl.innerText) : 'Mercado Livre';
+        const isLojaOficial = Boolean(
+          card.querySelector('.poly-component__seller svg[aria-label*="Loja Oficial" i], svg[aria-label*="Oficial" i]')
+        );
+
+        // 8. Badge "MAIS VENDIDO"
+        const isBestSeller = Boolean(
+          card.querySelector('.poly-component__widget--bottom-left, [class*="poly-component__widget"]')?.innerText?.includes('MAIS VENDIDO')
+        );
+
+        // 9. Avaliações (Rating) & Quantidade Real de Vendas
+        const accessibleText = card.querySelector('.andes-visually-hidden')?.innerText || '';
+        let rating = null;
+        let totalVendas = isBestSeller ? 500 : 25;
+
+        // Vendas Comprovadas
+        const salesMatch =
+          accessibleText.match(/(?:Mais de\s*)?(\+?\d+[\d.]*(?:\s*mil)?)\s*produtos\s*vendidos/i) ||
+          (card.innerText || '').match(/(\+?\d+[\d.]*(?:\s*mil)?)\s*vendidos/i);
+        if (salesMatch) {
+          const raw = salesMatch[1].replace(/\./g, '').trim();
+          totalVendas = raw.includes('mil') ? parseInt(raw, 10) * 1000 : parseInt(raw, 10);
+        }
+
+        // Avaliação (Rating)
+        const ratingMatch =
+          accessibleText.match(/Classificação\s*([\d.]+)\s*de\s*5/i) ||
+          card.querySelector('.poly-component__review-compacted .polylabel-label')?.innerText?.match(/([\d.]+)/);
+        if (ratingMatch) {
+          rating = parseFloat(ratingMatch[1]);
+        }
+
+        // 10. Frete & Envio Full
+        const shippingEl = card.querySelector('.poly-component__shipping-v2');
+        const shippingText = shippingEl ? sanitizeText(shippingEl.innerText) : '';
+        const freeShipping = shippingText.toLowerCase().includes('grátis') || (precoAtualNum && precoAtualNum >= 79.0);
+        const isFull = Boolean(
+          card.querySelector('.poly-component__shipping-v2 svg[aria-label*="FULL" i], svg[aria-label*="Enviado pelo FULL" i], [class*="icon-full"]')
+        );
+
+        const outOfStock = isCardOutOfStock(card);
+        const preco_atual = precoAtualNum ? formatBRL(precoAtualNum) : '';
+        const preco_original = precoOriginalNum ? formatBRL(precoOriginalNum) : '';
+
+        items.push({
+          id,
+          mlbId,
+          titulo,
+          preco_atual,
+          preco_original,
+          desconto: descontoStr,
+          url_produto,
+          url_imagem,
+          loja: 'Mercado Livre',
+
+          // Atributos enriquecidos extraídos dos prints
+          vendedor: vendedor_nome,
+          isLojaOficial,
+          isBestSeller,
+          salesCount: totalVendas,
+          rating,
+          freeShipping,
+          isFull,
+
+          // Propriedades compatíveis com o background e Deal Hunter
+          name: titulo,
+          url: url_produto,
+          price: precoAtualNum || 0,
+          originalPrice: precoOriginalNum > precoAtualNum ? precoOriginalNum : null,
+          advertisedDiscount: descontoStr ? parseInt(descontoStr.replace(/\D/g, ''), 10) : null,
+          imageUrl: url_imagem,
+          currency: 'BRL',
+          html: card.outerHTML,
+          outOfStock,
+        });
+      } catch (err) {
+        console.debug('[Deal Hunter Mercado Livre] Erro ao parsear card:', err.message);
+      }
+    }
+
+    return items;
+  }
+
   // --- 4. FUNÇÃO UNIFICADA DE DESPACHO (DISPATCHER) ---
 
   function dispatchScraper(root = document) {
     const curHost = location.hostname.toLowerCase();
+    if (curHost.includes('mercadolivre.') || curHost.includes('mercadolibre.')) {
+      return parseMercadoLivre(root);
+    }
     if (curHost.includes('amazon.')) {
       return parseAmazon(root);
     }
@@ -1306,6 +1496,7 @@
 
   // Exporta scrapers no escopo de window para diagnóstico e extensibilidade
   window.DealHunterScrapers = {
+    parseMercadoLivre,
     parseAmazon,
     parseKabum,
     parseMagalu,

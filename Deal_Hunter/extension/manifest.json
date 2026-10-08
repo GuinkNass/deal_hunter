@@ -68,7 +68,10 @@
         "*://*.shein.com/*",
         "*://br.shein.com/*",
         "*://*.shopee.com.br/*",
-        "*://shopee.com.br/*"
+        "*://shopee.com.br/*",
+        "*://*.mercadolivre.com.br/*",
+        "*://mercadolivre.com.br/*",
+        "*://*.mercadolibre.com/*"
       ],
       "js": ["content/content.js"],
       "run_at": "document_idle"
@@ -99,7 +102,10 @@
       "*://*.shein.com/*",
       "*://br.shein.com/*",
       "*://*.shopee.com.br/*",
-      "*://shopee.com.br/*"
+      "*://shopee.com.br/*",
+      "*://*.mercadolivre.com.br/*",
+      "*://mercadolivre.com.br/*",
+      "*://*.mercadolibre.com/*"
     ]
   }]
 }

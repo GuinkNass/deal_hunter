@@ -134,32 +134,31 @@ export function buildCanonicalMlUrl(
   // 2. Remove parâmetros e âncoras para avaliar a URL base
   const cleanRaw = raw.split('#')[0].split('?')[0].trim();
 
-  // 3. Se for uma URL canônica de catálogo (/p/MLB<digitos> ou /up/MLBU<digitos>) com pelo menos 6 dígitos numéricos REAIS
-  const catalogMatch = cleanRaw.match(/\/(?:p|up)\/(MLB[U]?\d{6,})/i);
-  if (catalogMatch && !catalogMatch[1].includes('19234857')) {
-    return cleanRaw;
+  // 3. PRIORIDADE MÁXIMA: CÓDIGO DE ANÚNCIO DO VENDEDOR (wid=MLB... ou ID direto do item)
+  // O parâmetro wid=MLB... no card é o ID do anúncio individual do vendedor que ganhou a Buy Box
+  const widMatch = raw.match(/[?&#]wid=(MLB\d{7,})/i);
+  if (widMatch && !widMatch[1].includes('19234857')) {
+    return `https://produto.mercadolivre.com.br/${widMatch[1]}`;
   }
 
-  // Se a URL tinha /p/MLB ou /up/MLB mas SEM números ou com números inválidos, remove o sufixo quebrado
-  let sanitizedRaw = cleanRaw.replace(/\/(?:p|up)\/MLB[U]?(?:\/.*)?$/i, '');
+  // Se recebemos um ID explícito de anúncio do vendedor (formato MLB seguido de 8 a 12 dígitos)
+  const idMatch = safeId.match(/^MLB-?(\d{8,12})$/i);
+  if (idMatch) {
+    return `https://produto.mercadolivre.com.br/MLB${idMatch[1]}`;
+  }
 
-  // 4. Se for uma URL direta de anúncio individual no subdomínio produto.mercadolivre.com.br com MLB válido
+  // Se for uma URL direta de anúncio individual no subdomínio produto.mercadolivre.com.br com MLB válido
+  let sanitizedRaw = cleanRaw.replace(/\/(?:p|up)\/MLB[U]?(?:\/.*)?$/i, '');
   const produtoMatch = sanitizedRaw.match(/produto\.mercadolivre\.com\.br\/(MLB-?\d{7,})/i);
   if (produtoMatch && !produtoMatch[1].includes('19234857')) {
     const cleanNum = produtoMatch[1].replace('-', '');
     return `https://produto.mercadolivre.com.br/${cleanNum}`;
   }
 
-  // 5. Se o raw original continha parâmetro wid=MLB... (que é o ID real do item no card do ML)
-  const widMatch = raw.match(/[?&#]wid=(MLB\d{7,})/i);
-  if (widMatch && !widMatch[1].includes('19234857')) {
-    return `https://produto.mercadolivre.com.br/${widMatch[1]}`;
-  }
-
-  // 6. Se tiver um safeId real com formato MLB seguido de 7 a 12 dígitos
-  const idMatch = safeId.match(/^MLB-?(\d{7,12})$/i);
-  if (idMatch) {
-    return `https://produto.mercadolivre.com.br/MLB${idMatch[1]}`;
+  // 4. Se for uma URL de catálogo oficial (/p/MLB<digitos> ou /up/MLBU<digitos>) com pelo menos 6 dígitos numéricos
+  const catalogMatch = cleanRaw.match(/\/(?:p|up)\/(MLB[U]?\d{6,})/i);
+  if (catalogMatch && !catalogMatch[1].includes('19234857')) {
+    return cleanRaw;
   }
 
   // 7. Se for uma URL de listagem/busca direta bem formatada (lista.mercadolivre.com.br/<slug>)
@@ -305,11 +304,15 @@ export interface ScrapedMlItem {
   title: string;
   url: string;
   price: number;
+  originalPrice?: number | null;
   salesCount: number;
   sellerNickname: string;
   isFull: boolean;
   freeShipping: boolean;
   isExactMatch?: boolean;
+  isOfficialStore?: boolean;
+  isBestSeller?: boolean;
+  imageUrl?: string;
   brand?: string;
 }
 
@@ -418,12 +421,22 @@ export async function scrapeMercadoLivreSearch(
         // Limpa URL para a rota canônica do produto
         const cleanUrl = fullUrl.split('#')[0].split('?')[0];
 
-        // Extração precisa do MLB ID (wid=MLB..., /p/MLB... ou MLB-...)
+        // Extração prioritária do CÓDIGO DE ANÚNCIO DO VENDEDOR (wid=MLB... ou produto.mercadolivre.com.br/MLB...)
         const widMatch = fullUrl.match(/[?&#]wid=(MLB\d+)/i);
+        const directMatch = fullUrl.match(/produto\.mercadolivre\.com\.br\/(MLB-?\d+)/i) || fullUrl.match(/(MLB-?\d{8,})/i);
         const pMatch = fullUrl.match(/\/p\/(MLB\d+)/i);
         const upMatch = fullUrl.match(/\/up\/(MLBU?\d+)/i);
-        const directMatch = fullUrl.match(/(MLB-?\d+)/i);
-        const mlbId = widMatch ? widMatch[1] : pMatch ? pMatch[1] : upMatch ? upMatch[1] : directMatch ? directMatch[1].replace('-', '') : `MLB-${i}`;
+
+        // O código de anúncio do vendedor tem prioridade total
+        const mlbId = widMatch
+          ? widMatch[1]
+          : directMatch
+          ? directMatch[1].replace('-', '')
+          : pMatch
+          ? pMatch[1]
+          : upMatch
+          ? upMatch[1]
+          : `MLB-${i}`;
 
         if (seenIds.has(mlbId)) continue;
 
@@ -446,27 +459,69 @@ export async function scrapeMercadoLivreSearch(
         }
 
         if (price < minAllowedPrice) continue;
+
+        // Filtra acessórios e peças (copos, lâminas, tampas) se o produto buscado for o aparelho completo
+        const accessoryKeywords = ['copo para', 'copo de', 'jarra para', 'lâmina para', 'arraste', 'tampa para', 'filtro para'];
+        const isAccessory = accessoryKeywords.some(w => rawTitle.toLowerCase().includes(w));
+        const queryIsAccessory = accessoryKeywords.some(w => query.toLowerCase().includes(w));
+        if (isAccessory && !queryIsAccessory) continue;
+
         seenIds.add(mlbId);
 
-        // Vendedor do card
+        // Vendedor do card e Loja Oficial
         const sellerMatch = block.match(/class=["']poly-component__seller["'][^>]*>(.*?)<\/span>/is);
         const sellerNickname = sellerMatch ? sellerMatch[1].replace(/<[^>]+>/g, '').trim() : 'Vendedor Mercado Livre';
+        const isOfficialStore = block.includes('Loja Oficial') || block.includes('loja oficial');
 
-        // Métrica clínica de vendas
-        const salesMatch = block.match(/(\+?\d+[\d.]*(?:\s*mil)?\s*vendidos?)/i);
-        const salesCount = salesMatch ? parseMlSalesCount(salesMatch[1]) : 50;
+        // Badge "MAIS VENDIDO"
+        const isBestSeller = block.includes('MAIS VENDIDO');
+
+        // Métrica clínica de vendas comprovadas (prioriza andes-visually-hidden)
+        let salesCount = isBestSeller ? 500 : 50;
+        const hiddenSalesMatch = block.match(/class=["']andes-visually-hidden["'][^>]*>(?:Mais de\s*)?(\+?\d+[\d.]*(?:\s*mil)?)\s*produtos\s*vendidos/i);
+        if (hiddenSalesMatch) {
+          salesCount = parseMlSalesCount(hiddenSalesMatch[1]);
+        } else {
+          const salesMatch = block.match(/(\+?\d+[\d.]*(?:\s*mil)?\s*vendidos?)/i);
+          if (salesMatch) {
+            salesCount = parseMlSalesCount(salesMatch[1]);
+          }
+        }
+
+        // Imagem do produto em alta resolução
+        const imgMatch =
+          block.match(/<img[^>]*class=["'][^"']*poly-component__picture[^"']*["'][^>]*src=["']([^"']+)["']/i) ||
+          block.match(/<img[^>]*src=["']([^"']+)["'][^>]*class=["'][^"']*poly-component__picture[^"']*["']/i) ||
+          block.match(/data-src=["']([^"']+)["']/i);
+        const imageUrl = imgMatch ? imgMatch[1].replace(/&amp;/g, '&') : '';
+
+        // Preço anterior de tabela ("De:")
+        let previousPrice: number | null = null;
+        const prevPriceMatch = block.match(/<s[^>]*class=["'][^"']*andes-money-amount--previous[^"']*["'][^>]*aria-label=["']Antes:\s*([^"']+)["']/i);
+        if (prevPriceMatch) {
+          const prevNum = prevPriceMatch[1].match(/(\d+)\s*reais(?:.*?(\d+)\s*centavos)?/i);
+          if (prevNum) previousPrice = parseFloat(`${prevNum[1]}.${prevNum[2] || '00'}`);
+        }
 
         const isFull = block.includes('fulfillment') || block.includes('FULL') || block.includes('icon-full');
-        const freeShipping = block.includes('Frete grátis') || price >= 79.0;
+        const freeShipping = block.includes('Frete grátis') || block.includes('Chegará grátis') || price >= 79.0;
 
-        const finalCandidateUrl = buildCanonicalMlUrl(cleanUrl || fullUrl.split('#')[0], mlbId, rawTitle);
+        // Prioriza link direto do anúncio do vendedor se temos o MLB do item
+        const finalCandidateUrl = (widMatch || directMatch) && /^MLB\d+/i.test(mlbId)
+          ? `https://produto.mercadolivre.com.br/${mlbId}`
+          : buildCanonicalMlUrl(cleanUrl || fullUrl.split('#')[0], mlbId, rawTitle);
+
         items.push({
           id: mlbId,
           title: rawTitle,
           url: finalCandidateUrl,
           price,
+          originalPrice: previousPrice,
           salesCount,
           sellerNickname,
+          isOfficialStore,
+          isBestSeller,
+          imageUrl,
           isFull,
           freeShipping,
         });
@@ -620,6 +675,28 @@ export async function enrichCandidateWithMlApi(
 
       if (pdpRes.ok) {
         const pdpHtml = await pdpRes.text();
+
+        // Se a página retornou status 200 mas contém mensagem de erro 404 / anúncio inexistente
+        if (pdpHtml.includes('Parece que esta página não existe') || pdpHtml.includes('não encontramos resultados')) {
+          const fallbackSlug = sanitizeProductTitle(item.title)
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '');
+          targetUrl = `https://lista.mercadolivre.com.br/${fallbackSlug}`;
+        } else {
+          // Extrai o CÓDIGO DE ANÚNCIO REAL DO VENDEDOR das tags oficiais do Mercado Livre
+          const metaItemMatch =
+            pdpHtml.match(/name=["']twitter:app:url:iphone["'][^>]*content=["']meli:\/\/item\?id=(MLB\d+)["']/i) ||
+            pdpHtml.match(/meli:\/\/item\?id=(MLB\d+)/i) ||
+            pdpHtml.match(/data-item-id=["'](MLB\d+)["']/i);
+          if (metaItemMatch) {
+            const realSellerId = metaItemMatch[1];
+            item.id = realSellerId;
+            targetUrl = `https://produto.mercadolivre.com.br/${realSellerId}`;
+          }
+        }
 
         // Vendas comprovadas no topo do anúncio
         const salesMatch =
@@ -914,12 +991,10 @@ DIRETRIZES RIGOROSAS:
 1. Priorize anúncios que correspondam EXATAMENTE À MESMA MARCA E MESMO MODELO do produto pesquisado.
 2. Identifique a marca do fabricante. Se o produto for de uma marca (ex: 'Midea' ou 'Cooler Master'), NÃO traga marcas rivais.
 3. Para cada anúncio, informe 'is_exact_match' (true se for a mesma marca e modelo, false se similar).
-4. REQUISITO CRÍTICO DE LINK:
-   - A URL DEVE ser a URL real do anúncio no Mercado Livre encontrada nos resultados do Google.
-   - Formatos válidos: https://produto.mercadolivre.com.br/MLB-... ou https://www.mercadolivre.com.br/.../p/MLB... ou https://www.mercadolivre.com.br/.../up/MLB...
-   - Se você não tiver o link individual do anúncio com código numérico MLB, use o link de busca direta do produto: https://lista.mercadolivre.com.br/<slug-do-produto>.
-   - NUNCA invente códigos fictícios e NUNCA gere links cortados como /p/MLB sem números.
-5. Se identificar o código do produto (MLB com números reais), informe em 'mlb_id', caso contrário retorne null.
+4. REQUISITO CRÍTICO DE CÓDIGO E LINK (FOCO NO ANÚNCIO DO VENDEDOR):
+   - Tente SEMPRE identificar o CÓDIGO DE ANÚNCIO DO VENDEDOR (ex: MLB1942049820 ou link individual produto.mercadolivre.com.br/MLB-...).
+   - NUNCA invente ou alucine códigos de catálogo (/p/MLB...). Se você não tiver certeza absoluta do código numérico de anúncio do vendedor, deixe 'mlb_id' como null e na 'url' retorne a busca direta: https://lista.mercadolivre.com.br/<slug-do-produto>.
+5. Se identificar o código do anúncio real do vendedor (MLB seguido de números), informe em 'mlb_id', caso contrário retorne null.
 
 Retorne APENAS um JSON array válido no formato:
 [
@@ -962,19 +1037,26 @@ Retorne APENAS um JSON array válido no formato:
             return parsed.map((item: any, idx: number) => {
               const rawUrl = String(item.url || '');
               const rawMlbId = String(item.mlb_id || item.id || '');
-              const idMatch =
+
+              // Extrai prioritariamente o CÓDIGO DE ANÚNCIO DO VENDEDOR
+              const sellerAdMatch =
                 rawUrl.match(/[?&#]wid=(MLB\d+)/i) ||
-                rawUrl.match(/\/(?:p|up)\/(MLB[U]?\d{6,})/i) ||
-                rawUrl.match(/produto\.mercadolivre\.com\.br\/(MLB-?\d{6,})/i) ||
-                rawMlbId.match(/^MLB-?(\d{6,})$/i);
+                rawUrl.match(/produto\.mercadolivre\.com\.br\/(MLB-?\d{8,})/i) ||
+                rawMlbId.match(/^MLB-?(\d{8,12})$/i);
 
-              const itemId = idMatch
-                ? idMatch[1].replace('-', '')
-                : rawMlbId.startsWith('MLB') && !rawMlbId.includes('19234857')
-                ? rawMlbId
-                : `MLB-AD-${idx + 1}`;
+              let itemId: string;
+              let resolvedUrl: string;
 
-              const resolvedUrl = buildCanonicalMlUrl(rawUrl, itemId, item.title || query);
+              if (sellerAdMatch && !sellerAdMatch[1].includes('19234857')) {
+                // Código real de anúncio do vendedor confirmado
+                itemId = `MLB${sellerAdMatch[1].replace(/^MLB-?/i, '')}`;
+                resolvedUrl = `https://produto.mercadolivre.com.br/${itemId}`;
+              } else {
+                // Se não há código de anúncio individual do vendedor, NUNCA usa /p/MLB alucinado
+                // Usa a busca direta no Mercado Livre pelo título do produto (NUNCA dá erro 404)
+                itemId = `Anúncio ML #${idx + 1}`;
+                resolvedUrl = buildCanonicalMlUrl('', '', item.title || query);
+              }
 
               return {
                 id: itemId,
