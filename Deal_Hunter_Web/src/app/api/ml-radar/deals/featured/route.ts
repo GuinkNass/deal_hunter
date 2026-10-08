@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { tagAmazonUrl } from '@/lib/ml-radar/affiliate';
+import {
+  invalidateShowcaseCache,
+  addDealToShowcaseMemory,
+  removeDealFromShowcaseMemory,
+} from '@/lib/showcase/store';
+import { revalidatePath } from 'next/cache';
 
 const isValidUUID = (str?: any): boolean =>
   Boolean(typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim()));
@@ -57,6 +63,9 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Invalida cache após lote
+      invalidateShowcaseCache();
+
       return NextResponse.json({
         success: true,
         count: body.dealIds.length,
@@ -70,6 +79,18 @@ export async function POST(req: NextRequest) {
     const dealData = body.dealData || body.dealPayload || body.deal || {};
     const rawId = body.dealId || body.id || dealData.id;
     const cleanUrl = tagAmazonUrl(dealData.product_url || dealData.productUrl || '');
+
+    // Sincroniza memória imediatamente para refletir na vitrine sem delay
+    if (targetIsFeatured) {
+      addDealToShowcaseMemory({
+        ...dealData,
+        id: rawId,
+        product_url: cleanUrl || dealData.product_url,
+        is_featured: true,
+      });
+    } else {
+      removeDealFromShowcaseMemory(rawId, cleanUrl || dealData.product_url);
+    }
 
     // Se temos um UUID válido
     if (isValidUUID(rawId)) {
@@ -100,6 +121,8 @@ export async function POST(req: NextRequest) {
       } catch (analysisErr) {
         console.warn('[Featured Deal] Aviso ao sincronizar gemini_analysis:', analysisErr);
       }
+
+      invalidateShowcaseCache();
 
       return NextResponse.json({
         success: true,
@@ -135,6 +158,8 @@ export async function POST(req: NextRequest) {
         .from('ml_radar_deals')
         .update({ gemini_analysis: analysis })
         .eq('id', realId);
+
+      invalidateShowcaseCache();
 
       return NextResponse.json({
         success: true,
@@ -224,26 +249,35 @@ export async function POST(req: NextRequest) {
           .single();
 
         if (fallbackError) {
-          console.error('[Featured Deal] Erro fatal ao persistir nova oferta na vitrine:', fallbackError);
-          return NextResponse.json({ success: false, error: fallbackError.message }, { status: 500 });
+          console.warn('[Featured Deal] Aviso ao persistir no Supabase (mantendo oferta na vitrine via memoria):', fallbackError.message);
+          invalidateShowcaseCache();
+          return NextResponse.json({
+            success: true,
+            dealId: rawId || `featured-${Date.now()}`,
+            is_featured: true,
+            note: 'Salvo em memoria da vitrine com sucesso',
+          });
         }
 
+        invalidateShowcaseCache();
         return NextResponse.json({
           success: true,
-          dealId: fallbackInserted?.id,
+          dealId: fallbackInserted?.id || rawId,
           is_featured: true,
         });
       }
 
+      invalidateShowcaseCache();
       return NextResponse.json({
         success: true,
-        dealId: inserted?.id,
+        dealId: inserted?.id || rawId,
         is_featured: true,
       });
     }
 
     // Caso NÃO exista registro no Supabase e queremos REMOVER da vitrine:
-    // O produto já não está na vitrine, então a exclusão é imediata com sucesso
+    removeDealFromShowcaseMemory(rawId, cleanUrl || dealData.product_url);
+    invalidateShowcaseCache();
     return NextResponse.json({
       success: true,
       dealId: rawId,

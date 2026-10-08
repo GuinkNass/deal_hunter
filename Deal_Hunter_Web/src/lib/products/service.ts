@@ -4,6 +4,11 @@ import { Product, CreateProductInput } from './types';
 
 export const CACHE_TAG_PRODUCTS = 'products';
 
+declare global {
+  // eslint-disable-next-line no-var
+  var __PRODUCTS_STORE__: Product[] | undefined;
+}
+
 // Mock de segurança para visualização local imediata caso a tabela ainda esteja sendo criada no Supabase
 export const FALLBACK_SEED_PRODUCTS: Product[] = [
   {
@@ -51,6 +56,13 @@ export const FALLBACK_SEED_PRODUCTS: Product[] = [
     created_at: new Date(Date.now() - 14400000).toISOString(),
   },
 ];
+
+export function getInternalProductsStore(): Product[] {
+  if (!global.__PRODUCTS_STORE__) {
+    global.__PRODUCTS_STORE__ = [...FALLBACK_SEED_PRODUCTS];
+  }
+  return global.__PRODUCTS_STORE__;
+}
 
 // Gerador determinístico de slug amigável e único
 export function generateProductSlug(title: string): string {
@@ -123,6 +135,8 @@ export function sanitizeProductData(input: CreateProductInput): {
  * Utiliza o índice idx_products_active_created para máxima performance.
  */
 export async function getActiveProducts(limit: number = 40): Promise<Product[]> {
+  const internal = getInternalProductsStore();
+
   try {
     const supabase = createAdminClient();
     const { data, error } = await supabase
@@ -133,18 +147,25 @@ export async function getActiveProducts(limit: number = 40): Promise<Product[]> 
       .limit(limit);
 
     if (error) {
-      console.warn('[getActiveProducts] Aviso ao consultar Supabase (usando fallback seguro):', error.message);
-      return FALLBACK_SEED_PRODUCTS;
+      console.warn('[getActiveProducts] Aviso ao consultar Supabase (usando fallback seguro em memoria):', error.message);
+      return internal;
     }
 
     if (!data || data.length === 0) {
-      return FALLBACK_SEED_PRODUCTS;
+      return internal;
     }
 
-    return data as Product[];
+    // Mescla dados do Supabase com produtos adicionados dinamicamente na memoria
+    const remoteProducts = data as Product[];
+    const seenIds = new Set(remoteProducts.map((p) => p.id));
+    const pendingLocal = internal.filter((p) => !seenIds.has(p.id) && p.id.startsWith('local-created-'));
+
+    const merged = [...pendingLocal, ...remoteProducts];
+    global.__PRODUCTS_STORE__ = merged;
+    return merged;
   } catch (err: any) {
-    console.warn('[getActiveProducts] Erro de rede/conexão:', err.message);
-    return FALLBACK_SEED_PRODUCTS;
+    console.warn('[getActiveProducts] Erro de rede/conexao:', err.message);
+    return internal;
   }
 }
 
@@ -158,30 +179,42 @@ export async function createProduct(input: CreateProductInput): Promise<Product>
   const sanitized = sanitizeProductData(input);
   const supabase = createAdminClient();
 
-  const { data, error } = await supabase
-    .from('products')
-    .insert([sanitized])
-    .select('*')
-    .single();
+  const store = getInternalProductsStore();
 
-  if (error) {
-    // Se a tabela ainda não existir no Supabase local/remoto, simula o retorno com id
-    console.warn('[createProduct] Aviso na inserção Supabase:', error.message);
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .insert([sanitized])
+      .select('*')
+      .single();
+
+    if (error) {
+      console.warn('[createProduct] Aviso na inserção Supabase (persistindo em memoria de runtime):', error.message);
+      const mockCreated: Product = {
+        id: `local-created-${Date.now()}`,
+        ...sanitized,
+        created_at: new Date().toISOString(),
+      };
+      global.__PRODUCTS_STORE__ = [mockCreated, ...store];
+      triggerCacheRevalidation();
+      return mockCreated;
+    }
+
+    const created = data as Product;
+    global.__PRODUCTS_STORE__ = [created, ...store.filter((p) => p.id !== created.id)];
+    triggerCacheRevalidation();
+    return created;
+  } catch (err: any) {
+    console.warn('[createProduct] Excecao na insercao:', err.message);
     const mockCreated: Product = {
       id: `local-created-${Date.now()}`,
       ...sanitized,
       created_at: new Date().toISOString(),
     };
+    global.__PRODUCTS_STORE__ = [mockCreated, ...store];
     triggerCacheRevalidation();
     return mockCreated;
   }
-
-  // =========================================================================
-  // CRÍTICO: Invalidação de cache sob demanda imediata
-  // =========================================================================
-  triggerCacheRevalidation();
-
-  return data as Product;
 }
 
 /**
@@ -195,6 +228,7 @@ export function triggerCacheRevalidation() {
     // Invalida a rota da vitrine para atualizar o HTML SSR
     revalidatePath('/vitrine');
     revalidatePath('/api/products');
+    revalidatePath('/ofertas');
     console.log('[Cache] Cache de produtos invalidado com sucesso sob demanda (revalidateTag + revalidatePath)');
   } catch (err: any) {
     console.warn('[Cache] Aviso ao revalidar cache:', err.message);

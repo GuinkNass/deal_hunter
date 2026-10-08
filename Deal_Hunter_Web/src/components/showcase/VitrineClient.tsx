@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Search,
@@ -14,6 +14,7 @@ import {
   RotateCcw,
   Chrome,
   ShieldCheck,
+  RefreshCw,
 } from 'lucide-react';
 import ShowcaseCard, { ShowcaseDeal } from './ShowcaseCard';
 import { MONITORED_STORES } from '@/lib/ml-radar/stores';
@@ -23,19 +24,52 @@ interface VitrineClientProps {
 }
 
 export default function VitrineClient({ initialDeals }: VitrineClientProps) {
+  const [deals, setDeals] = useState<ShowcaseDeal[]>(initialDeals);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStore, setSelectedStore] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'discount' | 'price_asc' | 'price_desc' | 'recent'>('discount');
 
+  // Atualiza quando as props do servidor mudarem
+  useEffect(() => {
+    if (Array.isArray(initialDeals) && initialDeals.length > 0) {
+      setDeals(initialDeals);
+    }
+  }, [initialDeals]);
+
+  // Sincronização direta com a API da vitrine sob demanda
+  const syncDeals = useCallback(async () => {
+    try {
+      setIsSyncing(true);
+      const res = await fetch(`/api/showcase/deals?t=${Date.now()}`, { cache: 'no-store' });
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        setDeals(json.data);
+      }
+    } catch (err) {
+      console.warn('[VitrineClient] Falha ao sincronizar ofertas:', err);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, []);
+
+  // Sincroniza ao montar e toda vez que a aba ganha foco
+  useEffect(() => {
+    syncDeals();
+    const handleFocus = () => syncDeals();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [syncDeals]);
+
   // Categorias disponíveis extraídas das ofertas
   const categories = useMemo(() => {
     const set = new Set<string>();
-    for (const d of initialDeals) {
+    for (const d of deals) {
       if (d.category) set.add(d.category);
     }
     return ['all', ...Array.from(set)];
-  }, [initialDeals]);
+  }, [deals]);
 
   // Lojas presentes nas ofertas
   const stores = useMemo(() => {
@@ -53,7 +87,7 @@ export default function VitrineClient({ initialDeals }: VitrineClientProps) {
 
   // Filtragem e ordenação
   const filteredDeals = useMemo(() => {
-    let result = [...initialDeals];
+    let result = [...deals];
 
     // Busca textual
     if (searchQuery.trim()) {
@@ -100,7 +134,7 @@ export default function VitrineClient({ initialDeals }: VitrineClientProps) {
     });
 
     return result;
-  }, [initialDeals, searchQuery, selectedStore, selectedCategory, sortBy]);
+  }, [deals, searchQuery, selectedStore, selectedCategory, sortBy]);
 
   const hasActiveFilters =
     searchQuery.trim() !== '' || selectedStore !== 'all' || selectedCategory !== 'all' || sortBy !== 'discount';
@@ -164,8 +198,20 @@ export default function VitrineClient({ initialDeals }: VitrineClientProps) {
             )}
           </div>
 
-          {/* Ordenação */}
+          {/* Ordenação e Ações */}
           <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Botão Sincronizar em Tempo Real */}
+            <button
+              type="button"
+              onClick={syncDeals}
+              disabled={isSyncing}
+              className="px-3.5 py-3 rounded-xl sm:rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 border border-white/10 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-colors"
+              title="Sincronizar ofertas agora"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-cyan-400' : ''}`} />
+              <span className="hidden sm:inline">Sincronizar</span>
+            </button>
+
             <div className="relative w-full md:w-auto">
               <select
                 value={sortBy}
@@ -254,7 +300,7 @@ export default function VitrineClient({ initialDeals }: VitrineClientProps) {
         <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-white/[0.05]">
           <span className="font-medium">
             Exibindo <strong className="text-white">{filteredDeals.length}</strong> de{' '}
-            <strong className="text-white">{initialDeals.length}</strong> ofertas selecionadas
+            <strong className="text-white">{deals.length}</strong> ofertas selecionadas
           </span>
           {hasActiveFilters && (
             <button

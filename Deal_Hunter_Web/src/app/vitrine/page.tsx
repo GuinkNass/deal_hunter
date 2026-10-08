@@ -10,9 +10,9 @@ export const metadata: Metadata = {
     'Vitrine de produtos com revalidação de cache sob demanda no Next.js App Router e Supabase. Novos produtos aparecem instantaneamente sem necessidade de rebuild ou deploy.',
 };
 
-// Revalidação sob demanda (On-demand ISR)
-// Permite renderização SSR ultra-rápida combinada com cache tags e revalidatePath
-export const revalidate = 60; // fallback revalidate a cada 60s, mas é invalidado instantaneamente via revalidateTag/revalidatePath
+// Renderização dinâmica sob demanda com dados frescos instantâneos
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function VitrinePage() {
   // Busca inicial no servidor (Server Component)

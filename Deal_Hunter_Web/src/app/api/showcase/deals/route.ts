@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getShowcaseDeals } from '@/lib/showcase/store';
 
-// Revalidação a cada 15 segundos para máxima agilidade
-export const revalidate = 15;
+// Sempre dinâmico para refletir imediatamente adições e remoções de ofertas
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(req: NextRequest) {
   try {

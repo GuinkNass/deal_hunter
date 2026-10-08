@@ -82,10 +82,57 @@ declare global {
   var __DH_SHOWCASE_CACHE__: ShowcaseDealItem[] | undefined;
   // eslint-disable-next-line no-var
   var __DH_SHOWCASE_CACHE_TIME__: number | undefined;
+  // eslint-disable-next-line no-var
+  var __DH_SHOWCASE_CUSTOM_DEALS__: ShowcaseDealItem[] | undefined;
 }
 
 const isValidUUID = (str?: any): boolean =>
   Boolean(typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim()));
+
+/**
+ * Invalida imediatamente todo o cache da vitrine e força o Next.js ISR a re-renderizar
+ */
+export function invalidateShowcaseCache() {
+  global.__DH_SHOWCASE_CACHE__ = undefined;
+  global.__DH_SHOWCASE_CACHE_TIME__ = undefined;
+  try {
+    revalidatePath('/ofertas');
+    revalidatePath('/vitrine');
+    revalidatePath('/api/showcase/deals');
+  } catch {}
+}
+
+/**
+ * Adiciona ou atualiza uma oferta no registro persistente em memória
+ */
+export function addDealToShowcaseMemory(deal: any): ShowcaseDealItem {
+  const item = sanitizeShowcaseDeal(deal);
+  if (!global.__DH_SHOWCASE_CUSTOM_DEALS__) {
+    global.__DH_SHOWCASE_CUSTOM_DEALS__ = [];
+  }
+  global.__DH_SHOWCASE_CUSTOM_DEALS__ = [
+    item,
+    ...global.__DH_SHOWCASE_CUSTOM_DEALS__.filter(
+      (d) => d.id !== item.id && (!item.product_url || d.product_url !== item.product_url)
+    ),
+  ];
+  invalidateShowcaseCache();
+  return item;
+}
+
+/**
+ * Remove uma oferta da vitrine em memória
+ */
+export function removeDealFromShowcaseMemory(dealId?: string, productUrl?: string) {
+  if (global.__DH_SHOWCASE_CUSTOM_DEALS__) {
+    global.__DH_SHOWCASE_CUSTOM_DEALS__ = global.__DH_SHOWCASE_CUSTOM_DEALS__.filter((d) => {
+      if (dealId && d.id === dealId) return false;
+      if (productUrl && d.product_url === productUrl) return false;
+      return true;
+    });
+  }
+  invalidateShowcaseCache();
+}
 
 /**
  * Normaliza uma oferta para a estrutura padronizada da Vitrine
@@ -120,10 +167,10 @@ export function sanitizeShowcaseDeal(d: any): ShowcaseDealItem {
  * Obtém todas as ofertas ativas na Vitrine com fallback inteligente
  */
 export async function getShowcaseDeals(): Promise<ShowcaseDealItem[]> {
-  // 1. Cache em memória recente (10 segundos)
+  // 1. Cache em memória recente (máximo 5 segundos para refletir rápido novas alterações)
   if (global.__DH_SHOWCASE_CACHE__ && global.__DH_SHOWCASE_CACHE__.length > 0) {
     const age = Date.now() - (global.__DH_SHOWCASE_CACHE_TIME__ || 0);
-    if (age < 15000) {
+    if (age < 5000) {
       return global.__DH_SHOWCASE_CACHE__;
     }
   }
@@ -161,11 +208,31 @@ export async function getShowcaseDeals(): Promise<ShowcaseDealItem[]> {
       console.warn('[Showcase Store] Aviso ao consultar Supabase:', queryErr.message);
     }
 
-    if (fetchedDeals.length > 0) {
-      const sanitized = fetchedDeals.map(sanitizeShowcaseDeal);
-      global.__DH_SHOWCASE_CACHE__ = sanitized;
+    const sanitizedFetched = fetchedDeals.map(sanitizeShowcaseDeal);
+
+    // 3. Mescla com as ofertas salvas em memória nesta sessão/runtime (custom deals)
+    const customDeals = global.__DH_SHOWCASE_CUSTOM_DEALS__ || [];
+    const seenMap = new Map<string, ShowcaseDealItem>();
+
+    // Prioriza os itens customizados adicionados recentemente
+    for (const d of customDeals) {
+      const key = d.product_url || d.id;
+      seenMap.set(key, d);
+    }
+
+    for (const d of sanitizedFetched) {
+      const key = d.product_url || d.id;
+      if (!seenMap.has(key)) {
+        seenMap.set(key, d);
+      }
+    }
+
+    const consolidatedDeals = Array.from(seenMap.values());
+
+    if (consolidatedDeals.length > 0) {
+      global.__DH_SHOWCASE_CACHE__ = consolidatedDeals;
       global.__DH_SHOWCASE_CACHE_TIME__ = Date.now();
-      return sanitized;
+      return consolidatedDeals;
     }
 
     // Se temos cache anterior em memória, usa ele antes de cair no mock padrão
@@ -173,11 +240,11 @@ export async function getShowcaseDeals(): Promise<ShowcaseDealItem[]> {
       return global.__DH_SHOWCASE_CACHE__;
     }
 
-    // 3. Fallback inicial padrão apenas se não houver nenhuma oferta cadastrada
+    // 4. Fallback inicial padrão apenas se não houver nenhuma oferta cadastrada nem em memória
     return CURATED_DEFAULT_DEALS;
   } catch (err: any) {
     console.error('[Showcase Store] Erro ao carregar ofertas:', err);
-    return global.__DH_SHOWCASE_CACHE__ || CURATED_DEFAULT_DEALS;
+    return global.__DH_SHOWCASE_CACHE__ || global.__DH_SHOWCASE_CUSTOM_DEALS__ || CURATED_DEFAULT_DEALS;
   }
 }
 
