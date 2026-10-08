@@ -468,10 +468,27 @@
 
         const fullCardText = sanitizeText(card.innerText || card.textContent || '');
 
-        // 1. Extrai todos os valores identificados explicitamente como parcelas para expurgo
+        // 1. Extração prioritária de valores de parcela para expurgo absoluto
         const installmentValues = new Set();
+
+        // 1.1 Coleta valores de qualquer elemento de texto secundário com parcelamento
+        const secondarySpans = card.querySelectorAll('span[class*="text-gray-400"]:not([class*="line-through"]), span[class*="text-xs"]:not([class*="line-through"])');
+        for (const sp of secondarySpans) {
+          const spText = sanitizeText(sp.innerText || sp.textContent || '');
+          if (/(?:\b\d+\s*x|ou\s*\d+\s*x|parcela|no\s*pix\s*ou)/i.test(spText)) {
+            const m = spText.match(/R\$\s*([\d.,]+)/i);
+            if (m) {
+              const val = parseCurrencyToNumber(m[1]);
+              if (val) installmentValues.add(val);
+            }
+          }
+        }
+
+        // 1.2 Regex abrangente de parcelamento no texto completo do card
         const instRegexes = [
-          /(?:\b\d+\s*x\s*(?:sem\s*juros\s*)?(?:com\s*juros\s*)?(?:no\s*cart[aã]o\s*)?(?:de\s*)?:?\s*|em\s+at[ée]\s+\d+\s*x\s*(?:sem\s*juros\s*)?(?:com\s*juros\s*)?(?:no\s*cart[aã]o\s*)?(?:de\s*)?:?\s*)R\$\s*([\d.,]+)/gi,
+          /(?:No\s*PIX\s*ou\s*)?\b\d+\s*x\s*(?:sem\s*juros\s*)?(?:com\s*juros\s*)?(?:no\s*cart[aã]o\s*)?(?:de\s*)?:?\s*R\$\s*([\d.,]+)/gi,
+          /ou\s+\d+\s*x\s*(?:de\s*)?:?\s*R\$\s*([\d.,]+)/gi,
+          /em\s+at[ée]\s+\d+\s*x\s*(?:sem\s*juros\s*)?(?:com\s*juros\s*)?(?:no\s*cart[aã]o\s*)?(?:de\s*)?:?\s*R\$\s*([\d.,]+)/gi,
           /R\$\s*([\d.,]+)\s*(?:em\s+at[ée]\s+\d+x|\(?sem\s*juros\)?|\/\s*m[êe]s|cada\s+parcela)/gi,
         ];
         for (const re of instRegexes) {
@@ -481,14 +498,76 @@
           }
         }
 
-        // 2. Extrai todos os preços brutos
+        let precoAtualNum = null;
+
+        // =========================================================================
+        // PRIORIDADE 1: Novo Layout KaBuM (Tailwind) - Seletores exatos do DOM
+        // Container: div.flex.gap-4.items-center contendo span.text-base.font-semibold (ex: R$ 399,99)
+        // =========================================================================
+        const currentPriceContainer = card.querySelector(
+          'div[class*="gap-4"][class*="items-center"], div.flex.gap-4.items-center, div[class*="items-center"]:has(span[class*="text-base"])'
+        );
+
+        if (currentPriceContainer) {
+          // Busca os spans de preço dentro do container principal de valor atual
+          const textBaseSpans = currentPriceContainer.querySelectorAll('span[class*="text-base"][class*="font-semibold"], span[class*="font-semibold"]');
+          for (const sp of textBaseSpans) {
+            const rawVal = sp.innerText || sp.textContent || '';
+            const parsed = parseCurrencyToNumber(rawVal);
+            if (parsed && parsed > 5 && !installmentValues.has(parsed)) {
+              precoAtualNum = parsed;
+              break;
+            }
+          }
+
+          // Se os spans estiverem separados em "R$" e "399,99", extrai do container excluindo desconto
+          if (!precoAtualNum) {
+            const containerText = sanitizeText(currentPriceContainer.innerText || currentPriceContainer.textContent || '');
+            const m = containerText.match(/R\$\s*([\d.,]+)/i);
+            if (m) {
+              const parsed = parseCurrencyToNumber(m[1]);
+              if (parsed && parsed > 5 && !installmentValues.has(parsed)) {
+                precoAtualNum = parsed;
+              }
+            }
+          }
+        }
+
+        // Se ainda não encontrou, busca qualquer span.text-base.font-semibold fora de elementos de parcela
+        if (!precoAtualNum) {
+          const directPriceSpans = card.querySelectorAll('span[class*="text-base"][class*="font-semibold"], [class*="priceText"], [class*="finalPrice"]');
+          for (const sp of directPriceSpans) {
+            if (isInstallmentElement(sp)) continue;
+            const parsed = parseCurrencyToNumber(sp.innerText || sp.textContent || '');
+            if (parsed && parsed > 5 && !installmentValues.has(parsed)) {
+              precoAtualNum = parsed;
+              break;
+            }
+          }
+        }
+
+        // =========================================================================
+        // PRIORIDADE 2: Preço à vista / PIX com regex cirúrgico
+        // =========================================================================
+        if (!precoAtualNum) {
+          const pixMatch = fullCardText.match(/(?:R\$\s*([\d.,]+)\s*(?:à\s*vista|no\s*Pix|no\s*PIX|em\s*1x)|(?:à\s*vista|no\s*Pix|no\s*PIX)\s*(?:por\s*)?R\$\s*([\d.,]+))/i);
+          if (pixMatch) {
+            const candPix = parseCurrencyToNumber(pixMatch[1] || pixMatch[2]);
+            if (candPix && !Array.from(installmentValues).some((iv) => Math.abs(iv - candPix) < 0.05)) {
+              precoAtualNum = candPix;
+            }
+          }
+        }
+
+        // =========================================================================
+        // PRIORIDADE 3: Fallback Matemático para extrair preço cheio (NUNCA parcela)
+        // =========================================================================
         const moneyMatches = fullCardText.match(/R\$\s?[\d.,]+/g) || [];
         const extractedPrices = moneyMatches
           .map(parseCurrencyToNumber)
           .filter((p) => p && p > 5);
 
-        // FILTRO MATEMÁTICO MULTIPLICADOR UNIVERSAL:
-        // Se existir um preço maior P e um menor p tal que P / p ~= N (onde N é 2..24), p é 100% parcela!
+        // Se existir um preço maior P e um menor p tal que P / p ~= 2..24, p é parcela!
         for (let i = 0; i < extractedPrices.length; i++) {
           const p = extractedPrices[i];
           for (let j = 0; j < extractedPrices.length; j++) {
@@ -498,7 +577,7 @@
               const ratio = P / p;
               if (ratio >= 1.8 && ratio <= 25) {
                 const nearestInt = Math.round(ratio);
-                if (Math.abs(ratio - nearestInt) < 0.08) {
+                if (Math.abs(ratio - nearestInt) < 0.12) {
                   installmentValues.add(p);
                 }
               }
@@ -510,29 +589,6 @@
           (p) => !Array.from(installmentValues).some((iv) => Math.abs(iv - p) < 0.05)
         );
 
-        let precoAtualNum = null;
-
-        // 3. Prioridade 1: Preço explícito à vista / no PIX
-        const pixMatch = fullCardText.match(/(?:R\$\s*([\d.,]+)\s*(?:à\s*vista|no\s*Pix|no\s*PIX|em\s*1x)|(?:à\s*vista|no\s*Pix|no\s*PIX)\s*(?:por\s*)?R\$\s*([\d.,]+))/i);
-        if (pixMatch) {
-          const candPix = parseCurrencyToNumber(pixMatch[1] || pixMatch[2]);
-          if (candPix && !Array.from(installmentValues).some((iv) => Math.abs(iv - candPix) < 0.05)) {
-            precoAtualNum = candPix;
-          }
-        }
-
-        // 4. Prioridade 2: Elemento específico de preço final que não seja parcela
-        if (!precoAtualNum) {
-          const curEl = card.querySelector('[class*="finalPrice"], [class*="priceCard"], h4[class*="text-"], [class*="preco_desconto_a_vista"]');
-          if (curEl && !isInstallmentElement(curEl)) {
-            const parsed = parseCurrencyToNumber(curEl.innerText || curEl.textContent);
-            if (parsed && !Array.from(installmentValues).some((iv) => Math.abs(iv - parsed) < 0.05)) {
-              precoAtualNum = parsed;
-            }
-          }
-        }
-
-        // 5. Prioridade 3: Menor valor não-parcelado válido
         if (!precoAtualNum && nonInstallmentPrices.length > 0) {
           const validCandidates = nonInstallmentPrices.filter((p) => !precoOriginalNum || p < precoOriginalNum);
           if (validCandidates.length > 0) {
@@ -542,26 +598,26 @@
           }
         }
 
-        // 6. Preço Original: maior valor não-parcelado
-        if (nonInstallmentPrices.length >= 2 && (!precoOriginalNum || precoOriginalNum <= precoAtualNum)) {
-          const maxVal = Math.max(...nonInstallmentPrices);
-          if (maxVal > precoAtualNum) {
-            precoOriginalNum = maxVal;
-          }
-        }
-
-        // 7. Trava de segurança anti-parcela KaBuM! abrangente
+        // =========================================================================
+        // TRAVA ANTI-PARCELA FINAL (Garantia de que preço cheio nunca é a parcela)
+        // Se precoAtualNum for <= 150 e houver outro preço válido >= 200 no card,
+        // ou se precoOriginalNum existir e precoOriginalNum / precoAtualNum > 4,
+        // então precoAtualNum era a parcela! Corrige para o preço cheio.
+        // =========================================================================
         if (precoAtualNum) {
-          for (const other of extractedPrices) {
-            if (other > precoAtualNum) {
-              const ratio = other / precoAtualNum;
-              if (ratio >= 1.8 && ratio <= 25 && Math.abs(ratio - Math.round(ratio)) < 0.08) {
-                if (!precoOriginalNum || precoOriginalNum <= precoAtualNum) {
-                  precoOriginalNum = other;
-                }
-                precoAtualNum = other;
-                break;
-              }
+          // Se o preço atual bate com alguma parcela identificada
+          if (Array.from(installmentValues).some((iv) => Math.abs(iv - precoAtualNum) < 0.05)) {
+            const alternate = nonInstallmentPrices.find((p) => p > precoAtualNum);
+            if (alternate) precoAtualNum = alternate;
+          }
+
+          // Se a proporção com o preço original for surreal (ex: 588,78 / 44,44 = 13.2x)
+          if (precoOriginalNum && precoAtualNum && (precoOriginalNum / precoAtualNum > 3.5)) {
+            const betterCandidate = extractedPrices.find(
+              (p) => p > precoAtualNum && p <= precoOriginalNum && !installmentValues.has(p)
+            );
+            if (betterCandidate) {
+              precoAtualNum = betterCandidate;
             }
           }
         }

@@ -140,7 +140,9 @@ export async function extractMetadataFromUrl(url: string): Promise<{
       // Coleta parcelas para expurgo textual
       const installmentValues = new Set<number>();
       const instRegexes = [
-        /(?:\b\d+\s*x\s*(?:sem\s*juros\s*)?(?:com\s*juros\s*)?(?:no\s*cart[aã]o\s*)?(?:de\s*)?:?\s*|em\s+at[ée]\s+\d+\s*x\s*(?:sem\s*juros\s*)?(?:com\s*juros\s*)?(?:no\s*cart[aã]o\s*)?(?:de\s*)?:?\s*)R\$\s*([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2})/gi,
+        /(?:No\s*PIX\s*ou\s*)?\b\d+\s*x\s*(?:sem\s*juros\s*)?(?:com\s*juros\s*)?(?:no\s*cart[aã]o\s*)?(?:de\s*)?:?\s*R\$\s*([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2})/gi,
+        /ou\s+\d+\s*x\s*(?:de\s*)?:?\s*R\$\s*([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2})/gi,
+        /em\s+at[ée]\s+\d+\s*x\s*(?:sem\s*juros\s*)?(?:com\s*juros\s*)?(?:no\s*cart[aã]o\s*)?(?:de\s*)?:?\s*R\$\s*([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2})/gi,
         /R\$\s*([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2})\s*(?:em\s+at[ée]\s+\d+x|\(?sem\s*juros\)?|\/\s*m[êe]s|cada\s+parcela)/gi,
       ];
       for (const re of instRegexes) {
@@ -169,7 +171,7 @@ export async function extractMetadataFromUrl(url: string): Promise<{
             const ratio = P / p;
             if (ratio >= 1.8 && ratio <= 25) {
               const nearestInt = Math.round(ratio);
-              if (Math.abs(ratio - nearestInt) < 0.08) {
+              if (Math.abs(ratio - nearestInt) < 0.12) {
                 installmentValues.add(p);
               }
             }
@@ -181,6 +183,14 @@ export async function extractMetadataFromUrl(url: string): Promise<{
         if (!installmentValues.has(cand)) {
           price = cand;
           break;
+        }
+      }
+
+      // Trava final: se o preço selecionado for pequeno e houver outro bem maior
+      if (price && allPricesRaw.length > 1) {
+        const higher = allPricesRaw.find((p) => p > price! && !installmentValues.has(p));
+        if (higher && higher / price >= 2.5) {
+          price = higher;
         }
       }
     }
