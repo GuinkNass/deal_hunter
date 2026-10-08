@@ -39,23 +39,22 @@ export default function LanguageCurrencySelector({ className = '', variant = 'co
 
   return (
     <div className={`relative inline-block text-left ${className}`} ref={containerRef}>
-      {/* Botão de Trigger */}
+      {/* Botão de Trigger em Texto Limpo Sem Bordas Arredondadas Comprimidas */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 hover:border-cyan-400/30 text-slate-200 text-xs font-bold transition-all shadow-sm"
+        className="inline-flex items-center gap-1.5 py-1 px-1 text-xs font-medium text-slate-300 hover:text-white transition-colors cursor-pointer group select-none"
         title="Alterar idioma e moeda de exibição"
       >
-        <span className="flex items-center gap-1">
-          <span className="text-sm leading-none">{langLabels[lang].flag}</span>
-          <span className="text-[11px] font-black uppercase text-cyan-300">{langLabels[lang].label}</span>
+        <span className="text-sm leading-none">{langLabels[lang].flag}</span>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-200 group-hover:text-cyan-300 transition-colors">
+          {langLabels[lang].label}
         </span>
-        <span className="w-px h-3 bg-white/20" />
-        <span className="flex items-center gap-0.5 text-emerald-400 font-black text-[11px]">
-          <span>{currencyLabels[currency].symbol}</span>
-          <span>{currency}</span>
+        <span className="text-slate-500 font-normal text-[10px]">·</span>
+        <span className="text-[11px] font-bold text-emerald-400 group-hover:text-emerald-300 transition-colors">
+          {currencyLabels[currency].symbol} {currency}
         </span>
-        <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3 h-3 text-slate-400 group-hover:text-slate-200 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Dropdown Menu */}

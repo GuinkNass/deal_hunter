@@ -58,7 +58,7 @@ function ChromeIcon({ className = 'w-5 h-5' }: { className?: string }) {
 }
 
 export default function LandingPage() {
-  const { t, formatMoney } = useLanguageCurrency();
+  const { t, formatMoney, getFaqs } = useLanguageCurrency();
   const [user, setUser] = useState<any>(null);
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
@@ -147,53 +147,7 @@ export default function LandingPage() {
     setActiveFaq(activeFaq === index ? null : index);
   }
 
-  const faqs = [
-    {
-      question: 'Como instalar o Deal Hunter Pro pela Chrome Web Store oficial?',
-      answer:
-        'A instalação é 100% oficial, segura e leva apenas 1 clique: 1) Clique no botão "Usar no Chrome" aqui na página; 2) Na Chrome Web Store oficial do Google, clique em "Usar no Chrome" (ou "Adicionar extensão"); 3) O Chrome baixa e instala automaticamente a versão oficial verificada; 4) Abra a extensão e faça login direto com sua conta da nuvem. Não é necessário descompactar pastas nem ativar o Modo do Desenvolvedor!',
-    },
-    {
-      question: 'Quais são os requisitos mínimos e compatibilidade do Deal Hunter Pro?',
-      answer:
-        'O Deal Hunter Pro é compatível com qualquer computador com Windows, macOS ou Linux que possua o Google Chrome ou navegadores Chromium (Microsoft Edge, Brave, Opera, etc.) com conexão à internet. Como o processamento pesado de busca e monitoramento roda 100% na nuvem, ele não sobrecarrega a memória nem o processador do seu computador.',
-    },
-    {
-      question: 'Como funciona o período de teste grátis de 7 dias?',
-      answer:
-        'Você pode testar todos os recursos ilimitados do Deal Hunter Pro por 7 dias inteiros. Se por qualquer motivo você achar que a ferramenta não se pagou logo nos primeiros descontos encontrados, basta cancelar com 1 clique diretamente na sua conta, sem perguntas ou burocracia.',
-    },
-    {
-      question: 'Como os alertas chegam no meu Telegram?',
-      answer:
-        'A extensão se conecta diretamente a um Bot e Chat do Telegram que você mesmo cria gratuitamente em 2 minutos. Toda vez que um preço cair ou um bug promocional for encontrado, você recebe uma notificação no celular com foto, preço original, valor com desconto e link direto do produto.',
-    },
-    {
-      question: 'Preciso deixar o computador ligado para o Deal Hunter monitorar?',
-      answer:
-        'Não! O motor de busca e análise do Deal Hunter Pro roda 100% na nuvem. Você não precisa executar scripts nem deixar o computador sobrecarregado. Basta ter a extensão instalada no navegador e conectada à sua conta para receber alertas instantâneos no Telegram.',
-    },
-    {
-      question: 'Quais lojas são monitoradas atualmente?',
-      answer:
-        'O Deal Hunter Pro monitora ativamente a Amazon Brasil, Magazine Luiza (Magalu) e Eletroclub (com login automático para preços VIP de funcionários). Novas lojas e marketplaces são adicionados com frequência através das atualizações automáticas.',
-    },
-    {
-      question: 'Posso cancelar a qualquer momento?',
-      answer:
-        'Com certeza! Não há período de fidelidade ou contrato de permanência. Você gerencia sua assinatura de forma 100% autônoma pelo portal de clientes Stripe com cancelamento instantâneo a qualquer momento.',
-    },
-    {
-      question: 'Como funciona o bônus do Profit Hunter Pro?',
-      answer:
-        'O Profit Hunter Pro é uma segunda extensão profissional inclusa gratuitamente no seu plano (ou durante os 7 dias de teste grátis). Enquanto o Deal Hunter monitora centenas de categorias em massa na nuvem, o Profit Hunter é a sua ferramenta cirúrgica para capturar ofertas diretamente na tela com 1 clique (via botão flutuante inteligente em qualquer loja) e despachar para o Telegram. O login é 100% unificado: sua conta ativa ambas as extensões!',
-    },
-    {
-      question: 'Como falar com o suporte em caso de dúvidas?',
-      answer:
-        'Nosso time de suporte está disponível para tirar qualquer dúvida técnica ou comercial. Basta enviar um e-mail diretamente para: guilherme.r.nascimentoml@gmail.com.',
-    },
-  ];
+  const faqs = getFaqs();
 
   return (
     <main className="min-h-screen bg-[#070a12] text-[#f1f5f9] selection:bg-violet-500/30 selection:text-violet-200 antialiased overflow-x-hidden">
@@ -256,20 +210,20 @@ export default function LandingPage() {
           {/* Badge de Destaque Superior */}
           <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-violet-950/50 border border-violet-500/30 text-violet-300 text-xs font-bold tracking-widest uppercase shadow-sm">
             <span className="w-2 h-2 rounded-full bg-[#d4ff32]" />
-            Extensão Oficial Chrome Web Store · Versão 2.9
+            {t('hero.version_badge')}
           </div>
 
           {/* Headline Principal */}
           <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tight text-white leading-[1.08]">
-            Monitore os maiores e-commerces. <br className="hidden sm:inline" />
+            {t('hero.h1_line1')} <br className="hidden sm:inline" />
             <span className="bg-gradient-to-r from-violet-400 via-indigo-300 to-cyan-300 bg-clip-text text-transparent">
-              Compre no menor preço do mercado.
+              {t('hero.h1_line2')}
             </span>
           </h1>
 
           {/* Sub-headline */}
           <p className="max-w-3xl mx-auto text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
-            O <strong className="text-white">Deal Hunter Pro</strong> monitora continuamente <strong className="text-white">Amazon Brasil, KaBuM!, Pichau, Shopee, Magalu, Renner, Shein e Eletroclub</strong> diretamente no seu navegador, alertando seu Telegram no segundo exato em que o preço despenca.
+            {t('hero.subtitle')}
           </p>
 
           {/* CTAs Principais da Hero */}
@@ -283,7 +237,7 @@ export default function LandingPage() {
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-full bg-[#d4ff32] hover:bg-[#c3f01c] text-black font-black text-xs sm:text-sm uppercase tracking-wider shadow-xl shadow-[#d4ff32]/25 hover:shadow-[#d4ff32]/40 hover:-translate-y-0.5 transition-all active:scale-[0.98] group"
             >
               <ChromeIcon className="w-4 h-4 flex-shrink-0 group-hover:scale-110 transition-transform" />
-              <span>Usar no Chrome (Oficial)</span>
+              <span>{t('hero.cta_chrome')}</span>
             </a>
 
             {/* Documentação Oficial exposta no Hero */}
@@ -314,7 +268,7 @@ export default function LandingPage() {
               <span className="w-8 h-8 rounded-full bg-violet-600/30 border border-violet-500/40 text-violet-400 group-hover:bg-violet-600/50 flex items-center justify-center transition-transform group-hover:scale-110">
                 <Zap className="w-3.5 h-3.5 text-violet-400" />
               </span>
-              <span className="uppercase tracking-wider">Como Funciona</span>
+              <span className="uppercase tracking-wider">{t('hero.how_it_works')}</span>
             </a>
           </div>
 
@@ -322,15 +276,15 @@ export default function LandingPage() {
           <div className="pt-4 flex flex-wrap items-center justify-center gap-y-2.5 gap-x-6 text-xs text-slate-400">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06]">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span><strong className="text-white">7 dias grátis:</strong> sem cartão e sem Pix</span>
+              <span><strong className="text-white">{t('hero.trust_free')}</strong></span>
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06]">
               <Zap className="w-4 h-4 text-[#d4ff32]" />
-              <span>Ativação imediata no 1º login</span>
+              <span>{t('hero.trust_instant')}</span>
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06]">
               <CheckCircle2 className="w-4 h-4 text-cyan-400" />
-              <span>Após os 7 dias: {formatMoney(29.90)} no Pix ou Cartão</span>
+              <span>{t('hero.trust_price_prefix')} {formatMoney(29.90)} {t('hero.trust_price_suffix')}</span>
             </div>
           </div>
 
@@ -342,7 +296,7 @@ export default function LandingPage() {
               ))}
             </div>
             <span>
-              <strong className="text-white">4.9/5</strong> por mais de 500+ caçadores de ofertas e afiliados
+              <strong className="text-white">4.9/5</strong> {t('hero.social_proof')}
             </span>
           </div>
 
@@ -357,7 +311,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-5 text-center">
           <p className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.25em] text-violet-400 flex items-center justify-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-[#d4ff32]" />
-            Lojas e Marketplaces Integrados em Tempo Real
+            {t('stores.badge')}
           </p>
         </div>
 
@@ -415,16 +369,16 @@ export default function LandingPage() {
               {/* Tag Flutuante Superior */}
               <div className="absolute top-4 left-4 sm:top-6 sm:left-6 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/75 border border-white/20 text-[11px] font-black uppercase tracking-wider text-white">
                 <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                <span>Radar Inteligente Ativo 24h</span>
+                <span>{t('showcase.badge')}</span>
               </div>
 
               {/* Badge Informativo Inferior */}
               <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-auto sm:max-w-md p-4 rounded-2xl bg-[#090d18]/85 border border-white/15 backdrop-blur-md shadow-2xl">
                 <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#d4ff32] mb-1">
-                  Piloto Automático em Ação
+                  {t('showcase.autopilot_title')}
                 </p>
                 <p className="text-xs sm:text-sm text-slate-200 font-medium leading-relaxed">
-                  Relaxe enquanto o Deal Hunter monitora centenas de categorias na Amazon e Magalu, disparando os maiores bugs com até 80% OFF.
+                  {t('showcase.autopilot_desc')}
                 </p>
               </div>
             </div>
@@ -437,15 +391,15 @@ export default function LandingPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="px-3 py-1 rounded-full bg-violet-500/15 border border-violet-500/30 text-violet-300 text-[10px] font-black uppercase tracking-wider">
-                      Automação Pura
+                      {t('showcase.card1_badge')}
                     </span>
                     <span className="text-slate-400 group-hover:text-violet-400 transition-colors">01</span>
                   </div>
                   <h3 className="text-lg font-black uppercase tracking-tight text-white">
-                    Varredura 24h na Nuvem
+                    {t('showcase.card1_title')}
                   </h3>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    Zero proxies caros e zero scripts locais. A inteligência na nuvem monitora ofertas 24h com total discrição e velocidade, sem sobrecarregar seu computador.
+                    {t('showcase.card1_desc')}
                   </p>
                 </div>
                 <div className="pt-6">
@@ -453,7 +407,7 @@ export default function LandingPage() {
                     href="#como-funciona"
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-xs font-bold text-white transition-all"
                   >
-                    <span>Como Funciona</span>
+                    <span>{t('hero.how_it_works')}</span>
                     <ArrowRight className="w-3.5 h-3.5 text-[#d4ff32]" />
                   </a>
                 </div>
@@ -464,15 +418,15 @@ export default function LandingPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="px-3 py-1 rounded-full bg-[#d4ff32]/15 border border-[#d4ff32]/30 text-[#d4ff32] text-[10px] font-black uppercase tracking-wider">
-                      Alerta Imediato
+                      {t('showcase.card2_badge')}
                     </span>
                     <span className="text-slate-400 group-hover:text-[#d4ff32] transition-colors">02</span>
                   </div>
                   <h3 className="text-lg font-black uppercase tracking-tight text-white">
-                    Disparo no Telegram em &lt; 3 Segundos
+                    {t('showcase.card2_title')}
                   </h3>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    Notificações completas com foto do produto, valor antigo riscado, desconto em destaque e link direto para fechar a compra antes de acabar.
+                    {t('showcase.card2_desc')}
                   </p>
                 </div>
                 <div className="pt-6">
@@ -480,7 +434,7 @@ export default function LandingPage() {
                     href="#como-funciona"
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-xs font-bold text-white transition-all"
                   >
-                    <span>Conhecer o Motor</span>
+                    <span>{t('hero.how_it_works')}</span>
                     <ArrowRight className="w-3.5 h-3.5 text-violet-400" />
                   </a>
                 </div>
@@ -491,15 +445,15 @@ export default function LandingPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-[10px] font-black uppercase tracking-wider">
-                      Multilojas VIP
+                      {t('showcase.card3_badge')}
                     </span>
                     <span className="text-slate-400 group-hover:text-cyan-400 transition-colors">03</span>
                   </div>
                   <h3 className="text-lg font-black uppercase tracking-tight text-white">
-                    Amazon, Magalu &amp; Eletroclub
+                    {t('showcase.card3_title')}
                   </h3>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    Suporte simultâneo às 3 maiores plataformas do Brasil com login automático para preços VIP de funcionários na Eletroclub.
+                    {t('showcase.card3_desc')}
                   </p>
                 </div>
                 <div className="pt-6">
@@ -507,7 +461,7 @@ export default function LandingPage() {
                     href="/login"
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-xs font-bold text-white transition-all shadow-md"
                   >
-                    <span>Ativar 7 Dias Grátis</span>
+                    <span>{t('nav.try_free')}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
                 </div>
@@ -646,13 +600,13 @@ export default function LandingPage() {
           <div className="text-center space-y-3 mb-10">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-violet-950/60 border border-violet-500/30 text-violet-300 text-xs font-bold uppercase tracking-widest backdrop-blur-md">
               <Play className="w-3.5 h-3.5 text-[#d4ff32] fill-[#d4ff32]" />
-              <span>Instrução Rápida em Vídeo</span>
+              <span>{t('video.badge')}</span>
             </div>
             <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white">
-              Como Instalar e Ativar a Extensão
+              {t('video.title')}
             </h2>
             <p className="text-sm text-slate-300 max-w-xl mx-auto">
-              Assista ao passo a passo de instalação no Google Chrome ou Edge e veja como ativar o robô em menos de 2 minutos.
+              {t('video.subtitle')}
             </p>
           </div>
 
@@ -703,7 +657,7 @@ export default function LandingPage() {
                     <Play className="w-7 h-7 sm:w-8 sm:h-8 fill-white ml-1 text-white" />
                   </button>
                   <span className="px-3.5 py-1 rounded-full bg-black/70 border border-white/20 backdrop-blur-md text-[11px] sm:text-xs font-bold text-white uppercase tracking-wider">
-                    ▶ Assistir Tutorial (2 min)
+                    {t('video.play_btn')}
                   </span>
                 </div>
               )}
@@ -713,7 +667,7 @@ export default function LandingPage() {
             <div className="p-4 sm:p-5 bg-[#090d18] border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-300">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                <span>Extensão oficial verificada pelo Google. Instalação instantânea em 1 clique.</span>
+                <span>{t('video.verified')}</span>
               </div>
               <a
                 href={chromeWebStoreUrl}
@@ -723,7 +677,7 @@ export default function LandingPage() {
                 className="text-[#d4ff32] hover:underline font-bold flex items-center gap-2 transition-colors uppercase tracking-wider text-[11px]"
               >
                 <ChromeIcon className="w-3.5 h-3.5" />
-                <span>Adicionar ao Chrome (Web Store)</span>
+                <span>{t('video.add_chrome')}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </a>
             </div>
@@ -1143,11 +1097,11 @@ export default function LandingPage() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet-500/20 border border-violet-500/40 text-violet-300 text-xs font-black uppercase tracking-wider">
                 <Gift className="w-4 h-4 text-[#d4ff32]" />
-                <span>Bônus Exclusivo Incluso Grátis</span>
+                <span>{t('bonus.badge')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Liberado com o Deal Hunter Pro</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">{t('bonus.unlocked')}</span>
               </div>
             </div>
 
@@ -1167,15 +1121,15 @@ export default function LandingPage() {
                   />
                   <div>
                     <span className="text-xs font-black uppercase tracking-wider text-violet-300">
-                      Bônus Incluso no Plano
+                      {t('bonus.badge')}
                     </span>
                     <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white leading-tight">
-                      Profit Hunter Pro
+                      {t('bonus.title')}
                     </h2>
                   </div>
                 </div>
                 <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
-                  Uma <strong>segunda extensão completa</strong> para você caçar ofertas de forma cirúrgica. Enquanto o Deal Hunter monitora centenas de categorias em massa na nuvem, o Profit Hunter injeta um <strong>botão flutuante inteligente</strong> em qualquer loja (Mercado Livre, Shopee, Amazon, Magalu) para você capturar produtos direto da tela com 1 clique.
+                  {t('bonus.desc')}
                 </p>
 
                 {/* Grid de 4 recursos do bônus */}
@@ -1218,14 +1172,14 @@ export default function LandingPage() {
                     className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-full bg-violet-600 hover:bg-violet-500 text-white font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-violet-600/30 transition-all hover:-translate-y-0.5"
                   >
                     <Download className="w-4 h-4" />
-                    <span>Baixar Bônus: Profit Hunter (.ZIP)</span>
+                    <span>{t('bonus.btn_download')}</span>
                   </a>
                   <Link
                     href="/login"
                     className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.15] text-white font-bold text-xs sm:text-sm uppercase tracking-wider transition-all"
                   >
                     <Sparkles className="w-4 h-4 text-[#d4ff32]" />
-                    <span>Ativar 7 Dias Grátis com Bônus</span>
+                    <span>{t('bonus.btn_activate')}</span>
                   </Link>
                 </div>
               </div>
@@ -1284,15 +1238,13 @@ export default function LandingPage() {
           <div className="text-center space-y-3 mb-12">
             <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-violet-500/15 border border-violet-500/30 text-violet-300 text-xs font-bold uppercase tracking-wider">
               <Gift className="w-3.5 h-3.5 text-[#d4ff32]" />
-              Teste 100% Gratuito sem Compromisso
+              {t('pricing.badge')}
             </div>
             <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white">
-              7 Dias de Teste Grátis Para Todos
+              {t('pricing.title')}
             </h2>
             <p className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
-              Não precisa cadastrar cartão e nem pagar Pix para começar a testar. 
-              <br className="hidden sm:inline" />
-              Basta fazer login para ter <strong className="text-white">acesso total liberado por 7 dias</strong>. Após o teste, você escolhe como prefere continuar por apenas <strong className="text-white">R$ 29,90</strong>:
+              {t('pricing.desc')} <strong className="text-white">{formatMoney(29.90)}</strong>:
             </p>
 
             {/* Banner de Destaque do Teste */}
@@ -1302,7 +1254,7 @@ export default function LandingPage() {
                 className="inline-flex items-center gap-2.5 px-8 py-4 rounded-full bg-[#d4ff32] hover:bg-[#c3f01c] text-black font-black text-sm sm:text-base uppercase tracking-wider shadow-xl shadow-[#d4ff32]/25 hover:shadow-[#d4ff32]/40 hover:-translate-y-0.5 transition-all active:scale-[0.98]"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>Começar Meus 7 Dias Grátis (Sem Cartão)</span>
+                <span>{t('pricing.cta_trial')}</span>
                 <ArrowRight className="w-4 h-4 stroke-[2.5]" />
               </Link>
             </div>
@@ -1318,20 +1270,20 @@ export default function LandingPage() {
               <div className="absolute top-0 right-0">
                 <div className="bg-gradient-to-l from-emerald-500 to-teal-500 text-white text-[11px] font-black uppercase tracking-wider py-1.5 px-5 rounded-bl-2xl shadow-md flex items-center gap-1.5">
                   <Zap className="w-3.5 h-3.5 fill-white" />
-                  <span>Pagamento Manual</span>
+                  <span>{t('pricing.opt1_badge')}</span>
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider mb-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  <span>Opção 1 · Pix (InfinitePay)</span>
+                  <span>{t('pricing.opt1_tag')}</span>
                 </div>
                 <h3 className="text-2xl font-black text-white">
-                  30 Dias de Acesso via Pix
+                  {t('pricing.opt1_title')}
                 </h3>
                 <p className="text-xs text-gray-300 leading-relaxed mt-1">
-                  Ideal para quem deseja pagar mês a mês no Pix com controle total e sem renovações automáticas no cartão.
+                  {t('pricing.opt1_desc')}
                 </p>
 
                 {/* Preço */}
@@ -1341,11 +1293,11 @@ export default function LandingPage() {
                       {formatMoney(29.90)}
                     </span>
                     <span className="text-xs text-emerald-400 font-bold uppercase tracking-wider">
-                      / 30 dias de acesso
+                      {t('pricing.opt1_period')}
                     </span>
                   </div>
                   <p className="text-[11px] text-gray-400 mt-1">
-                    Pagamento avulso à vista · Você só renova quando quiser
+                    {t('pricing.opt1_sub')}
                   </p>
                 </div>
 
@@ -1396,10 +1348,10 @@ export default function LandingPage() {
                   className="w-full flex items-center justify-center gap-2.5 py-4 px-6 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-extrabold text-sm sm:text-base shadow-xl shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:-translate-y-0.5 transition-all active:scale-[0.98]"
                 >
                   <Zap className="w-4 h-4 fill-white" />
-                  <span>Pagar {formatMoney(29.90)} via Pix</span>
+                  <span>{t('pricing.opt1_btn')} ({formatMoney(29.90)})</span>
                 </a>
                 <p className="text-center text-[11px] text-emerald-400 font-medium mt-2.5">
-                  ⚡ Liberação automática instantânea por 30 dias
+                  ⚡ {t('pricing.opt1_note')}
                 </p>
               </div>
 
@@ -1412,20 +1364,20 @@ export default function LandingPage() {
               <div className="absolute top-0 right-0">
                 <div className="bg-gradient-to-l from-violet-600 to-indigo-600 text-white text-[11px] font-black uppercase tracking-wider py-1.5 px-5 rounded-bl-2xl shadow-md flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-[#d4ff32]" />
-                  <span>Renovação Automática</span>
+                  <span>{t('pricing.opt2_badge')}</span>
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center gap-2 text-violet-400 font-bold text-xs uppercase tracking-wider mb-2">
                   <Flame className="w-3.5 h-3.5 fill-violet-400" />
-                  <span>Opção 2 · Cartão de Crédito (Stripe)</span>
+                  <span>{t('pricing.opt2_tag')}</span>
                 </div>
                 <h3 className="text-2xl font-black text-white">
-                  Assinatura Contínua
+                  {t('pricing.opt2_title')}
                 </h3>
                 <p className="text-xs text-gray-300 leading-relaxed mt-1">
-                  Mesmas vantagens com a conveniência de não precisar pagar manualmente todo mês para continuar com o serviço ativo.
+                  {t('pricing.opt2_desc')}
                 </p>
 
                 {/* Preço Cartão Stripe */}
@@ -1435,11 +1387,11 @@ export default function LandingPage() {
                       {formatMoney(29.90)}
                     </span>
                     <span className="text-xs text-violet-400 font-bold uppercase tracking-wider">
-                      {t('pricing.month_suffix')}
+                      {t('pricing.opt2_period')}
                     </span>
                   </div>
                   <p className="text-[11px] text-[#d4ff32] font-semibold mt-1">
-                    🔄 Renovação automática · Cancele com 1 clique a qualquer momento
+                    🔄 {t('pricing.opt2_sub')}
                   </p>
                 </div>
 
@@ -1488,7 +1440,7 @@ export default function LandingPage() {
                   className="w-full flex items-center justify-center gap-2.5 py-4 px-6 rounded-full bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-500 hover:to-indigo-500 text-white font-extrabold text-sm sm:text-base shadow-xl shadow-violet-500/30 hover:shadow-violet-500/50 hover:-translate-y-0.5 transition-all active:scale-[0.98]"
                 >
                   <Sparkles className="w-4 h-4" />
-                  <span>Assinar R$ 29,90 no Cartão</span>
+                  <span>Assinar {formatMoney(29.90)} no Cartão</span>
                 </Link>
                 <p className="text-center text-[11px] text-gray-400 mt-2.5">
                   🛡️ Pagamento seguro via Stripe · Gerencie ou cancele quando quiser
@@ -1526,13 +1478,13 @@ export default function LandingPage() {
           
           <div className="text-center space-y-3 mb-12">
             <h2 className="text-xs font-black text-violet-400 uppercase tracking-widest">
-              Tire Suas Dúvidas
+              {t('faq.badge')}
             </h2>
             <p className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-white">
-              Perguntas Frequentes
+              {t('faq.title')}
             </p>
             <p className="text-sm text-slate-400">
-              Tudo o que você precisa saber antes de começar seu teste gratuito.
+              {t('faq.subtitle')}
             </p>
           </div>
 
@@ -1568,17 +1520,17 @@ export default function LandingPage() {
           {/* Caixa de Suporte Direto */}
           <div className="mt-12 text-center p-6 sm:p-8 rounded-[2rem] bg-gradient-to-r from-violet-950/30 via-[#0c101d] to-indigo-950/30 border border-white/[0.08]">
             <p className="text-white font-black text-base uppercase tracking-tight mb-1">
-              Ainda tem dúvidas ou precisa de ajuda técnica?
+              {t('faq.contact')}
             </p>
             <p className="text-slate-400 text-xs sm:text-sm max-w-md mx-auto mb-5">
-              Nosso time responde rapidamente. Fale com a gente direto por e-mail:
+              guilherme.r.nascimentoml@gmail.com
             </p>
             <a
               href="mailto:guilherme.r.nascimentoml@gmail.com?subject=Suporte%20Deal%20Hunter%20Pro"
               className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-violet-600/30 transition-all hover:scale-105 active:scale-95"
             >
               <MessageCircle className="w-4 h-4 text-emerald-400" />
-              <span>Falar com o Suporte (guilherme.r.nascimentoml@gmail.com)</span>
+              <span>{t('faq.contact')} (guilherme.r.nascimentoml@gmail.com)</span>
             </a>
           </div>
 
@@ -1621,10 +1573,7 @@ export default function LandingPage() {
                 {t('nav.showcase')}
               </Link>
               <a href="#como-funciona" className="hover:text-white transition-colors">
-                Como Funciona
-              </a>
-              <a href="#requisitos" className="hover:text-white transition-colors">
-                Requisitos
+                {t('hero.how_it_works')}
               </a>
               <a href="#recursos" className="hover:text-white transition-colors">
                 {t('nav.features')}
@@ -1644,7 +1593,7 @@ export default function LandingPage() {
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-300 text-xs transition-colors"
               >
                 <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Falar com o Suporte</span>
+                <span>{t('faq.contact')}</span>
               </a>
             </div>
 
@@ -1652,15 +1601,15 @@ export default function LandingPage() {
 
           <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400">
             <p>
-              &copy; {new Date().getFullYear()} Deal Hunter Pro (dealhunterpro.com.br) — Todos os direitos reservados.
+              &copy; {new Date().getFullYear()} Deal Hunter Pro (dealhunterpro.com.br) — {t('footer.rights')}
             </p>
             <div className="flex items-center gap-4">
               <Link href="/privacy#termos" className="hover:text-slate-200 transition-colors">
-                Termos de Uso
+                {t('footer.terms')}
               </Link>
               <span>·</span>
               <Link href="/privacy#privacidade" className="hover:text-slate-200 transition-colors">
-                Política de Privacidade
+                {t('footer.privacy')}
               </Link>
             </div>
           </div>
@@ -1687,10 +1636,10 @@ export default function LandingPage() {
                 <img src="/images/logo.png" alt="Deal Hunter Pro" className="w-full h-full object-contain" />
               </div>
               <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white">
-                Como Deseja Começar?
+                {t('pricing.title')}
               </h3>
               <p className="text-xs sm:text-sm text-slate-300">
-                Você pode <strong>testar 7 dias grátis sem cartão</strong> ou assinar por R$ 29,90:
+                {t('pricing.desc')} <strong className="text-white">{formatMoney(29.90)}</strong>:
               </p>
             </div>
 
@@ -1698,10 +1647,10 @@ export default function LandingPage() {
             <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-violet-500/15 via-indigo-500/10 to-emerald-500/15 border border-violet-500/40 text-center space-y-3">
               <div className="inline-flex items-center gap-1.5 text-[#d4ff32] font-black text-xs uppercase tracking-wider">
                 <Sparkles className="w-4 h-4 text-violet-400" />
-                <span>🎉 7 Dias Grátis (Sem Cartão e Sem Pix)</span>
+                <span>🎉 {t('hero.trust_free')}</span>
               </div>
               <p className="text-xs text-slate-200 leading-relaxed">
-                Entre com sua conta Google e tenha <strong>acesso total liberado</strong> na extensão imediatamente. Sem cobrança e sem pegadinhas.
+                {t('pricing.cta_trial')}
               </p>
               <button
                 onClick={handleGoogleLogin}
@@ -1714,14 +1663,14 @@ export default function LandingPage() {
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                 </svg>
-                <span>{googleLoading ? 'Conectando...' : 'Iniciar Teste de 7 Dias com o Google'}</span>
+                <span>{googleLoading ? 'Conectando...' : t('pricing.cta_trial')}</span>
               </button>
             </div>
 
             <div className="relative flex items-center justify-center my-1">
               <div className="border-t border-white/[0.08] w-full" />
               <span className="bg-[#0c101d] px-3 text-[10px] uppercase text-slate-500 font-bold tracking-wider">
-                ou assinar diretamente por R$ 29,90
+                ou {formatMoney(29.90)}
               </span>
             </div>
 
@@ -1730,12 +1679,12 @@ export default function LandingPage() {
               <div className="relative p-4 rounded-2xl bg-gradient-to-b from-[#11241f] to-[#0d1715] border border-emerald-500/60 hover:border-emerald-400 transition-all space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
-                    ⚡ Pix Instantâneo
+                    ⚡ {t('pricing.opt1_badge')}
                   </span>
-                  <span className="text-base font-black text-white">R$ 29,90 <span className="text-[10px] text-gray-400 font-normal">/ 30 dias</span></span>
+                  <span className="text-base font-black text-white">{formatMoney(29.90)} <span className="text-[10px] text-gray-400 font-normal">{t('pricing.opt1_period')}</span></span>
                 </div>
                 <p className="text-xs text-gray-300">
-                  Pagamento manual mês a mês · Sem renovação automática no cartão
+                  {t('pricing.opt1_desc')}
                 </p>
                 <a
                   href={infinitePayPixUrl}
@@ -1744,7 +1693,7 @@ export default function LandingPage() {
                   className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-xs shadow-md transition-all active:scale-[0.98]"
                 >
                   <Zap className="w-3.5 h-3.5 fill-white" />
-                  <span>Pagar R$ 29,90 via Pix</span>
+                  <span>{t('pricing.opt1_btn')} ({formatMoney(29.90)})</span>
                 </a>
               </div>
 
@@ -1752,12 +1701,12 @@ export default function LandingPage() {
               <div className="relative p-4 rounded-2xl bg-gradient-to-b from-[#16142c] to-[#0f0e20] border border-violet-500/50 hover:border-violet-400 transition-all space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="px-2.5 py-0.5 rounded-full bg-violet-500/20 text-violet-300 text-[10px] font-black uppercase tracking-wider">
-                    🔄 Renovação Automática
+                    🔄 {t('pricing.opt2_badge')}
                   </span>
-                  <span className="text-base font-black text-white">R$ 29,90 <span className="text-[10px] text-gray-400 font-normal">/ mês</span></span>
+                  <span className="text-base font-black text-white">{formatMoney(29.90)} <span className="text-[10px] text-gray-400 font-normal">{t('pricing.opt2_period')}</span></span>
                 </div>
                 <p className="text-xs text-gray-300">
-                  Mesmas vantagens com a comodidade de não precisar pagar manualmente todo mês
+                  {t('pricing.opt2_desc')}
                 </p>
                 <Link
                   href={stripeCardUrl}
@@ -1765,7 +1714,7 @@ export default function LandingPage() {
                   className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs transition-all active:scale-[0.98] shadow-md"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-[#d4ff32]" />
-                  <span>Assinar R$ 29,90 no Cartão</span>
+                  <span>Assinar {formatMoney(29.90)} no Cartão</span>
                 </Link>
               </div>
             </div>
