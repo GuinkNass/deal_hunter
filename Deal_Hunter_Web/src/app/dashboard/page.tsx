@@ -30,6 +30,8 @@ import {
   Square,
   Star,
   BookOpen,
+  LayoutGrid,
+  Table as TableIcon,
 } from 'lucide-react';
 import AnalysisDetailModal, { DealAnalysis } from '@/components/ml-radar/AnalysisDetailModal';
 import ManualSearchModal from '@/components/ml-radar/ManualSearchModal';
@@ -54,6 +56,7 @@ export default function DashboardPage() {
   const [sessionUser, setSessionUser] = useState<any>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   // Active view tab: 'radar' | 'showcase' | 'manual' | 'calculator' | 'settings' | 'status'
   const [activeTab, setActiveTab] = useState<'radar' | 'showcase' | 'manual' | 'calculator' | 'settings' | 'status'>('radar');
@@ -942,54 +945,60 @@ export default function DashboardPage() {
         {/* ========================================================================= */}
         {activeTab === 'radar' && (
           <div className="space-y-8">
-            {/* KPI Cards */}
+            {/* KPI Cards (Linear / Stripe Executive Dark Style) */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="p-5 rounded-2xl bg-[#111726] border border-gray-800 space-y-1">
-                <p className="text-xs font-semibold text-gray-400">Total de Ofertas no Radar</p>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-3xl font-black text-white">{deals.length}</span>
-                  <span className="text-[10px] text-gray-400 font-bold uppercase px-2 py-0.5 rounded bg-gray-800">
-                    FIFO 100 itens
+              <div className="p-5 rounded-2xl bg-zinc-950/70 backdrop-blur-md border border-zinc-800/80 space-y-1.5 shadow-sm">
+                <div className="flex items-center justify-between text-xs text-zinc-400 font-medium">
+                  <span>Total de Ofertas no Radar</span>
+                  <span className="text-[10px] uppercase font-semibold text-zinc-500 px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">
+                    Cap. 100 itens
                   </span>
+                </div>
+                <div className="text-3xl font-bold text-white tracking-tight">
+                  {deals.length}
                 </div>
               </div>
 
-              <div className="p-5 rounded-2xl bg-[#111726] border border-emerald-900/40 space-y-1">
-                <p className="text-xs font-semibold text-emerald-400">Oportunidades Viáveis</p>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-3xl font-black text-emerald-300">{viableCount}</span>
+              <div className="p-5 rounded-2xl bg-zinc-950/70 backdrop-blur-md border border-zinc-800/80 space-y-1.5 shadow-sm">
+                <div className="flex items-center justify-between text-xs text-zinc-400 font-medium">
+                  <span>Oportunidades Viáveis</span>
                   <span className="text-xs text-emerald-400 font-semibold">
-                    {deals.length > 0 ? Math.round((viableCount / deals.length) * 100) : 0}% viabilidade
+                    {deals.length > 0 ? Math.round((viableCount / deals.length) * 100) : 0}% taxa
                   </span>
+                </div>
+                <div className="text-3xl font-bold text-white tracking-tight">
+                  {viableCount}
                 </div>
               </div>
 
-              <div className="p-5 rounded-2xl bg-[#111726] border border-indigo-900/40 space-y-1">
-                <p className="text-xs font-semibold text-indigo-400">ROI Médio Estimado</p>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-3xl font-black text-indigo-300">{avgRoi}%</span>
-                  <TrendingUp className="w-5 h-5 text-indigo-400" />
+              <div className="p-5 rounded-2xl bg-zinc-950/70 backdrop-blur-md border border-zinc-800/80 space-y-1.5 shadow-sm">
+                <div className="flex items-center justify-between text-xs text-zinc-400 font-medium">
+                  <span>ROI Médio Estimado</span>
+                  <TrendingUp className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="text-3xl font-bold text-white tracking-tight">
+                  {avgRoi}%
                 </div>
               </div>
             </div>
 
-            {/* Filtros e Busca */}
+            {/* Filtros, Busca e Alternância de Visualização */}
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Buscar por produto, marca, loja ou palavra-chave..."
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-900/80 border border-gray-800 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition-colors"
                 />
               </div>
 
               <select
                 value={filterStore}
                 onChange={(e) => setFilterStore(e.target.value)}
-                className="px-3 py-2.5 rounded-xl bg-gray-900/80 border border-gray-800 text-xs text-gray-300 focus:outline-none focus:border-cyan-500"
+                className="px-3 py-2.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-medium"
               >
                 <option value="ALL">Todas as Lojas</option>
                 <option value="Amazon">Amazon</option>
@@ -1004,7 +1013,7 @@ export default function DashboardPage() {
               <select
                 value={filterVerdict}
                 onChange={(e) => setFilterVerdict(e.target.value)}
-                className="px-3 py-2.5 rounded-xl bg-gray-900/80 border border-gray-800 text-xs text-gray-300 focus:outline-none focus:border-cyan-500 font-semibold"
+                className="px-3 py-2.5 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-semibold"
               >
                 <option value="ALL">Todos os Vereditos</option>
                 {isAdmin && <option value="FEATURED">⭐ Na Vitrine Pública</option>}
@@ -1013,6 +1022,36 @@ export default function DashboardPage() {
                 <option value="Evitar">Evitar</option>
               </select>
 
+              {/* Controle Sênior de Visualização (Grid vs Table) */}
+              <div className="flex items-center bg-zinc-900 border border-zinc-800 p-1 rounded-xl flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                    viewMode === 'grid'
+                      ? 'bg-zinc-800 text-white shadow-sm'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                  title="Visualização em Grade de Cards"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                  <span className="hidden md:inline">Grid</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('table')}
+                  className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                    viewMode === 'table'
+                      ? 'bg-zinc-800 text-white shadow-sm'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                  title="Visualização em Tabela Compacta (Data Table)"
+                >
+                  <TableIcon className="w-4 h-4" />
+                  <span className="hidden md:inline">Tabela</span>
+                </button>
+              </div>
+
               {filteredDeals.length > 0 && (
                 <button
                   onClick={handleDeleteFilteredDeals}
@@ -1020,13 +1059,13 @@ export default function DashboardPage() {
                   title="Excluir todos os anúncios correspondentes ao filtro atual"
                 >
                   <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-                  <span>Limpar Filtrados ({filteredDeals.length})</span>
+                  <span className="hidden lg:inline">Limpar ({filteredDeals.length})</span>
                 </button>
               )}
 
               <button
                 onClick={() => setManualModalOpen(true)}
-                className="sm:hidden w-full py-2.5 rounded-xl bg-cyan-600 text-white font-bold text-xs flex items-center justify-center gap-1.5"
+                className="sm:hidden w-full py-2.5 rounded-xl bg-zinc-800 text-white font-bold text-xs flex items-center justify-center gap-1.5"
               >
                 <PlusCircle className="w-4 h-4" /> Nova Análise Manual
               </button>
@@ -1132,21 +1171,158 @@ export default function DashboardPage() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
-                  {filteredDeals.slice(0, visibleCount).map((deal) => (
-                    <DealProductCard
-                      key={deal.id || `deal-${deal.product_url}`}
-                      deal={deal}
-                      isSelected={Boolean(deal.id && selectedDealIds.includes(deal.id))}
-                      isAdmin={isAdmin}
-                      onToggleSelect={handleToggleSelectDeal}
-                      onDelete={handleDeleteSingleDeal}
-                      onEvaluate={setSelectedDealForDetail}
-                      onOpenCalculator={handleOpenCalculatorForDeal}
-                      onToggleFeatured={isAdmin ? handleToggleFeatured : undefined}
-                    />
-                  ))}
-                </div>
+                {viewMode === 'grid' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+                    {filteredDeals.slice(0, visibleCount).map((deal) => (
+                      <DealProductCard
+                        key={deal.id || `deal-${deal.product_url}`}
+                        deal={deal}
+                        isSelected={Boolean(deal.id && selectedDealIds.includes(deal.id))}
+                        isAdmin={isAdmin}
+                        onToggleSelect={handleToggleSelectDeal}
+                        onDelete={handleDeleteSingleDeal}
+                        onEvaluate={setSelectedDealForDetail}
+                        onOpenCalculator={handleOpenCalculatorForDeal}
+                        onToggleFeatured={isAdmin ? handleToggleFeatured : undefined}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-2xl border border-zinc-800/80 bg-zinc-950 shadow-sm">
+                    <table className="w-full text-left text-xs text-zinc-300 divide-y divide-zinc-800/80">
+                      <thead className="bg-zinc-900/80 text-[11px] uppercase font-semibold text-zinc-400 tracking-wider">
+                        <tr>
+                          <th className="py-3 px-3.5 w-10">
+                            <span className="sr-only">Seleção</span>
+                          </th>
+                          <th className="py-3 px-3">Produto</th>
+                          <th className="py-3 px-3">Loja</th>
+                          <th className="py-3 px-3">Preço Compra</th>
+                          <th className="py-3 px-3">Líder ML</th>
+                          <th className="py-3 px-3">Lucro Líquido</th>
+                          <th className="py-3 px-3">ROI</th>
+                          <th className="py-3 px-3">Status</th>
+                          <th className="py-3 px-3 text-right">Ação</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-800/60 font-medium">
+                        {filteredDeals.slice(0, visibleCount).map((deal) => {
+                          const itemTitle = deal.title || deal.source_title || 'Produto sem título';
+                          const itemPrice = Number(deal.price || deal.source_price || 0);
+                          const isSelected = Boolean(deal.id && selectedDealIds.includes(deal.id));
+                          const isViable = deal.verdict === 'Viável';
+                          const isAttention = deal.verdict === 'Atenção';
+                          const isAvoid = deal.verdict === 'Evitar';
+                          const isEvaluated = Boolean(deal.clinical_evaluated || deal.ml_url);
+
+                          return (
+                            <tr
+                              key={deal.id || `deal-${deal.product_url}`}
+                              onClick={() => setSelectedDealForDetail(deal)}
+                              className={`hover:bg-zinc-900/60 transition-colors cursor-pointer ${
+                                isSelected ? 'bg-zinc-900/80' : ''
+                              }`}
+                            >
+                              <td className="py-3 px-3.5" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleToggleSelectDeal(deal.id || '', e)}
+                                  className="p-0.5 text-zinc-500 hover:text-zinc-200 transition-colors"
+                                >
+                                  {isSelected ? (
+                                    <CheckSquare className="w-4 h-4 text-emerald-400" />
+                                  ) : (
+                                    <Square className="w-4 h-4 text-zinc-600 hover:text-zinc-400" />
+                                  )}
+                                </button>
+                              </td>
+                              <td className="py-3 px-3 max-w-[280px]">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-lg bg-white p-1 flex-shrink-0 border border-zinc-700/50 overflow-hidden flex items-center justify-center">
+                                    <img
+                                      src={deal.image_url || deal.source_image_url || getProductFallbackImage(itemTitle, deal.store)}
+                                      alt=""
+                                      className="w-full h-full object-contain"
+                                    />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="font-semibold text-zinc-100 truncate text-xs" title={itemTitle}>
+                                      {itemTitle}
+                                    </p>
+                                    <span className="text-[10px] text-zinc-500 truncate block">
+                                      {deal.category || 'Monitorado'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 px-3">
+                                <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-[10px] uppercase font-bold text-zinc-300">
+                                  {deal.store || 'Origem'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 font-semibold text-zinc-100 whitespace-nowrap">
+                                {formatMoney(itemPrice)}
+                              </td>
+                              <td className="py-3 px-3 font-semibold whitespace-nowrap">
+                                {deal.ml_price ? (
+                                  <span className="text-zinc-200">{formatMoney(Number(deal.ml_price))}</span>
+                                ) : (
+                                  <span className="text-zinc-500 text-[11px]">—</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-3 whitespace-nowrap">
+                                {deal.net_profit ? (
+                                  <span className="font-bold text-emerald-400">
+                                    {formatMoney(Number(deal.net_profit))}
+                                  </span>
+                                ) : (
+                                  <span className="text-zinc-500 text-[11px]">—</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-3 whitespace-nowrap">
+                                {deal.roi_percent ? (
+                                  <span className="font-bold text-zinc-200">
+                                    {Number(deal.roi_percent).toFixed(1)}%
+                                  </span>
+                                ) : (
+                                  <span className="text-zinc-500 text-[11px]">—</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-3 whitespace-nowrap">
+                                <span
+                                  className={`px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider border ${
+                                    isViable
+                                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                      : isAttention
+                                      ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                      : isAvoid
+                                      ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                      : 'bg-zinc-900 text-zinc-400 border-zinc-800'
+                                  }`}
+                                >
+                                  {deal.verdict || (isEvaluated ? 'Avaliado' : 'Radar')}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedDealForDetail(deal)}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                    isEvaluated
+                                      ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800'
+                                      : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 font-bold'
+                                  }`}
+                                >
+                                  {isEvaluated ? 'Análise' : 'Avaliar'}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
                 {filteredDeals.length > visibleCount && (
                   <div className="pt-6 pb-2 flex flex-col sm:flex-row items-center justify-center gap-3">
