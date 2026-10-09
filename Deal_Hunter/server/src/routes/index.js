@@ -11,5 +11,6 @@ router.use('/scan', require('./scan.routes'));
 router.use('/catalog', require('./catalog.routes'));
 router.use('/ingest', require('./ingest.routes'));
 router.use('/ml-radar', require('./mlRadar.routes'));
+router.use('/showcase', require('./showcase.routes'));
 
 module.exports = router;

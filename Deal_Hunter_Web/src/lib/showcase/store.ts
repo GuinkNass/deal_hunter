@@ -188,6 +188,99 @@ export function sanitizeShowcaseDeal(d: any): ShowcaseDealItem {
 }
 
 /**
+ * Salva as ofertas da vitrine no backend central persistente (Render)
+ */
+async function saveShowcaseToRender(deals: ShowcaseDealItem[]): Promise<boolean> {
+  try {
+    const serverUrl =
+      process.env.DEAL_HUNTER_SERVER_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      'https://deal-hunter-server.onrender.com';
+    const res = await fetch(`${serverUrl.replace(/\/$/, '')}/api/showcase`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deals }),
+      signal: AbortSignal.timeout(4500),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Consulta a vitrine ativa diretamente no backend central (Render)
+ */
+async function fetchShowcaseFromRender(): Promise<ShowcaseDealItem[] | null> {
+  try {
+    const serverUrl =
+      process.env.DEAL_HUNTER_SERVER_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      'https://deal-hunter-server.onrender.com';
+    const res = await fetch(`${serverUrl.replace(/\/$/, '')}/api/showcase`, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(3500),
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        return json.data.map(sanitizeShowcaseDeal);
+      }
+    }
+  } catch {}
+  return null;
+}
+
+/**
+ * Obtém as ofertas em tempo real varridas pelo robô (Render /api/history)
+ * Garante que a vitrine externa NUNCA exiba 0 produtos mesmo antes do admin salvar a seleção.
+ */
+async function fetchLiveScannerDeals(): Promise<ShowcaseDealItem[]> {
+  try {
+    const serverUrl =
+      process.env.DEAL_HUNTER_SERVER_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      'https://deal-hunter-server.onrender.com';
+    const res = await fetch(`${serverUrl.replace(/\/$/, '')}/api/history?limit=100`, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(4000),
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      if (Array.isArray(rows) && rows.length > 0) {
+        return rows.map((r: any) => {
+          const price = Number(r.current_price) || 0;
+          const origPrice = r.site_original_price ? Number(r.site_original_price) : null;
+          let disc = r.discount_percent ? Number(r.discount_percent) : null;
+          if (!disc && origPrice && origPrice > price) {
+            disc = Math.round(((origPrice - price) / origPrice) * 100);
+          }
+          return sanitizeShowcaseDeal({
+            id: `scan-${r.id}`,
+            title: r.product_title || 'Oferta Verificada',
+            price,
+            original_price: origPrice,
+            discount_percent: disc,
+            image_url: r.thumbnail || null,
+            product_url: r.product_url,
+            store: r.site_name || 'Loja Verificada',
+            category: 'Geral',
+            description: `Superdesconto verificado pela curadoria Deal Hunter Pro (${disc ? `${disc}% OFF` : 'Preço Promocional'}).`,
+            is_featured: true,
+            created_at: r.sent_at || new Date().toISOString(),
+          });
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[Showcase Store] Falha ao carregar ofertas ao vivo do scanner:', err);
+  }
+  return [];
+}
+
+/**
  * Obtém todas as ofertas ativas na Vitrine com fallback inteligente em cascata
  */
 export async function getShowcaseDeals(): Promise<ShowcaseDealItem[]> {
@@ -199,21 +292,36 @@ export async function getShowcaseDeals(): Promise<ShowcaseDealItem[]> {
     }
   }
 
-  // 2. Consulta Primária ao Supabase (Tabela ml_radar_deals onde is_featured = true)
+  // 2. Consulta Primária ao Backend Central Persistente (Render)
+  const renderDeals = await fetchShowcaseFromRender();
+  if (renderDeals && renderDeals.length > 0) {
+    global.__DH_SHOWCASE_CACHE__ = renderDeals;
+    global.__DH_SHOWCASE_CACHE_TIME__ = Date.now();
+    writeLocalStoreFile(renderDeals);
+    return renderDeals;
+  }
+
+  // 3. Consulta ao Supabase (com compatibilidade para tabelas sem coluna is_featured)
   let supaDeals: ShowcaseDealItem[] = [];
   try {
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('ml_radar_deals')
       .select('*')
-      .eq('is_featured', true)
-      .order('created_at', { ascending: false })
       .limit(100);
 
     if (!error && Array.isArray(data) && data.length > 0) {
-      supaDeals = data.map(sanitizeShowcaseDeal);
-      // Mantém o arquivo local em disco sempre sincronizado com o Supabase
-      writeLocalStoreFile(supaDeals);
+      const featured = data.filter(
+        (d: any) =>
+          d.is_featured === true ||
+          d.gemini_analysis?.is_featured === true ||
+          d.gemini_analysis?.is_showcase === true ||
+          d.verdict === 'VITRINE'
+      );
+      if (featured.length > 0) {
+        supaDeals = featured.map(sanitizeShowcaseDeal);
+        writeLocalStoreFile(supaDeals);
+      }
     }
   } catch (err: any) {
     console.warn('[Showcase Store] Aviso ao consultar Supabase:', err.message);
@@ -225,22 +333,30 @@ export async function getShowcaseDeals(): Promise<ShowcaseDealItem[]> {
     return supaDeals;
   }
 
-  // 3. Fallback de Persistência em Disco (Arquivo JSON local — garante sobrevivência se Supabase falhar)
+  // 4. Fallback de Persistência em Disco (Arquivo JSON local — se tiver mais de 0 itens)
   const localDeals = readLocalStoreFile();
-  if (localDeals !== null) {
+  if (localDeals && localDeals.length > 0) {
     global.__DH_SHOWCASE_CACHE__ = localDeals;
     global.__DH_SHOWCASE_CACHE_TIME__ = Date.now();
     return localDeals;
   }
 
-  // 4. Fallback de Memória Global da Sessão
-  if (global.__DH_SHOWCASE_CUSTOM_DEALS__ !== undefined) {
+  // 5. Fallback de Memória Global da Sessão
+  if (global.__DH_SHOWCASE_CUSTOM_DEALS__ && global.__DH_SHOWCASE_CUSTOM_DEALS__.length > 0) {
     global.__DH_SHOWCASE_CACHE__ = global.__DH_SHOWCASE_CUSTOM_DEALS__;
     global.__DH_SHOWCASE_CACHE_TIME__ = Date.now();
     return global.__DH_SHOWCASE_CUSTOM_DEALS__;
   }
 
-  // 5. Fallback Final inicial apenas caso nunca tenha sido criado o arquivo local
+  // 6. Fallback de Produção: OFERTAS REAIS DA VARREDURA (Garante que nunca apareça vazio!)
+  const liveDeals = await fetchLiveScannerDeals();
+  if (liveDeals.length > 0) {
+    global.__DH_SHOWCASE_CACHE__ = liveDeals;
+    global.__DH_SHOWCASE_CACHE_TIME__ = Date.now();
+    return liveDeals;
+  }
+
+  // 7. Fallback Final em caso de total ausência de rede
   return CURATED_DEFAULT_DEALS;
 }
 
@@ -250,13 +366,16 @@ export async function getShowcaseDeals(): Promise<ShowcaseDealItem[]> {
 export async function syncShowcaseDeals(deals: any[], currentUserId?: string | null): Promise<ShowcaseDealItem[]> {
   const sanitizedDeals = deals.map(sanitizeShowcaseDeal);
 
-  // 1. Gravação Imediata em Disco Local (Garantia de que os produtos nunca sumam para o público externo)
+  // 1. Gravação Imediata em Disco Local
   writeLocalStoreFile(sanitizedDeals);
 
   // 2. Atualiza Cache em Memória Global Imediatamente
   global.__DH_SHOWCASE_CACHE__ = sanitizedDeals;
   global.__DH_SHOWCASE_CACHE_TIME__ = Date.now();
   global.__DH_SHOWCASE_CUSTOM_DEALS__ = sanitizedDeals;
+
+  // 3. Persistência Central no Backend Render (Disponível instantaneamente para todas as instâncias da Vercel)
+  await saveShowcaseToRender(sanitizedDeals);
 
   // 3. Persistência no Supabase
   try {
@@ -372,29 +491,55 @@ export async function syncShowcaseDeals(deals: any[], currentUserId?: string | n
             })
             .eq('id', existingId);
         } else if (validUserId) {
-          // Insere nova oferta garantindo is_featured = true
-          await supabase.from('ml_radar_deals').insert({
-            user_id: validUserId,
-            title: deal.title,
-            price: deal.price,
-            original_price: deal.original_price,
-            image_url: deal.image_url,
-            product_url: cleanUrl,
-            store: deal.store,
-            is_featured: true,
-            description: deal.description,
-            category: deal.category,
-            status: 'completed',
-            verdict: 'Viável',
-            gemini_analysis: {
+          // Insere nova oferta garantindo persistência sem quebrar se faltar colunas
+          try {
+            const { error: insErr } = await supabase.from('ml_radar_deals').insert({
+              user_id: validUserId,
+              title: deal.title,
+              price: deal.price,
+              original_price: deal.original_price,
+              image_url: deal.image_url,
+              product_url: cleanUrl,
+              store: deal.store,
               is_featured: true,
-            },
-          });
+              description: deal.description,
+              category: deal.category,
+              status: 'completed',
+              verdict: 'VITRINE',
+              gemini_analysis: {
+                is_featured: true,
+                is_showcase: true,
+                category: deal.category,
+                description: deal.description,
+              },
+            });
+
+            if (insErr) {
+              // Tenta apenas com as colunas base comprovadas do Postgres
+              await supabase.from('ml_radar_deals').insert({
+                user_id: validUserId,
+                title: deal.title,
+                price: deal.price,
+                original_price: deal.original_price,
+                image_url: deal.image_url,
+                product_url: cleanUrl,
+                store: deal.store,
+                status: 'completed',
+                verdict: 'VITRINE',
+                gemini_analysis: {
+                  is_featured: true,
+                  is_showcase: true,
+                  category: deal.category,
+                  description: deal.description,
+                },
+              });
+            }
+          } catch {}
         }
       }
     }
   } catch (syncErr: any) {
-    console.error('[Showcase Store] Aviso ao persistir no Supabase (backup em disco preservado):', syncErr.message);
+    console.error('[Showcase Store] Aviso Supabase:', syncErr.message);
   }
 
   // 4. Invalidação imediata de cache ISR em todas as rotas de vitrine

@@ -15,6 +15,7 @@ const PUBLIC_PATHS = new Set([
   '/auth/login',
   '/health',
   '/catalog/categories',
+  '/showcase',
 ]);
 
 function ensureToken() {
