@@ -204,104 +204,89 @@ export default function LandingPage() {
         <Navbar />
 
         {/* 2. HERO SECTION */}
-        <section className="relative z-10 flex-1 flex flex-col justify-center items-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8 text-center">
-          <div className="max-w-6xl mx-auto space-y-8 relative z-10 w-full">
+        <section className="relative z-10 flex-1 flex flex-col justify-center items-center py-10 sm:py-16 px-4 sm:px-6 lg:px-8 text-center">
           
-          {/* Badge de Destaque Superior */}
-          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-violet-950/50 border border-violet-500/30 text-violet-300 text-xs font-bold tracking-widest uppercase shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-[#d4ff32]" />
-            {t('hero.version_badge')}
-          </div>
+          {/* Overlay de Contraste Sutil atrás do Conteúdo Central para 100% de Legibilidade */}
+          <div className="relative max-w-4xl mx-auto w-full rounded-[2rem] bg-[#070a12]/70 sm:bg-[#070a12]/60 backdrop-blur-md border border-white/[0.08] p-6 sm:p-10 lg:p-12 shadow-2xl shadow-black/80 space-y-6 sm:space-y-7">
+            
+            {/* Badge de Destaque Superior Neutro */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.05] border border-white/10 text-slate-300 text-xs font-medium tracking-wide">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span>{t('hero.version_badge')}</span>
+            </div>
 
-          {/* Headline Principal */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tight text-white leading-[1.08]">
-            {t('hero.h1_line1')} <br className="hidden sm:inline" />
-            <span className="bg-gradient-to-r from-violet-400 via-indigo-300 to-cyan-300 bg-clip-text text-transparent">
-              {t('hero.h1_line2')}
-            </span>
-          </h1>
-
-          {/* Sub-headline */}
-          <p className="max-w-3xl mx-auto text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
-            {t('hero.subtitle')}
-          </p>
-
-          {/* CTAs Principais da Hero */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-            {/* Botão Primário: Chrome Web Store Oficial (Lime Accent) */}
-            <a
-              href={chromeWebStoreUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={triggerOpenChromeStore}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-full bg-[#d4ff32] hover:bg-[#c3f01c] text-black font-black text-xs sm:text-sm uppercase tracking-wider shadow-xl shadow-[#d4ff32]/25 hover:shadow-[#d4ff32]/40 hover:-translate-y-0.5 transition-all active:scale-[0.98] group"
-            >
-              <ChromeIcon className="w-4 h-4 flex-shrink-0 group-hover:scale-110 transition-transform" />
-              <span>{t('hero.cta_chrome')}</span>
-            </a>
-
-            {/* Documentação Oficial exposta no Hero */}
-            <Link
-              href="/docs"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-white/[0.08] hover:bg-white/[0.15] border border-white/20 text-white font-bold text-xs sm:text-sm uppercase tracking-wider transition-all hover:border-cyan-400/50 hover:-translate-y-0.5"
-            >
-              <BookOpen className="w-4 h-4 text-cyan-400" />
-              <span>{t('hero.cta_docs')}</span>
-            </Link>
-
-            {/* Se deslogado: Botão Secundário: Teste 7 Dias */}
-            {!user ? (
-              <Link
-                href="/login"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-white hover:bg-slate-100 text-black font-extrabold text-xs sm:text-sm uppercase tracking-wider shadow-lg transition-all active:scale-[0.98]"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-violet-600" />
-                <span>{t('nav.try_free')}</span>
-              </Link>
-            ) : null}
-
-            {/* Botão Secundário: Conhecer como funciona */}
-            <a
-              href="#como-funciona"
-              className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-300 hover:text-white transition-colors group px-2 py-1"
-            >
-              <span className="w-8 h-8 rounded-full bg-violet-600/30 border border-violet-500/40 text-violet-400 group-hover:bg-violet-600/50 flex items-center justify-center transition-transform group-hover:scale-110">
-                <Zap className="w-3.5 h-3.5 text-violet-400" />
+            {/* Headline Principal Otimizado (Sem Quebras Órfãs ou Hífens, Tamanho Balanceado) */}
+            <h1 className="max-w-3xl mx-auto text-3xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight text-white leading-[1.12] hyphens-none">
+              {t('hero.h1_line1')} <br className="hidden sm:inline" />
+              <span className="bg-gradient-to-r from-slate-100 via-slate-200 to-slate-400 bg-clip-text text-transparent">
+                {t('hero.h1_line2')}
               </span>
-              <span className="uppercase tracking-wider">{t('hero.how_it_works')}</span>
-            </a>
-          </div>
+            </h1>
 
-          {/* Badges de Confiança */}
-          <div className="pt-4 flex flex-wrap items-center justify-center gap-y-2.5 gap-x-6 text-xs text-slate-400">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06]">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span><strong className="text-white">{t('hero.trust_free')}</strong></span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06]">
-              <Zap className="w-4 h-4 text-[#d4ff32]" />
-              <span>{t('hero.trust_instant')}</span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06]">
-              <CheckCircle2 className="w-4 h-4 text-cyan-400" />
-              <span>{t('hero.trust_price_prefix')} {formatMoney(29.90)} {t('hero.trust_price_suffix')}</span>
-            </div>
-          </div>
+            {/* Sub-headline com Contraste Suave */}
+            <p className="max-w-2xl mx-auto text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
+              {t('hero.subtitle')}
+            </p>
 
-          {/* Avaliação Social Proof */}
-          <div className="pt-1 flex items-center justify-center gap-2 text-xs text-slate-400">
-            <div className="flex text-amber-400">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="w-3.5 h-3.5 fill-amber-400" />
-              ))}
-            </div>
-            <span>
-              <strong className="text-white">4.9/5</strong> {t('hero.social_proof')}
-            </span>
-          </div>
+            {/* Ações (CTAs): 1 Botão Primário Sólido Moderno + Links Secundários Ghost Sutis */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              {/* Botão Primário Único de Alto Destaque */}
+              <a
+                href={chromeWebStoreUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={triggerOpenChromeStore}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-[#d4ff32] hover:bg-[#c3f01c] text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-[#d4ff32]/20 hover:shadow-[#d4ff32]/30 hover:-translate-y-0.5 transition-all active:scale-[0.98]"
+              >
+                <ChromeIcon className="w-4 h-4 flex-shrink-0" />
+                <span>{t('hero.cta_chrome')}</span>
+              </a>
 
-        </div>
-      </section>
+              {/* Link Secundário Sutil: Documentação Oficial (Ghost) */}
+              <Link
+                href="/docs"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-4 rounded-xl text-slate-300 hover:text-white text-xs sm:text-sm font-semibold transition-all hover:bg-white/[0.06] border border-transparent hover:border-white/10"
+              >
+                <BookOpen className="w-4 h-4 text-slate-400" />
+                <span>{t('hero.cta_docs')}</span>
+              </Link>
+
+              {/* Link Secundário Sutil: Como Funciona */}
+              <a
+                href="#como-funciona"
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-4 text-xs sm:text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                <span>{t('hero.how_it_works')}</span>
+                <ArrowRight className="w-3.5 h-3.5 stroke-[2]" />
+              </a>
+            </div>
+
+            {/* Badges de Garantia e Social Proof com Espaçamento Consistente e Tipografia Neutra */}
+            <div className="pt-6 border-t border-white/[0.06] flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-xs text-slate-400 font-normal">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <span>{t('hero.trust_free')}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                <span>{t('hero.trust_instant')}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                <span>{t('hero.trust_price_prefix')} {formatMoney(29.90)} {t('hero.trust_price_suffix')}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-slate-300">
+                <div className="flex text-amber-400">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="w-3.5 h-3.5 fill-amber-400" />
+                  ))}
+                </div>
+                <span><strong className="text-white">4.9/5</strong> {t('hero.social_proof')}</span>
+              </div>
+            </div>
+
+          </div>
+        </section>
       </div>
 
       {/* ========================================================================= */}
