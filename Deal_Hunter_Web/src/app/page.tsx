@@ -990,7 +990,7 @@ export default function LandingPage() {
               Recursos Criados para Quem Leva Economia a Sério
             </p>
             <p className="text-sm text-slate-400 max-w-xl mx-auto">
-              Desenvolvido tanto para compradores inteligentes quanto para afiliados e gestores de grupos de ofertas.
+              Desenvolvido tanto para compradores inteligentes quanto para vendedores e revendedores de e-commerce.
             </p>
           </div>
 

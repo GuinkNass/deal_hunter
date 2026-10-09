@@ -6,6 +6,7 @@ import {
   addDealToShowcaseMemory,
   removeDealFromShowcaseMemory,
 } from '@/lib/showcase/store';
+import { verifyAdminToken } from '@/lib/auth/admin';
 import { revalidatePath } from 'next/cache';
 
 const isValidUUID = (str?: any): boolean =>
@@ -17,19 +18,16 @@ export async function POST(req: NextRequest) {
     const token = authHeader.replace(/^Bearer\s+/i, '').trim();
 
     const supabase = createAdminClient();
-    let userId: string | null = null;
+    const { isAdmin, userId } = await verifyAdminToken(supabase, token);
 
-    if (token) {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser(token);
-        if (user && isValidUUID(user.id)) {
-          userId = user.id;
-        }
-      } catch (authErr) {
-        console.warn('[Featured Deal] Token inválido:', authErr);
-      }
+    if (!isAdmin) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Acesso restrito. Apenas administradores autorizados podem adicionar ou remover produtos da vitrine oficial.',
+        },
+        { status: 403 }
+      );
     }
 
     const body = await req.json();

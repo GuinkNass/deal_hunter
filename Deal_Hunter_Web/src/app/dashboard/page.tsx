@@ -41,6 +41,7 @@ import ShowcaseHistoryView from '@/components/ml-radar/ShowcaseHistoryView';
 import { getProductFallbackImage } from '@/lib/ml-radar/imageFallback';
 import LanguageCurrencySelector from '@/components/LanguageCurrencySelector';
 import { useLanguageCurrency } from '@/contexts/LanguageCurrencyContext';
+import { isUserAdmin } from '@/lib/auth/admin';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -52,6 +53,7 @@ export default function DashboardPage() {
   const [syncingShowcase, setSyncingShowcase] = useState(false);
   const [sessionUser, setSessionUser] = useState<any>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Active view tab: 'radar' | 'showcase' | 'manual' | 'calculator' | 'settings' | 'status'
   const [activeTab, setActiveTab] = useState<'radar' | 'showcase' | 'manual' | 'calculator' | 'settings' | 'status'>('radar');
@@ -130,6 +132,23 @@ export default function DashboardPage() {
       }
       setSessionUser(session.user);
       setAuthToken(session.access_token);
+      
+      const adminDetected = isUserAdmin(session.user);
+      setIsAdmin(adminDetected);
+
+      if (session.user?.id) {
+        supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .maybeSingle()
+          .then(({ data: profile }) => {
+            if (profile?.role === 'admin' || adminDetected) {
+              setIsAdmin(true);
+            }
+          });
+      }
+
       loadDeals(session.access_token);
     });
 
@@ -141,11 +160,20 @@ export default function DashboardPage() {
       } else {
         setSessionUser(session.user);
         setAuthToken(session.access_token);
+        const adminDetected = isUserAdmin(session.user);
+        setIsAdmin(adminDetected);
       }
     });
 
     return () => subscription.unsubscribe();
   }, [supabase, router]);
+
+  // Se o usuário não for administrador e tentar acessar a vitrine, redireciona para o radar
+  useEffect(() => {
+    if (!isAdmin && activeTab === 'showcase') {
+      setActiveTab('radar');
+    }
+  }, [isAdmin, activeTab]);
 
   // Polling inteligente e leve: apenas na aba radar e quando a aba estiver visível
   useEffect(() => {
@@ -750,34 +778,38 @@ export default function DashboardPage() {
               <span>{t('dash.new_analysis')}</span>
             </button>
 
-            {/* Sincronizar Vitrine (Apenas Escrita Clicável) */}
-            <button
-              type="button"
-              onClick={handleSyncShowcase}
-              disabled={syncingShowcase}
-              className="text-xs font-bold uppercase tracking-wider text-amber-400 hover:text-amber-300 transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
-              title="Sincronizar ofertas marcadas com estrela com a vitrine pública externa"
-            >
-              <Star className={`w-3.5 h-3.5 text-amber-400 ${syncingShowcase ? 'animate-spin' : ''}`} />
-              <span>{syncingShowcase ? '...' : t('dash.update_showcase')}</span>
-              {featuredDealsCount > 0 && (
-                <span className="text-[10px] text-amber-300/80 font-normal">
-                  ({featuredDealsCount})
-                </span>
-              )}
-            </button>
+            {/* Sincronizar Vitrine (EXCLUSIVO PARA ADMIN) */}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={handleSyncShowcase}
+                disabled={syncingShowcase}
+                className="text-xs font-bold uppercase tracking-wider text-amber-400 hover:text-amber-300 transition-colors cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                title="Sincronizar ofertas marcadas com estrela com a vitrine pública externa"
+              >
+                <Star className={`w-3.5 h-3.5 text-amber-400 ${syncingShowcase ? 'animate-spin' : ''}`} />
+                <span>{syncingShowcase ? '...' : t('dash.update_showcase')}</span>
+                {featuredDealsCount > 0 && (
+                  <span className="text-[10px] text-amber-300/80 font-normal">
+                    ({featuredDealsCount})
+                  </span>
+                )}
+              </button>
+            )}
 
-            {/* Ver Vitrine Pública (Apenas Escrita Clicável) */}
-            <Link
-              href="/ofertas"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-medium uppercase tracking-wider text-slate-300 hover:text-white transition-colors hidden sm:flex items-center gap-1"
-              title="Abrir a Vitrine Pública de Ofertas (/ofertas) em nova aba"
-            >
-              <span>{t('dash.view_showcase')}</span>
-              <ExternalLink className="w-3 h-3 text-slate-500" />
-            </Link>
+            {/* Ver Vitrine Pública (EXCLUSIVO PARA ADMIN) */}
+            {isAdmin && (
+              <Link
+                href="/ofertas"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-medium uppercase tracking-wider text-slate-300 hover:text-white transition-colors hidden sm:flex items-center gap-1"
+                title="Abrir a Vitrine Pública de Ofertas (/ofertas) em nova aba"
+              >
+                <span>{t('dash.view_showcase')}</span>
+                <ExternalLink className="w-3 h-3 text-slate-500" />
+              </Link>
+            )}
 
             {/* Botão de Atualizar Lista (Ícone / Texto Sutil) */}
             <button
@@ -827,20 +859,23 @@ export default function DashboardPage() {
               </span>
             </button>
 
-            <button
-              onClick={() => setActiveTab('showcase')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
-                activeTab === 'showcase'
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
-                  : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
-              }`}
-            >
-              <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-              <span>Vitrine</span>
-              <span className="px-1.5 py-0.2 rounded-full bg-amber-400/20 text-[10px] text-amber-300 font-bold">
-                {featuredDealsCount}
-              </span>
-            </button>
+            {/* Vitrine Oficial (EXCLUSIVO PARA ADMIN) */}
+            {isAdmin && (
+              <button
+                onClick={() => setActiveTab('showcase')}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                  activeTab === 'showcase'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
+                }`}
+              >
+                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                <span>Vitrine</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-amber-400/20 text-[10px] text-amber-300 font-bold">
+                  {featuredDealsCount}
+                </span>
+              </button>
+            )}
 
             <button
               onClick={() => setActiveTab('manual')}
@@ -972,7 +1007,7 @@ export default function DashboardPage() {
                 className="px-3 py-2.5 rounded-xl bg-gray-900/80 border border-gray-800 text-xs text-gray-300 focus:outline-none focus:border-cyan-500 font-semibold"
               >
                 <option value="ALL">Todos os Vereditos</option>
-                <option value="FEATURED">⭐ Na Vitrine Pública</option>
+                {isAdmin && <option value="FEATURED">⭐ Na Vitrine Pública</option>}
                 <option value="Viável">Viável</option>
                 <option value="Atenção">Atenção</option>
                 <option value="Evitar">Evitar</option>
@@ -1022,23 +1057,27 @@ export default function DashboardPage() {
 
                 {selectedDealIds.length > 0 ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      onClick={() => handleBatchFeatured(true)}
-                      className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
-                      title="Destacar os produtos selecionados na Vitrine Pública"
-                    >
-                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      <span>Destacar na Vitrine ({selectedDealIds.length})</span>
-                    </button>
+                    {isAdmin && (
+                      <>
+                        <button
+                          onClick={() => handleBatchFeatured(true)}
+                          className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+                          title="Destacar os produtos selecionados na Vitrine Pública"
+                        >
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                          <span>Destacar na Vitrine ({selectedDealIds.length})</span>
+                        </button>
 
-                    <button
-                      onClick={() => handleBatchFeatured(false)}
-                      className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all"
-                      title="Remover os produtos selecionados da Vitrine Pública"
-                    >
-                      <Star className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Remover da Vitrine</span>
-                    </button>
+                        <button
+                          onClick={() => handleBatchFeatured(false)}
+                          className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all"
+                          title="Remover os produtos selecionados da Vitrine Pública"
+                        >
+                          <Star className="w-3.5 h-3.5 text-slate-400" />
+                          <span>Remover da Vitrine</span>
+                        </button>
+                      </>
+                    )}
 
                     <button
                       onClick={handleDeleteSelectedDeals}
@@ -1099,11 +1138,12 @@ export default function DashboardPage() {
                       key={deal.id || `deal-${deal.product_url}`}
                       deal={deal}
                       isSelected={Boolean(deal.id && selectedDealIds.includes(deal.id))}
+                      isAdmin={isAdmin}
                       onToggleSelect={handleToggleSelectDeal}
                       onDelete={handleDeleteSingleDeal}
                       onEvaluate={setSelectedDealForDetail}
                       onOpenCalculator={handleOpenCalculatorForDeal}
-                      onToggleFeatured={handleToggleFeatured}
+                      onToggleFeatured={isAdmin ? handleToggleFeatured : undefined}
                     />
                   ))}
                 </div>
@@ -1130,9 +1170,9 @@ export default function DashboardPage() {
         )}
 
         {/* ========================================================================= */}
-        {/* TAB: HISTÓRICO DA VITRINE (SEGUNDO HISTÓRICO - MODO LEVE/DESCRIÇÕES)     */}
+        {/* TAB: HISTÓRICO DA VITRINE (EXCLUSIVO PARA ADMIN)                          */}
         {/* ========================================================================= */}
-        {activeTab === 'showcase' && (
+        {activeTab === 'showcase' && isAdmin && (
           <ShowcaseHistoryView
             deals={deals}
             onToggleFeatured={handleToggleFeatured}
@@ -1209,7 +1249,7 @@ export default function DashboardPage() {
           onClose={() => setSelectedDealForDetail(null)}
           onOpenCalculator={handleOpenCalculatorForDeal}
           onUpdateDeal={handleUpdateDeal}
-          onToggleFeatured={handleToggleFeatured}
+          onToggleFeatured={isAdmin ? handleToggleFeatured : undefined}
           autoEvaluate={true}
           authToken={authToken}
         />

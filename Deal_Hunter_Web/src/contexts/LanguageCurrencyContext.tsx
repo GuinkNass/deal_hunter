@@ -60,7 +60,7 @@ const translations: Record<Language, Record<string, string>> = {
     'hero.trust_instant': 'Ativação imediata no 1º login',
     'hero.trust_price_prefix': 'Após os 7 dias:',
     'hero.trust_price_suffix': 'no Pix ou Cartão',
-    'hero.social_proof': 'por mais de 500+ caçadores de ofertas e afiliados',
+    'hero.social_proof': 'por mais de 500+ caçadores de ofertas e revendedores',
 
     // Lojas Carrossel
     'stores.badge': 'Lojas e Marketplaces Integrados em Tempo Real',
@@ -74,7 +74,7 @@ const translations: Record<Language, Record<string, string>> = {
     'showcase.card1_desc': 'Zero proxies caros e zero scripts locais. A inteligência na nuvem monitora ofertas 24h com total discrição e velocidade, sem sobrecarregar seu computador.',
     'showcase.card2_badge': 'Velocidade Extrema',
     'showcase.card2_title': 'Telegram em Menos de 3s',
-    'showcase.card2_desc': 'Preço caiu? Notificação imediata no celular com foto, histórico de queda e link seguro com seu ID de afiliado pronto para faturar.',
+    'showcase.card2_desc': 'Preço caiu? Notificação imediata no celular com foto, histórico de queda e link seguro direto para a melhor oferta.',
     'showcase.card3_badge': 'Multilojas VIP',
     'showcase.card3_title': 'Amazon, Magalu & Eletroclub',
     'showcase.card3_desc': 'Suporte simultâneo às maiores plataformas do Brasil com login automático para preços VIP de funcionários na Eletroclub.',
@@ -207,7 +207,7 @@ const translations: Record<Language, Record<string, string>> = {
     'hero.trust_instant': 'Instant activation on sign in',
     'hero.trust_price_prefix': 'After 7 days:',
     'hero.trust_price_suffix': 'with Card or Instant Pay',
-    'hero.social_proof': 'rated 4.9/5 by 500+ deal hunters & affiliates',
+    'hero.social_proof': 'rated 4.9/5 by 500+ deal hunters & sellers',
 
     // Lojas Carrossel
     'stores.badge': 'Real-Time Integrated Stores & Marketplaces',
@@ -221,7 +221,7 @@ const translations: Record<Language, Record<string, string>> = {
     'showcase.card1_desc': 'Zero expensive proxies or local scripts. Cloud intelligence monitors deals 24/7 with total speed and discretion without burdening your PC.',
     'showcase.card2_badge': 'Extreme Speed',
     'showcase.card2_title': 'Telegram in Under 3s',
-    'showcase.card2_desc': 'Price dropped? Instant smartphone notification with photo, price history, and safe affiliate links ready to monetize.',
+    'showcase.card2_desc': 'Price dropped? Instant smartphone notification with photo, price history, and direct verified deal links.',
     'showcase.card3_badge': 'VIP Multi-Stores',
     'showcase.card3_title': 'Amazon, Magalu & Eletroclub',
     'showcase.card3_desc': 'Simultaneous support for Brazil’s largest retail platforms with automated VIP employee discounts on Eletroclub.',
@@ -368,7 +368,7 @@ const translations: Record<Language, Record<string, string>> = {
     'showcase.card1_desc': 'Cero proxies costosos y sin scripts locales. La nube monitorea ofertas 24h con total velocidad y discreción sin sobrecargar tu PC.',
     'showcase.card2_badge': 'Velocidad Extrema',
     'showcase.card2_title': 'Telegram en Menos de 3s',
-    'showcase.card2_desc': '¿Bajó el precio? Notificación instantánea al móvil con foto, historial y enlaces de afiliado listos para facturar.',
+    'showcase.card2_desc': '¿Bajó el precio? Notificación instantánea al móvil con foto, historial y enlaces directos verificados a la mejor oferta.',
     'showcase.card3_badge': 'Multitiendas VIP',
     'showcase.card3_title': 'Amazon, Magalu & Eletroclub',
     'showcase.card3_desc': 'Soporte simultáneo a las mayores plataformas comerciales con inicio automático para precios VIP de empleados en Eletroclub.',

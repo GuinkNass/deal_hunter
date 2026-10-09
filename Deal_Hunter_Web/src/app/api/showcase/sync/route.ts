@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { syncShowcaseDeals, getShowcaseDeals } from '@/lib/showcase/store';
+import { verifyAdminToken } from '@/lib/auth/admin';
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,19 +9,16 @@ export async function POST(req: NextRequest) {
     const token = authHeader.replace(/^Bearer\s+/i, '').trim();
 
     const supabase = createAdminClient();
-    let userId: string | null = null;
+    const { isAdmin, userId } = await verifyAdminToken(supabase, token);
 
-    if (token) {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser(token);
-        if (user) {
-          userId = user.id;
-        }
-      } catch (authErr: any) {
-        console.warn('[Showcase Sync] Aviso de autenticação:', authErr.message);
-      }
+    if (!isAdmin) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Acesso restrito. Apenas o administrador oficial possui permissão para modificar ou sincronizar a vitrine pública.',
+        },
+        { status: 403 }
+      );
     }
 
     const body = await req.json().catch(() => ({}));

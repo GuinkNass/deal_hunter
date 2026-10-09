@@ -67,8 +67,7 @@ export default function DocsClient() {
           extension: '3. Extensão do Chrome',
           radar: '4. Radar ML & Avaliação',
           calculator: '5. Calculadora de Lucro & ROI',
-          showcase: '6. Vitrine Pública (/ofertas)',
-          faq: '7. Dúvidas Frequentes (FAQ)',
+          faq: '6. Dúvidas Frequentes (FAQ)',
         },
         calculatorSimulatorTitle: 'Simulador Financeiro com Conversão de Moeda',
         calculatorSimulatorDesc: 'Teste os valores abaixo e alterne a moeda no topo para ver os resultados convertidos na taxa de câmbio oficial em tempo real.',
@@ -91,8 +90,7 @@ export default function DocsClient() {
           extension: '3. Chrome Extension',
           radar: '4. ML Radar & Clinical Audit',
           calculator: '5. Profit & ROI Calculator',
-          showcase: '6. Public Showcase (/ofertas)',
-          faq: '7. Frequently Asked Questions (FAQ)',
+          faq: '6. Frequently Asked Questions (FAQ)',
         },
         calculatorSimulatorTitle: 'Financial Simulator with Live Currency Conversion',
         calculatorSimulatorDesc: 'Enter values below and switch currencies at the top to view converted results based on real-time market rates.',
@@ -115,8 +113,7 @@ export default function DocsClient() {
           extension: '3. Extensión de Chrome',
           radar: '4. Radar ML y Evaluación',
           calculator: '5. Calculadora de Ganancia y ROI',
-          showcase: '6. Vitrina Pública (/ofertas)',
-          faq: '7. Preguntas Frecuentes (FAQ)',
+          faq: '6. Preguntas Frecuentes (FAQ)',
         },
         calculatorSimulatorTitle: 'Simulador Financiero con Conversión de Moneda en Vivo',
         calculatorSimulatorDesc: 'Ingrese valores y cambie de moneda en la parte superior para ver los resultados convertidos a la tasa oficial en tiempo real.',
@@ -318,7 +315,6 @@ export default function DocsClient() {
                 { id: 'extension', label: t.sections.extension, icon: Chrome },
                 { id: 'radar', label: t.sections.radar, icon: Radar },
                 { id: 'calculator', label: t.sections.calculator, icon: Calculator },
-                { id: 'showcase', label: t.sections.showcase, icon: Star },
                 { id: 'faq', label: t.sections.faq, icon: HelpCircle },
               ].map((item) => {
                 const Icon = item.icon;
@@ -735,41 +731,7 @@ export default function DocsClient() {
               </div>
             </section>
 
-            {/* SEÇÃO 6: Vitrine Pública de Ofertas */}
-            <section id="showcase" className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-              <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center font-bold">
-                  <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
-                </div>
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-black text-slate-900">
-                    {t.sections.showcase}
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    {lang === 'pt' && 'Como publicar e vender suas ofertas na vitrine compartilhável (/ofertas)'}
-                    {lang === 'en' && 'How to publish and sell your deals on the public showcase (/ofertas)'}
-                    {lang === 'es' && 'Cómo publicar y vender sus ofertas en la vitrina compartible (/ofertas)'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-4 text-xs sm:text-sm text-slate-700 leading-relaxed">
-                <p>
-                  A <strong>Vitrine Pública</strong> (disponível em <code>/ofertas</code>) é sua página externa pronta para divulgar para clientes ou afiliados. Os produtos marcados aparecem organizados com cards, fotos e links diretos de compra.
-                </p>
-
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2 text-xs">
-                  <p className="font-bold text-slate-900">Como adicionar um produto na Vitrine:</p>
-                  <ol className="list-decimal pl-4 space-y-1.5 text-slate-600">
-                    <li>No Radar ML ou dentro do modal de qualquer produto, clique no botão <strong>⭐ Na Vitrine / Destacar na Vitrine</strong>.</li>
-                    <li>No menu superior do Dashboard, clique no botão amarelo <strong>&quot;Atualizar Vitrine&quot;</strong> para sincronizar instantaneamente.</li>
-                    <li>Clique no botão <strong>&quot;Ver Vitrine&quot;</strong> para abrir a página pública <code>/ofertas</code> e compartilhar seu link!</li>
-                  </ol>
-                </div>
-              </div>
-            </section>
-
-            {/* SEÇÃO 7: Dúvidas Frequentes (FAQ) */}
+            {/* SEÇÃO 6: Dúvidas Frequentes (FAQ) */}
             <section id="faq" className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
                 <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">

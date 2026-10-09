@@ -21,6 +21,7 @@ import { useLanguageCurrency } from '@/contexts/LanguageCurrencyContext';
 interface DealProductCardProps {
   deal: DealAnalysis;
   isSelected: boolean;
+  isAdmin?: boolean;
   onToggleSelect: (dealId: string, e?: React.MouseEvent) => void;
   onDelete: (deal: DealAnalysis, e?: React.MouseEvent) => void;
   onEvaluate: (deal: DealAnalysis) => void;
@@ -31,6 +32,7 @@ interface DealProductCardProps {
 function DealProductCardComponent({
   deal,
   isSelected,
+  isAdmin = false,
   onToggleSelect,
   onDelete,
   onEvaluate,
@@ -146,7 +148,7 @@ function DealProductCardComponent({
           </span>
         )}
 
-        {deal.is_featured && (
+        {deal.is_featured && isAdmin && (
           <span className="absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded bg-amber-500/30 text-amber-300 text-[10px] font-black border border-amber-500/40 flex items-center gap-1 shadow-sm">
             <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
             Vitrine
@@ -291,7 +293,7 @@ function DealProductCardComponent({
           <span className="hidden xl:inline">Calcular</span>
         </button>
 
-        {onToggleFeatured && (
+        {isAdmin && onToggleFeatured && (
           <button
             type="button"
             onClick={(e) => onToggleFeatured(deal, e)}
