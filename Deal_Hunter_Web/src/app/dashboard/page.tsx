@@ -160,45 +160,93 @@ export default function DashboardPage() {
   async function loadDeals(token: string, showIndicator = true) {
     try {
       if (showIndicator) setRefreshing(true);
+      
+      // 1. Busca ofertas da varredura/radar
       const res = await fetch('/api/ml-radar/deals', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (res.ok && Array.isArray(data.data)) {
-        let items: DealAnalysis[] = data.data;
-        if (typeof window !== 'undefined') {
-          try {
-            const dismissed: string[] = JSON.parse(
-              localStorage.getItem('dealhunter_dismissed_deals') || '[]'
-            );
-            if (dismissed.length > 0) {
-              const dismissedSet = new Set(dismissed);
-              items = items.filter(
-                (d) => !dismissedSet.has(d.id || '') && !dismissedSet.has(d.product_url || '')
-              );
-            }
-          } catch {}
+      let items: DealAnalysis[] = res.ok && Array.isArray(data.data) ? data.data : [];
 
-          // Recupera produtos destacados na vitrine salvos localmente
-          try {
-            const featuredList: string[] = JSON.parse(
-              localStorage.getItem('dealhunter_featured_deals') || '[]'
-            );
-            if (featuredList.length > 0) {
-              const featuredSet = new Set(featuredList);
-              items = items.map((d) => ({
-                ...d,
-                is_featured: Boolean(
-                  d.is_featured ||
-                  featuredSet.has(d.id || '') ||
-                  featuredSet.has(d.product_url || '')
-                ),
-              }));
+      // 2. Busca ofertas ativas da vitrine oficial (/api/showcase/deals) para assegurar que NUNCA sumam do painel
+      try {
+        const showcaseRes = await fetch(`/api/showcase/deals?t=${Date.now()}`, { cache: 'no-store' });
+        const showcaseJson = await showcaseRes.json();
+        if (showcaseJson.success && Array.isArray(showcaseJson.data) && showcaseJson.data.length > 0) {
+          const showcaseItems: DealAnalysis[] = showcaseJson.data.map((s: any) => ({
+            id: s.id,
+            title: s.title,
+            price: Number(s.price) || 0,
+            original_price: s.original_price ? Number(s.original_price) : null,
+            discount_percent: s.discount_percent || null,
+            image_url: s.image_url || null,
+            product_url: s.product_url,
+            store: s.store || 'Amazon Brasil',
+            category: s.category || 'Geral',
+            description: s.description || 'Oferta selecionada pela curadoria Deal Hunter Pro.',
+            is_featured: true,
+            verdict: 'Viável',
+            status: 'completed',
+            created_at: s.created_at || new Date().toISOString(),
+          }));
+
+          const seenUrls = new Set<string>();
+          const seenIds = new Set<string>();
+          const merged: DealAnalysis[] = [];
+
+          // Adiciona os itens da vitrine com prioridade máxima e is_featured = true
+          for (const s of showcaseItems) {
+            if (s.product_url) seenUrls.add(s.product_url);
+            if (s.id) seenIds.add(s.id);
+            merged.push(s);
+          }
+
+          // Adiciona os itens do radar que não colidem com os da vitrine
+          for (const item of items) {
+            const hasUrl = item.product_url && seenUrls.has(item.product_url);
+            const hasId = item.id && seenIds.has(item.id);
+            if (!hasUrl && !hasId) {
+              merged.push(item);
             }
-          } catch {}
+          }
+          items = merged;
         }
-        setDeals(items);
+      } catch (showcaseErr) {
+        console.warn('Aviso ao carregar produtos da vitrine:', showcaseErr);
       }
+
+      if (typeof window !== 'undefined') {
+        try {
+          const dismissed: string[] = JSON.parse(
+            localStorage.getItem('dealhunter_dismissed_deals') || '[]'
+          );
+          if (dismissed.length > 0) {
+            const dismissedSet = new Set(dismissed);
+            items = items.filter(
+              (d) => !dismissedSet.has(d.id || '') && !dismissedSet.has(d.product_url || '')
+            );
+          }
+        } catch {}
+
+        // Recupera produtos destacados na vitrine salvos localmente
+        try {
+          const featuredList: string[] = JSON.parse(
+            localStorage.getItem('dealhunter_featured_deals') || '[]'
+          );
+          if (featuredList.length > 0) {
+            const featuredSet = new Set(featuredList);
+            items = items.map((d) => ({
+              ...d,
+              is_featured: Boolean(
+                d.is_featured ||
+                featuredSet.has(d.id || '') ||
+                featuredSet.has(d.product_url || '')
+              ),
+            }));
+          }
+        } catch {}
+      }
+      setDeals(items);
     } catch (err: any) {
       console.error('Erro ao carregar ofertas:', err);
     } finally {
@@ -541,6 +589,12 @@ export default function DashboardPage() {
       const resData = await res.json();
       if (res.ok && resData.success) {
         setNotification(`⭐ Vitrine atualizada com sucesso! ${activeFeatured.length} produto(s) sincronizados com a vitrine externa (/ofertas).`);
+        if (Array.isArray(resData.data) && typeof window !== 'undefined') {
+          try {
+            const featuredKeys = resData.data.flatMap((d: any) => [d.id, d.product_url]).filter(Boolean);
+            localStorage.setItem('dealhunter_featured_deals', JSON.stringify(featuredKeys));
+          } catch {}
+        }
       } else {
         setNotification(`⚠️ ${resData.error || 'Erro ao sincronizar vitrine externa.'}`);
       }

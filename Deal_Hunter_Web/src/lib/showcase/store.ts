@@ -1,6 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { tagAmazonUrl } from '@/lib/ml-radar/affiliate';
 import { revalidatePath } from 'next/cache';
+import fs from 'fs';
+import path from 'path';
 
 export interface ShowcaseDealItem {
   id: string;
@@ -17,7 +19,7 @@ export interface ShowcaseDealItem {
   created_at?: string;
 }
 
-// Fallback de ofertas curadas oficiais caso o banco esteja completamente zerado
+// Fallback inicial seguro (apenas se absolutamente nenhum produto tiver sido configurado pelo admin)
 export const CURATED_DEFAULT_DEALS: ShowcaseDealItem[] = [
   {
     id: 'curated-default-1',
@@ -89,6 +91,59 @@ declare global {
 const isValidUUID = (str?: any): boolean =>
   Boolean(typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim()));
 
+function getLocalStoreFilePath(): string {
+  return path.join(process.cwd(), 'src', 'data', 'showcase_store.json');
+}
+
+/**
+ * Lê produtos salvos do arquivo de persistência em disco local
+ */
+export function readLocalStoreFile(): ShowcaseDealItem[] | null {
+  try {
+    const filePath = getLocalStoreFilePath();
+    if (fs.existsSync(filePath)) {
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map(sanitizeShowcaseDeal);
+      }
+    }
+  } catch (err) {
+    // Fallback secundário para /tmp em ambientes Serverless
+    try {
+      const tmpPath = path.join('/tmp', 'showcase_store.json');
+      if (fs.existsSync(tmpPath)) {
+        const raw = fs.readFileSync(tmpPath, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(sanitizeShowcaseDeal);
+        }
+      }
+    } catch {}
+  }
+  return null;
+}
+
+/**
+ * Salva produtos no arquivo de persistência em disco local
+ */
+export function writeLocalStoreFile(deals: ShowcaseDealItem[]) {
+  try {
+    const filePath = getLocalStoreFilePath();
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(filePath, JSON.stringify(deals, null, 2), 'utf-8');
+  } catch (err) {
+    // Tenta em /tmp em Serverless
+    try {
+      const tmpPath = path.join('/tmp', 'showcase_store.json');
+      fs.writeFileSync(tmpPath, JSON.stringify(deals, null, 2), 'utf-8');
+    } catch {}
+  }
+}
+
 /**
  * Invalida imediatamente todo o cache da vitrine e força o Next.js ISR a re-renderizar
  */
@@ -99,39 +154,8 @@ export function invalidateShowcaseCache() {
     revalidatePath('/ofertas');
     revalidatePath('/vitrine');
     revalidatePath('/api/showcase/deals');
+    revalidatePath('/api/showcase/sync');
   } catch {}
-}
-
-/**
- * Adiciona ou atualiza uma oferta no registro persistente em memória
- */
-export function addDealToShowcaseMemory(deal: any): ShowcaseDealItem {
-  const item = sanitizeShowcaseDeal(deal);
-  if (!global.__DH_SHOWCASE_CUSTOM_DEALS__) {
-    global.__DH_SHOWCASE_CUSTOM_DEALS__ = [];
-  }
-  global.__DH_SHOWCASE_CUSTOM_DEALS__ = [
-    item,
-    ...global.__DH_SHOWCASE_CUSTOM_DEALS__.filter(
-      (d) => d.id !== item.id && (!item.product_url || d.product_url !== item.product_url)
-    ),
-  ];
-  invalidateShowcaseCache();
-  return item;
-}
-
-/**
- * Remove uma oferta da vitrine em memória
- */
-export function removeDealFromShowcaseMemory(dealId?: string, productUrl?: string) {
-  if (global.__DH_SHOWCASE_CUSTOM_DEALS__) {
-    global.__DH_SHOWCASE_CUSTOM_DEALS__ = global.__DH_SHOWCASE_CUSTOM_DEALS__.filter((d) => {
-      if (dealId && d.id === dealId) return false;
-      if (productUrl && d.product_url === productUrl) return false;
-      return true;
-    });
-  }
-  invalidateShowcaseCache();
 }
 
 /**
@@ -164,104 +188,81 @@ export function sanitizeShowcaseDeal(d: any): ShowcaseDealItem {
 }
 
 /**
- * Obtém todas as ofertas ativas na Vitrine com fallback inteligente
+ * Obtém todas as ofertas ativas na Vitrine com fallback inteligente em cascata
  */
 export async function getShowcaseDeals(): Promise<ShowcaseDealItem[]> {
-  // 1. Cache em memória recente (máximo 5 segundos para refletir rápido novas alterações)
+  // 1. Cache em memória recente (3 segundos para atualização instantânea após sync do admin)
   if (global.__DH_SHOWCASE_CACHE__ && global.__DH_SHOWCASE_CACHE__.length > 0) {
     const age = Date.now() - (global.__DH_SHOWCASE_CACHE_TIME__ || 0);
-    if (age < 5000) {
+    if (age < 3000) {
       return global.__DH_SHOWCASE_CACHE__;
     }
   }
 
+  // 2. Consulta Primária ao Supabase (Tabela ml_radar_deals onde is_featured = true)
+  let supaDeals: ShowcaseDealItem[] = [];
   try {
     const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('ml_radar_deals')
+      .select('*')
+      .eq('is_featured', true)
+      .order('created_at', { ascending: false })
+      .limit(100);
 
-    // 2. Tenta buscar no Supabase as ofertas com is_featured = true
-    let fetchedDeals: any[] = [];
-    try {
-      const { data, error } = await supabase
-        .from('ml_radar_deals')
-        .select('*')
-        .eq('is_featured', true)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (!error && Array.isArray(data) && data.length > 0) {
-        fetchedDeals = data;
-      } else {
-        // Fallback para gemini_analysis.is_featured
-        const { data: allDeals } = await supabase
-          .from('ml_radar_deals')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(100);
-
-        if (Array.isArray(allDeals)) {
-          fetchedDeals = allDeals.filter(
-            (d: any) => d.is_featured === true || d.gemini_analysis?.is_featured === true
-          );
-        }
-      }
-    } catch (queryErr: any) {
-      console.warn('[Showcase Store] Aviso ao consultar Supabase:', queryErr.message);
+    if (!error && Array.isArray(data) && data.length > 0) {
+      supaDeals = data.map(sanitizeShowcaseDeal);
+      // Mantém o arquivo local em disco sempre sincronizado com o Supabase
+      writeLocalStoreFile(supaDeals);
     }
-
-    const sanitizedFetched = fetchedDeals.map(sanitizeShowcaseDeal);
-
-    // 3. Mescla com as ofertas salvas em memória nesta sessão/runtime (custom deals)
-    const customDeals = global.__DH_SHOWCASE_CUSTOM_DEALS__ || [];
-    const seenMap = new Map<string, ShowcaseDealItem>();
-
-    // Prioriza os itens customizados adicionados recentemente
-    for (const d of customDeals) {
-      const key = d.product_url || d.id;
-      seenMap.set(key, d);
-    }
-
-    for (const d of sanitizedFetched) {
-      const key = d.product_url || d.id;
-      if (!seenMap.has(key)) {
-        seenMap.set(key, d);
-      }
-    }
-
-    const consolidatedDeals = Array.from(seenMap.values());
-
-    if (consolidatedDeals.length > 0) {
-      global.__DH_SHOWCASE_CACHE__ = consolidatedDeals;
-      global.__DH_SHOWCASE_CACHE_TIME__ = Date.now();
-      return consolidatedDeals;
-    }
-
-    // Se temos cache anterior em memória, usa ele antes de cair no mock padrão
-    if (global.__DH_SHOWCASE_CACHE__ && global.__DH_SHOWCASE_CACHE__.length > 0) {
-      return global.__DH_SHOWCASE_CACHE__;
-    }
-
-    // 4. Fallback inicial padrão apenas se não houver nenhuma oferta cadastrada nem em memória
-    return CURATED_DEFAULT_DEALS;
   } catch (err: any) {
-    console.error('[Showcase Store] Erro ao carregar ofertas:', err);
-    return global.__DH_SHOWCASE_CACHE__ || global.__DH_SHOWCASE_CUSTOM_DEALS__ || CURATED_DEFAULT_DEALS;
+    console.warn('[Showcase Store] Aviso ao consultar Supabase:', err.message);
   }
+
+  if (supaDeals.length > 0) {
+    global.__DH_SHOWCASE_CACHE__ = supaDeals;
+    global.__DH_SHOWCASE_CACHE_TIME__ = Date.now();
+    return supaDeals;
+  }
+
+  // 3. Fallback de Persistência em Disco (Arquivo JSON local — garante sobrevivência se Supabase falhar)
+  const localDeals = readLocalStoreFile();
+  if (localDeals && localDeals.length > 0) {
+    global.__DH_SHOWCASE_CACHE__ = localDeals;
+    global.__DH_SHOWCASE_CACHE_TIME__ = Date.now();
+    return localDeals;
+  }
+
+  // 4. Fallback de Memória Global da Sessão
+  if (global.__DH_SHOWCASE_CUSTOM_DEALS__ && global.__DH_SHOWCASE_CUSTOM_DEALS__.length > 0) {
+    global.__DH_SHOWCASE_CACHE__ = global.__DH_SHOWCASE_CUSTOM_DEALS__;
+    global.__DH_SHOWCASE_CACHE_TIME__ = Date.now();
+    return global.__DH_SHOWCASE_CUSTOM_DEALS__;
+  }
+
+  // 5. Fallback Final inicial apenas na primeira instalação/execução limpa
+  return CURATED_DEFAULT_DEALS;
 }
 
 /**
- * Salva e sincroniza a lista completa de ofertas ativas na vitrine
+ * Salva e sincroniza a lista completa de ofertas ativas na vitrine (acionado exclusivamente pelo Admin)
  */
 export async function syncShowcaseDeals(deals: any[], currentUserId?: string | null): Promise<ShowcaseDealItem[]> {
   const sanitizedDeals = deals.map(sanitizeShowcaseDeal);
 
-  // 1. Atualiza cache em memória imediatamente
+  // 1. Gravação Imediata em Disco Local (Garantia de que os produtos nunca sumam para o público externo)
+  writeLocalStoreFile(sanitizedDeals);
+
+  // 2. Atualiza Cache em Memória Global Imediatamente
   global.__DH_SHOWCASE_CACHE__ = sanitizedDeals;
   global.__DH_SHOWCASE_CACHE_TIME__ = Date.now();
+  global.__DH_SHOWCASE_CUSTOM_DEALS__ = sanitizedDeals;
 
+  // 3. Persistência no Supabase
   try {
     const supabase = createAdminClient();
 
-    // Descobre um user_id válido para atender à foreign key de auth.users
+    // Descobre um user_id válido para atender à constraint de integridade relacional
     let validUserId: string | null = isValidUUID(currentUserId) ? currentUserId! : null;
 
     if (!validUserId) {
@@ -291,13 +292,37 @@ export async function syncShowcaseDeals(deals: any[], currentUserId?: string | n
       } catch {}
     }
 
-    // 2. Persiste individualmente cada produto no Supabase
+    // Lista de URLs dos produtos atualmente ativos na vitrine
+    const activeUrls = new Set(sanitizedDeals.map((d) => tagAmazonUrl(d.product_url)).filter(Boolean));
+    const activeIds = new Set(sanitizedDeals.map((d) => d.id).filter(isValidUUID));
+
+    // A. Desmarca ofertas que foram removidas da vitrine pelo admin
+    try {
+      const { data: currentFeatured } = await supabase
+        .from('ml_radar_deals')
+        .select('id, product_url')
+        .eq('is_featured', true);
+
+      if (Array.isArray(currentFeatured)) {
+        for (const item of currentFeatured) {
+          const normUrl = tagAmazonUrl(item.product_url);
+          const isStillActive = activeIds.has(item.id) || (normUrl && activeUrls.has(normUrl));
+          if (!isStillActive) {
+            await supabase
+              .from('ml_radar_deals')
+              .update({ is_featured: false })
+              .eq('id', item.id);
+          }
+        }
+      }
+    } catch {}
+
+    // B. Atualiza ou insere cada oferta da vitrine
     for (const deal of sanitizedDeals) {
       const isUuid = isValidUUID(deal.id);
       const cleanUrl = tagAmazonUrl(deal.product_url);
 
       if (isUuid) {
-        // Atualiza oferta existente por ID
         await supabase
           .from('ml_radar_deals')
           .update({
@@ -316,7 +341,7 @@ export async function syncShowcaseDeals(deals: any[], currentUserId?: string | n
           })
           .eq('id', deal.id);
       } else {
-        // Verifica se já existe pela URL do produto
+        // Verifica se já existe pela URL do anúncio
         let existingId: string | null = null;
         if (cleanUrl) {
           const { data: found } = await supabase
@@ -347,7 +372,7 @@ export async function syncShowcaseDeals(deals: any[], currentUserId?: string | n
             })
             .eq('id', existingId);
         } else if (validUserId) {
-          // Insere como novo registro no banco
+          // Insere nova oferta garantindo is_featured = true
           await supabase.from('ml_radar_deals').insert({
             user_id: validUserId,
             title: deal.title,
@@ -368,16 +393,57 @@ export async function syncShowcaseDeals(deals: any[], currentUserId?: string | n
         }
       }
     }
-
-    // 3. Força a revalidação imediata do Next.js ISR
-    try {
-      revalidatePath('/ofertas');
-      revalidatePath('/vitrine');
-      revalidatePath('/api/showcase/deals');
-    } catch {}
   } catch (syncErr: any) {
-    console.error('[Showcase Store] Aviso ao persistir no Supabase:', syncErr.message);
+    console.error('[Showcase Store] Aviso ao persistir no Supabase (backup em disco preservado):', syncErr.message);
   }
 
+  // 4. Invalidação imediata de cache ISR em todas as rotas de vitrine
+  invalidateShowcaseCache();
+
   return sanitizedDeals;
+}
+
+/**
+ * Adiciona ou atualiza uma oferta diretamente no store e memória da vitrine
+ */
+export function addDealToShowcaseMemory(deal: any) {
+  const sanitized = sanitizeShowcaseDeal(deal);
+  const currentDeals = readLocalStoreFile() || global.__DH_SHOWCASE_CUSTOM_DEALS__ || [...CURATED_DEFAULT_DEALS];
+  const cleanUrl = tagAmazonUrl(sanitized.product_url);
+
+  const existingIdx = currentDeals.findIndex(
+    (d) => (d.id && d.id === sanitized.id) || (cleanUrl && tagAmazonUrl(d.product_url) === cleanUrl)
+  );
+
+  if (existingIdx >= 0) {
+    currentDeals[existingIdx] = { ...currentDeals[existingIdx], ...sanitized };
+  } else {
+    currentDeals.unshift(sanitized);
+  }
+
+  writeLocalStoreFile(currentDeals);
+  global.__DH_SHOWCASE_CACHE__ = currentDeals;
+  global.__DH_SHOWCASE_CACHE_TIME__ = Date.now();
+  global.__DH_SHOWCASE_CUSTOM_DEALS__ = currentDeals;
+  invalidateShowcaseCache();
+}
+
+/**
+ * Remove uma oferta da vitrine por ID ou URL
+ */
+export function removeDealFromShowcaseMemory(rawId?: string, rawUrl?: string) {
+  const currentDeals = readLocalStoreFile() || global.__DH_SHOWCASE_CUSTOM_DEALS__ || [...CURATED_DEFAULT_DEALS];
+  const cleanUrl = rawUrl ? tagAmazonUrl(rawUrl) : null;
+
+  const filtered = currentDeals.filter((d) => {
+    if (rawId && d.id === rawId) return false;
+    if (cleanUrl && tagAmazonUrl(d.product_url) === cleanUrl) return false;
+    return true;
+  });
+
+  writeLocalStoreFile(filtered);
+  global.__DH_SHOWCASE_CACHE__ = filtered;
+  global.__DH_SHOWCASE_CACHE_TIME__ = Date.now();
+  global.__DH_SHOWCASE_CUSTOM_DEALS__ = filtered;
+  invalidateShowcaseCache();
 }

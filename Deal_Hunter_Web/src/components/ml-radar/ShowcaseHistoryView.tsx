@@ -38,6 +38,8 @@ export default function ShowcaseHistoryView({
 
   const [editingDescriptions, setEditingDescriptions] = useState<{ [id: string]: string }>({});
   const [editingCategories, setEditingCategories] = useState<{ [id: string]: string }>({});
+  const [editingTitles, setEditingTitles] = useState<{ [id: string]: string }>({});
+  const [editingPrices, setEditingPrices] = useState<{ [id: string]: string }>({});
   const [newModalOpen, setNewModalOpen] = useState(false);
 
   // Form para adicionar novo produto direto na vitrine
@@ -63,7 +65,15 @@ export default function ShowcaseHistoryView({
     setEditingCategories((prev) => ({ ...prev, [id]: cat }));
   };
 
-  const handleSaveDescription = (deal: DealAnalysis) => {
+  const handleTitleChange = (id: string, title: string) => {
+    setEditingTitles((prev) => ({ ...prev, [id]: title }));
+  };
+
+  const handlePriceChange = (id: string, price: string) => {
+    setEditingPrices((prev) => ({ ...prev, [id]: price }));
+  };
+
+  const handleSaveDeal = (deal: DealAnalysis) => {
     const updatedDesc = editingDescriptions[deal.id || ''] !== undefined
       ? editingDescriptions[deal.id || '']
       : deal.description;
@@ -72,8 +82,19 @@ export default function ShowcaseHistoryView({
       ? editingCategories[deal.id || '']
       : deal.category;
 
+    const updatedTitle = editingTitles[deal.id || ''] !== undefined
+      ? editingTitles[deal.id || '']
+      : deal.title;
+
+    const priceRaw = editingPrices[deal.id || ''];
+    const updatedPrice = priceRaw !== undefined
+      ? parseFloat(priceRaw.replace(',', '.')) || deal.price
+      : deal.price;
+
     onUpdateDeal({
       ...deal,
+      title: updatedTitle,
+      price: updatedPrice,
       description: updatedDesc,
       category: updatedCat,
     });
@@ -305,7 +326,7 @@ export default function ShowcaseHistoryView({
                       type="text"
                       value={currentDesc}
                       onChange={(e) => handleDescriptionChange(deal.id || '', e.target.value)}
-                      onBlur={() => handleSaveDescription(deal)}
+                      onBlur={() => handleSaveDeal(deal)}
                       placeholder="Ex: Menor preço histórico verificado na Amazon com frete grátis Prime..."
                       className="w-full py-1.5 px-3 bg-[#080b14] border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-400"
                     />
@@ -315,9 +336,9 @@ export default function ShowcaseHistoryView({
                   <div className="md:col-span-1 flex items-end justify-end">
                     <button
                       type="button"
-                      onClick={() => handleSaveDescription(deal)}
+                      onClick={() => handleSaveDeal(deal)}
                       className="w-full py-1.5 px-2 rounded-xl bg-white/[0.06] hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 border border-white/10 text-xs font-bold flex items-center justify-center gap-1 transition-colors"
-                      title="Salvar alterações de texto"
+                      title="Salvar alterações"
                     >
                       <Save className="w-3.5 h-3.5" />
                     </button>
@@ -333,8 +354,8 @@ export default function ShowcaseHistoryView({
       {/* 3. MODAL DE ADICIONAR PRODUTO MANUAL NA VITRINE                           */}
       {/* ========================================================================= */}
       {newModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
-          <div className="relative w-full max-w-lg bg-[#0c101d] border border-white/[0.12] rounded-3xl p-6 shadow-2xl space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-lg bg-[#0c101d] border border-white/[0.12] rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
               <div className="flex items-center gap-2">
                 <Star className="w-5 h-5 text-amber-400 fill-amber-400" />

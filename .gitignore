@@ -26,6 +26,7 @@ dist/
 *.sqlite
 *.sqlite3
 data/
+!Deal_Hunter_Web/src/data/
 server/data/*.db*
 server/data/*.log
 server/data/extension-token.txt

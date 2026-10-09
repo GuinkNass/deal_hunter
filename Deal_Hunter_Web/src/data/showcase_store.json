@@ -1,0 +1,58 @@
+[
+  {
+    "id": "showcase-seed-1",
+    "title": "Echo Dot 5ª Geração Smart Speaker com Alexa e Som Imersivo",
+    "description": "Caixa de som inteligente com o melhor custo-benefício da Amazon. Menor preço verificado.",
+    "price": 249.9,
+    "original_price": 429.0,
+    "discount_percent": 42,
+    "image_url": "https://m.media-amazon.com/images/I/71C8zGss8pL._AC_SL1000_.jpg",
+    "product_url": "https://www.amazon.com.br/dp/B09B8V1LZ3",
+    "store": "Amazon Brasil",
+    "category": "Eletrônicos & Smart Home",
+    "is_featured": true,
+    "created_at": "2026-10-08T12:00:00.000Z"
+  },
+  {
+    "id": "showcase-seed-2",
+    "title": "SSD Kingston A400 480GB SATA 3 Leitura 500MB/s Gravação 450MB/s",
+    "description": "Acelera a inicialização e o desempenho de computadores e notebooks com confiabilidade.",
+    "price": 139.9,
+    "original_price": 219.9,
+    "discount_percent": 36,
+    "image_url": "https://m.media-amazon.com/images/I/51r26zY3nEL._AC_SL1000_.jpg",
+    "product_url": "https://www.amazon.com.br/dp/B079XC5PVV",
+    "store": "Amazon Brasil",
+    "category": "Informática & Hardware",
+    "is_featured": true,
+    "created_at": "2026-10-08T12:00:00.000Z"
+  },
+  {
+    "id": "showcase-seed-3",
+    "title": "Fritadeira Elétrica Air Fryer Mondial Grand Family 5L Inox",
+    "description": "Capacidade família para até 5 pessoas sem óleo. Superdesconto histórico verificado.",
+    "price": 269.9,
+    "original_price": 449.9,
+    "discount_percent": 40,
+    "image_url": "https://m.media-amazon.com/images/I/61K-KzP6b2L._AC_SL1000_.jpg",
+    "product_url": "https://www.amazon.com.br/dp/B08HRYF9R8",
+    "store": "Amazon Brasil",
+    "category": "Casa & Eletrodomésticos",
+    "is_featured": true,
+    "created_at": "2026-10-08T12:00:00.000Z"
+  },
+  {
+    "id": "showcase-seed-4",
+    "title": "Smart TV 50\" 4K UHD Samsung Crystal 50DU7700 Gaming Hub",
+    "description": "Processador Crystal 4K com Gaming Hub integrado e bordas ultrafinas.",
+    "price": 1999.0,
+    "original_price": 2799.0,
+    "discount_percent": 29,
+    "image_url": "https://m.media-amazon.com/images/I/71Y8KzNf3ZL._AC_SL1000_.jpg",
+    "product_url": "https://www.amazon.com.br/dp/B0CX237K2V",
+    "store": "Amazon Brasil",
+    "category": "Eletrônicos & Smart Home",
+    "is_featured": true,
+    "created_at": "2026-10-08T12:00:00.000Z"
+  }
+]
