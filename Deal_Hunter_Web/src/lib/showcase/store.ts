@@ -104,7 +104,7 @@ export function readLocalStoreFile(): ShowcaseDealItem[] | null {
     if (fs.existsSync(filePath)) {
       const raw = fs.readFileSync(filePath, 'utf-8');
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed.map(sanitizeShowcaseDeal);
       }
     }
@@ -115,7 +115,7 @@ export function readLocalStoreFile(): ShowcaseDealItem[] | null {
       if (fs.existsSync(tmpPath)) {
         const raw = fs.readFileSync(tmpPath, 'utf-8');
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed.map(sanitizeShowcaseDeal);
         }
       }
@@ -227,20 +227,20 @@ export async function getShowcaseDeals(): Promise<ShowcaseDealItem[]> {
 
   // 3. Fallback de Persistência em Disco (Arquivo JSON local — garante sobrevivência se Supabase falhar)
   const localDeals = readLocalStoreFile();
-  if (localDeals && localDeals.length > 0) {
+  if (localDeals !== null) {
     global.__DH_SHOWCASE_CACHE__ = localDeals;
     global.__DH_SHOWCASE_CACHE_TIME__ = Date.now();
     return localDeals;
   }
 
   // 4. Fallback de Memória Global da Sessão
-  if (global.__DH_SHOWCASE_CUSTOM_DEALS__ && global.__DH_SHOWCASE_CUSTOM_DEALS__.length > 0) {
+  if (global.__DH_SHOWCASE_CUSTOM_DEALS__ !== undefined) {
     global.__DH_SHOWCASE_CACHE__ = global.__DH_SHOWCASE_CUSTOM_DEALS__;
     global.__DH_SHOWCASE_CACHE_TIME__ = Date.now();
     return global.__DH_SHOWCASE_CUSTOM_DEALS__;
   }
 
-  // 5. Fallback Final inicial apenas na primeira instalação/execução limpa
+  // 5. Fallback Final inicial apenas caso nunca tenha sido criado o arquivo local
   return CURATED_DEFAULT_DEALS;
 }
 

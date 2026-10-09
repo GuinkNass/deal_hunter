@@ -156,11 +156,29 @@ export default function ShowcaseHistoryView({
         </div>
 
         {/* Botões de Ação */}
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          {featuredDeals.some((d) => String(d.id || '').startsWith('curated-default-') || String(d.id || '').startsWith('showcase-seed-')) && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('Deseja remover todos os produtos de teste da vitrine?')) {
+                  featuredDeals
+                    .filter((d) => String(d.id || '').startsWith('curated-default-') || String(d.id || '').startsWith('showcase-seed-'))
+                    .forEach((d) => onToggleFeatured(d));
+                }
+              }}
+              className="inline-flex items-center justify-center gap-2 px-3.5 py-3 rounded-2xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold transition-all cursor-pointer"
+              title="Remover produtos de teste padrão da vitrine oficial"
+            >
+              <Trash2 className="w-4 h-4 text-rose-400" />
+              <span>Limpar Testes</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setNewModalOpen(true)}
-            className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] text-white border border-white/10 text-xs font-bold transition-all"
+            className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] text-white border border-white/10 text-xs font-bold transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4 text-cyan-400" />
             <span>Adicionar Produto</span>
@@ -168,9 +186,13 @@ export default function ShowcaseHistoryView({
 
           <button
             type="button"
-            onClick={onSyncShowcase}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSyncShowcase();
+            }}
             disabled={isSyncing}
-            className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-amber-500/30 active:scale-95 transition-all disabled:opacity-50"
+            className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-amber-500/30 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
           >
             <RefreshCw className={`w-4 h-4 text-black ${isSyncing ? 'animate-spin' : ''}`} />
             <span>{isSyncing ? 'Atualizando Vitrine...' : 'Atualizar Vitrine'}</span>

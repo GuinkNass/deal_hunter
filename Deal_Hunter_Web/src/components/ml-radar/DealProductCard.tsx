@@ -247,10 +247,18 @@ function DealProductCardComponent({
         )}
 
         {deal.is_featured && isAdmin && (
-          <span className="absolute bottom-2 left-2 z-10 px-1.5 py-0.5 rounded bg-zinc-900/95 text-amber-300 text-[10px] font-bold border border-amber-500/40 flex items-center gap-1 shadow-sm">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFeatured?.(deal, e);
+            }}
+            className="absolute bottom-2 left-2 z-10 px-2 py-0.5 rounded bg-zinc-900/95 hover:bg-zinc-800 text-amber-300 text-[10px] font-bold border border-amber-500/40 flex items-center gap-1 shadow-sm cursor-pointer transition-colors"
+            title="Clique para alternar presença na Vitrine oficial"
+          >
             <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
             Vitrine
-          </span>
+          </button>
         )}
 
         <img

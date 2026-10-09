@@ -33,7 +33,7 @@ export default function VitrineClient({ initialDeals }: VitrineClientProps) {
 
   // Atualiza quando as props do servidor mudarem
   useEffect(() => {
-    if (Array.isArray(initialDeals) && initialDeals.length > 0) {
+    if (Array.isArray(initialDeals)) {
       setDeals(initialDeals);
     }
   }, [initialDeals]);
@@ -44,7 +44,7 @@ export default function VitrineClient({ initialDeals }: VitrineClientProps) {
       setIsSyncing(true);
       const res = await fetch(`/api/showcase/deals?t=${Date.now()}`, { cache: 'no-store' });
       const json = await res.json();
-      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+      if (json.success && Array.isArray(json.data)) {
         setDeals(json.data);
       }
     } catch (err) {

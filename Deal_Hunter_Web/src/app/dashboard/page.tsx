@@ -204,22 +204,27 @@ export default function DashboardPage() {
         const showcaseRes = await fetch(`/api/showcase/deals?t=${Date.now()}`, { cache: 'no-store' });
         const showcaseJson = await showcaseRes.json();
         if (showcaseJson.success && Array.isArray(showcaseJson.data) && showcaseJson.data.length > 0) {
-          const showcaseItems: DealAnalysis[] = showcaseJson.data.map((s: any) => ({
-            id: s.id,
-            title: s.title,
-            price: Number(s.price) || 0,
-            original_price: s.original_price ? Number(s.original_price) : null,
-            discount_percent: s.discount_percent || null,
-            image_url: s.image_url || null,
-            product_url: s.product_url,
-            store: s.store || 'Amazon Brasil',
-            category: s.category || 'Geral',
-            description: s.description || 'Oferta selecionada pela curadoria Deal Hunter Pro.',
-            is_featured: true,
-            verdict: 'Viável',
-            status: 'completed',
-            created_at: s.created_at || new Date().toISOString(),
-          }));
+          const showcaseItems: DealAnalysis[] = showcaseJson.data
+            .filter((s: any) => {
+              const id = String(s.id || '');
+              return !id.startsWith('curated-default-') && !id.startsWith('showcase-seed-');
+            })
+            .map((s: any) => ({
+              id: s.id,
+              title: s.title,
+              price: Number(s.price) || 0,
+              original_price: s.original_price ? Number(s.original_price) : null,
+              discount_percent: s.discount_percent || null,
+              image_url: s.image_url || null,
+              product_url: s.product_url,
+              store: s.store || 'Amazon Brasil',
+              category: s.category || 'Geral',
+              description: s.description || 'Oferta selecionada pela curadoria Deal Hunter Pro.',
+              is_featured: true,
+              verdict: 'Viável',
+              status: 'completed',
+              created_at: s.created_at || new Date().toISOString(),
+            }));
 
           const seenUrls = new Set<string>();
           const seenIds = new Set<string>();
@@ -408,7 +413,8 @@ export default function DashboardPage() {
         return [updated, ...prev];
       }
     });
-    setSelectedDealForDetail(updated);
+    // Atualiza o modal de detalhes apenas se já estiver aberto para este mesmo produto
+    setSelectedDealForDetail((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev));
 
     // Se o item estiver marcado como destaque, garante gravação no localStorage
     if (updated.is_featured && typeof window !== 'undefined') {
@@ -597,11 +603,17 @@ export default function DashboardPage() {
   const handleSyncShowcase = useCallback(async () => {
     setSyncingShowcase(true);
     try {
-      const activeFeatured = deals.filter((d) => Boolean(d.is_featured));
+      // Filtra produtos com estrela, removendo sementes residuais de teste
+      const activeFeatured = deals
+        .filter((d) => Boolean(d.is_featured))
+        .filter((d) => {
+          const id = String(d.id || '');
+          return !id.startsWith('curated-default-') && !id.startsWith('showcase-seed-');
+        });
 
       if (activeFeatured.length === 0) {
-        setNotification('⚠️ Nenhuma oferta com estrela acesa no momento. Marque ao menos um produto no Radar ou no Histórico da Vitrine!');
-        setTimeout(() => setNotification(null), 4000);
+        setNotification('⚠️ Nenhuma oferta válida marcada para a vitrine. Clique na estrela (★) de algum produto no Radar para adicioná-lo à vitrine!');
+        setTimeout(() => setNotification(null), 4500);
         return;
       }
 
@@ -614,6 +626,7 @@ export default function DashboardPage() {
         body: JSON.stringify({
           deals: activeFeatured,
           userId: sessionUser?.id,
+          userEmail: sessionUser?.email,
         }),
       });
 
@@ -625,6 +638,9 @@ export default function DashboardPage() {
             const featuredKeys = resData.data.flatMap((d: any) => [d.id, d.product_url]).filter(Boolean);
             localStorage.setItem('dealhunter_featured_deals', JSON.stringify(featuredKeys));
           } catch {}
+        }
+        if (authToken) {
+          loadDeals(authToken, false);
         }
       } else {
         setNotification(`⚠️ ${resData.error || 'Erro ao sincronizar vitrine externa.'}`);
