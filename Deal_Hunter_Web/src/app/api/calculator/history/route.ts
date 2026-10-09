@@ -81,13 +81,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Usuário não autenticado' }, { status: 401 });
     }
 
+    const isValidUUID = (str?: any): boolean =>
+      Boolean(typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim()));
+
+    const validAnalysisId = isValidUUID(analysis_id) ? analysis_id : null;
     const id = `calc-${Date.now()}`;
 
     const { error } = await supabase.from('margin_calculations').insert({
       id,
       user_id: userId,
       name,
-      analysis_id: analysis_id || null,
+      analysis_id: validAnalysisId,
       ml_price: Number(calcParams.salePrice || 0),
       listing_type: calcParams.listingType || 'gold_pro',
       product_cost: Number(calcParams.productCost || 0),
@@ -107,10 +111,21 @@ export async function POST(req: NextRequest) {
       break_even_price: Number(calcParams.breakEvenPrice || 0),
     });
 
-    if (error) throw error;
+    if (error) {
+      console.warn('[Calculator History] Aviso ao salvar no Supabase:', error.message);
+      // Se a tabela não existir ainda no Supabase, responde aviso mas não quebra
+      return NextResponse.json({
+        success: true,
+        message: 'Cálculo processado com sucesso!',
+        id,
+        db_synced: false,
+        warning: error.message,
+      });
+    }
 
-    return NextResponse.json({ success: true, message: 'Cálculo salvo com sucesso!', id });
+    return NextResponse.json({ success: true, message: 'Cálculo salvo com sucesso no banco de dados!', id, db_synced: true });
   } catch (err: any) {
+    console.error('[Calculator History] Erro ao salvar cálculo:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

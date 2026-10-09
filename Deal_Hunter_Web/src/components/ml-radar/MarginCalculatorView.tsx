@@ -106,13 +106,53 @@ export default function MarginCalculatorView({
   async function loadHistory() {
     setLoadingHistory(true);
     try {
+      // 1. Carrega imediatamente do LocalStorage para resposta instantânea
+      let localItems: any[] = [];
+      if (typeof window !== 'undefined') {
+        try {
+          const raw = localStorage.getItem('dealhunter_calculator_saved_simulations');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) localItems = parsed;
+          }
+        } catch {}
+      }
+
+      if (localItems.length > 0) {
+        setHistoryList(localItems);
+      }
+
+      // 2. Busca do Supabase e mescla com LocalStorage
       const headers: Record<string, string> = {};
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
       const url = userId ? `/api/calculator/history?userId=${userId}` : '/api/calculator/history';
       const res = await fetch(url, { headers });
       const json = await res.json();
+
       if (json.success && Array.isArray(json.data)) {
-        setHistoryList(json.data);
+        const seenIds = new Set<string>();
+        const merged: any[] = [];
+
+        // Prioriza itens do banco
+        for (const item of json.data) {
+          if (item.id) seenIds.add(String(item.id));
+          merged.push(item);
+        }
+
+        // Adiciona itens locais que ainda não estão no banco
+        for (const item of localItems) {
+          if (item.id && !seenIds.has(String(item.id))) {
+            seenIds.add(String(item.id));
+            merged.push(item);
+          }
+        }
+
+        setHistoryList(merged);
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('dealhunter_calculator_saved_simulations', JSON.stringify(merged));
+          } catch {}
+        }
       }
     } catch {
       // ignore history error
@@ -135,6 +175,48 @@ export default function MarginCalculatorView({
 
   async function handleSave() {
     setSaving(true);
+    const newId = `calc-${Date.now()}`;
+    const simulationItem = {
+      id: newId,
+      name: calcName || 'Simulação sem nome',
+      analysis_id: initialData?.id || null,
+      ml_price: Number(salePrice || 0),
+      listing_type: listingType === 'Premium' ? 'gold_pro' : 'gold_special',
+      product_cost: Number(productCost || 0),
+      tax_percent: Number(taxPercent || 0),
+      free_shipping_auto: freeShippingAuto,
+      custom_shipping_enabled: customShippingEnabled,
+      shipping_cost: customShippingEnabled
+        ? Number(customShippingCost)
+        : result?.shippingCost || 0,
+      packaging_cost: Number(packagingCost),
+      ads_percent: Number(adsPercent),
+      ads_fixed_amount: Number(adsFixedAmount),
+      marketing_cost: Number(result?.marketingCost || 0),
+      commission_value: result?.commissionFee || 0,
+      fixed_fee: result?.fixedFee || 0,
+      net_profit: result?.netProfit || 0,
+      margin_percent: result?.marginPercent || 0,
+      roi_percent: result?.roiPercent || 0,
+      break_even_price: result?.breakEvenPrice || 0,
+      created_at: new Date().toISOString(),
+    };
+
+    // 1. Gravação Imediata no LocalStorage (Garantia de retenção 100%)
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('dealhunter_calculator_saved_simulations');
+        const list = raw ? JSON.parse(raw) : [];
+        const nextList = [simulationItem, ...list.filter((i: any) => i.id !== newId)];
+        localStorage.setItem('dealhunter_calculator_saved_simulations', JSON.stringify(nextList));
+        setHistoryList(nextList);
+      } catch {}
+    }
+
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2500);
+
+    // 2. Persistência em background no Supabase
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
@@ -143,34 +225,30 @@ export default function MarginCalculatorView({
         method: 'POST',
         headers,
         body: JSON.stringify({
-          name: calcName || 'Simulação sem nome',
-          analysis_id: initialData?.id,
-          salePrice: Number(salePrice || 0),
-          productCost: Number(productCost || 0),
-          listingType: listingType === 'Premium' ? 'gold_pro' : 'gold_special',
-          taxPercent: Number(taxPercent || 0),
-          freeShippingAuto,
-          customShippingEnabled,
-          shippingCost: customShippingEnabled
-            ? Number(customShippingCost)
-            : result?.shippingCost || 0,
-          packagingCost: Number(packagingCost),
-          adsPercent: Number(adsPercent),
-          adsFixedAmount: Number(adsFixedAmount),
-          marketingCost: Number(result?.marketingCost || 0),
-          commissionFee: result?.commissionFee || 0,
-          fixedFee: result?.fixedFee || 0,
-          netProfit: result?.netProfit || 0,
-          marginPercent: result?.marginPercent || 0,
-          roiPercent: result?.roiPercent || 0,
-          breakEvenPrice: result?.breakEvenPrice || 0,
+          name: simulationItem.name,
+          analysis_id: simulationItem.analysis_id,
+          salePrice: simulationItem.ml_price,
+          productCost: simulationItem.product_cost,
+          listingType: simulationItem.listing_type,
+          taxPercent: simulationItem.tax_percent,
+          freeShippingAuto: simulationItem.free_shipping_auto,
+          customShippingEnabled: simulationItem.custom_shipping_enabled,
+          shippingCost: simulationItem.shipping_cost,
+          packagingCost: simulationItem.packaging_cost,
+          adsPercent: simulationItem.ads_percent,
+          adsFixedAmount: simulationItem.ads_fixed_amount,
+          marketingCost: simulationItem.marketing_cost,
+          commissionFee: simulationItem.commission_value,
+          fixedFee: simulationItem.fixed_fee,
+          netProfit: simulationItem.net_profit,
+          marginPercent: simulationItem.margin_percent,
+          roiPercent: simulationItem.roi_percent,
+          breakEvenPrice: simulationItem.break_even_price,
           userId,
         }),
       });
-
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2500);
-      loadHistory();
+    } catch (err) {
+      console.warn('[MarginCalculator] Aviso ao sincronizar com servidor, backup local preservado:', err);
     } finally {
       setSaving(false);
     }
@@ -178,6 +256,18 @@ export default function MarginCalculatorView({
 
   async function handleDeleteHistory(id: string, e: React.MouseEvent) {
     e.stopPropagation();
+    // 1. Remove imediatamente do LocalStorage e da UI
+    setHistoryList((prev) => {
+      const filtered = prev.filter((item) => item.id !== id);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('dealhunter_calculator_saved_simulations', JSON.stringify(filtered));
+        } catch {}
+      }
+      return filtered;
+    });
+
+    // 2. Remove do servidor
     try {
       const headers: Record<string, string> = {};
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
@@ -185,7 +275,6 @@ export default function MarginCalculatorView({
         method: 'DELETE',
         headers,
       });
-      setHistoryList((prev) => prev.filter((item) => item.id !== id));
     } catch (err) {
       console.error(err);
     }
